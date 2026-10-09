@@ -1,0 +1,372 @@
+/* ============================================================================
+ * tokens.css - 全局设计变量、重置、滚动条与基础样式
+ * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * ========================================================================== */
+
+:root {
+            /* ===== osu! 官方暗粉色与暗黑界面调色板 (osu!web Dark Theme) ===== */
+            --primary: #ff66aa;
+            --primary-light: #ff8cb9;
+            --primary-dark: #e0548b;
+            --primary-deep: #b3396d;
+            --primary-glow: rgba(255, 102, 170, 0.35);
+
+            --bg-dark: #18171c;
+            --bg-dark-secondary: #222028;
+            --bg-surface: rgba(34, 32, 40, 0.85);
+            --bg-surface-elevated: #2a2734;
+            --panel-bg: rgba(26, 24, 32, 0.92);
+
+            --text-main: #ffffff;
+            --text-secondary: #c8c6d1;
+            --text-muted: #8d8a99;
+
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-medium: rgba(255, 255, 255, 0.14);
+            --border-pink: rgba(255, 102, 170, 0.4);
+
+            /* ===== 现代化简洁无衬线数字与英文字体规范 (Tabular-nums / Clean Modern Sans) ===== */
+            --font-clean: "Torus", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-clean);
+            background: #14121a !important;
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #bg-overlay,
+        #bg-image {
+            display: none !important;
+        }
+
+        /* ===== 自定义滚动条风格 (osu! 暗粉色风格) ===== */
+        /* Firefox 滚动条规范 */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(224, 84, 139, 0.5) rgba(0, 0, 0, 0.25);
+        }
+
+        /* WebKit 滚动条全局默认 (Chrome, Edge, Safari) */
+        ::-webkit-scrollbar {
+            width: 7px;
+            height: 7px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            transition: background 0.15s ease;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.38);
+            box-shadow: none;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+
+        .sidebar {
+            display: none !important;
+        }
+
+        /* 侧边栏所有主要区块防止被 flex 挤压变形 */
+        .sidebar > * {
+            flex-shrink: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* 正在手动拖动调整宽度时禁用过渡，确保 1:1 响应鼠标 */
+        body.resizing-sidebar .sidebar,
+        .sidebar.resizing {
+            transition: none !important;
+        }
+
+        /* 侧边栏垂直上下滑动滚动条风格专用深度适配 */
+        .sidebar::-webkit-scrollbar {
+            width: 7px;
+        }
+
+        .sidebar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            margin: 6px 0;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 6px;
+            border: none;
+            transition: background 0.15s ease;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.35);
+            box-shadow: none;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb:active {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* ===== 侧边栏拖拽调整宽度手柄 (Resizable Sidebar) ===== */
+        .sidebar-resizer {
+            display: none !important;
+        }
+
+        /* 纵向拖拽分割线 */
+        .sidebar-resizer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 5px;
+            width: 2px;
+            background: transparent;
+            transition: background 0.15s ease;
+        }
+
+        /* 居中拖拽把手图标线 */
+        .resizer-handle-line {
+            width: 4px;
+            height: 38px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.25);
+            position: relative;
+            z-index: 2;
+            transition: background 0.15s ease, height 0.15s ease;
+        }
+
+        .sidebar-resizer:hover::before,
+        .sidebar-resizer.active::before {
+            background: rgba(255, 255, 255, 0.4);
+            box-shadow: none;
+        }
+
+        .sidebar-resizer:hover .resizer-handle-line,
+        .sidebar-resizer.active .resizer-handle-line {
+            background: #ffffff;
+            height: 52px;
+            box-shadow: none;
+        }
+
+        /* 拖拽过程中全局锁定光标与禁止文字选中 */
+        body.resizing-sidebar {
+            cursor: col-resize !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+        }
+
+        body.resizing-sidebar * {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            pointer-events: none !important;
+        }
+
+        body.resizing-sidebar .sidebar-resizer {
+            pointer-events: auto !important;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin: 0 0 10px 0;
+            color: var(--primary);
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            width: 100%;
+        }
+
+        .upload-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .upload-group label {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: 0.3px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .file-upload-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-wrapper.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .file-upload-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.92rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.92);
+            cursor: pointer;
+            position: relative;
+            transition: all 0.15s ease;
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: none;
+        }
+
+        .file-upload-wrapper:hover .file-upload-btn {
+            background: #ffffff;
+            color: #111118;
+            box-shadow: none;
+            transform: none;
+        }
+
+        .file-upload-wrapper:active .file-upload-btn {
+            transform: scale(0.98);
+            background: #e2e2e8;
+        }
+
+        .file-upload-btn svg {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
+
+        .file-name {
+            margin-top: 6px;
+            font-size: 0.8rem;
+            color: #ffffff;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-height: 1em;
+            transition: color 0.3s;
+        }
+
+        .file-name.loaded {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .checkbox-setting-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.88rem;
+            font-weight: 500;
+            color: #ffffff;
+            user-select: none;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            width: 100%;
+        }
+
+        .checkbox-setting-label:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(224, 84, 139, 0.5);
+        }
+
+        .checkbox-setting-label input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            outline: none;
+            position: relative;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            margin: 0;
+            padding: 0;
+        }
+
+        .checkbox-setting-label input[type="checkbox"]:checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .checkbox-setting-label input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            left: 4.5px;
+            top: 1.5px;
+            width: 4px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        /* 全局滑动条重置：彻底消除边距和内边距，保证滑块能拉到最左端(最低)和最右端(到头) */
+        input[type="range"] {
+            padding: 0 !important;
+            margin: 0;
+            border: none !important;
+            outline: none;
+            background: transparent;
+            box-sizing: border-box;
+        }
+
+        .upload-group input[type="range"] {
+            width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 0 !important;
+            margin: 8px 0 !important;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+            border: none !important;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        .upload-group input[type="range"]::-webkit-slider-thumb {
+            box-shadow: none;
+        }

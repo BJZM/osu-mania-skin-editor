@@ -1,0 +1,46 @@
+            <!-- 左侧资源信息面板 (谱面、皮肤与难度详情) -->
+            <aside class="left-info-panel" id="leftInfoPanel" aria-label="资源信息面板">
+                <!-- 谱面信息区块 (纵向排列) -->
+                <div class="info-section beatmap-section">
+                    <span class="info-section-tag">谱面</span>
+                    <span class="info-file-chip" id="oszFileName" style="display: none;">未导入</span>
+                    <div class="info-main-title" id="infoBeatmapTitle" title="歌曲标题">等待导入谱面...</div>
+                    <div class="info-sub-title" id="infoBeatmapArtist" title="艺术家">-</div>
+                    <div class="info-meta-text" id="infoBeatmapMapper"></div>
+                </div>
+
+                <!-- 皮肤信息区块 (纵向排列) -->
+                <div class="info-section skin-section">
+                    <span class="info-section-tag">皮肤</span>
+                    <span class="info-file-chip" id="oskFileName" style="display: none;">默认皮肤</span>
+                    <div class="info-main-title" id="infoSkinName" title="皮肤名称">默认 / 内置皮肤</div>
+                    <div class="info-sub-title" id="infoSkinAuthor" title="皮肤作者">-</div>
+                </div>
+
+                <!-- 难度详情区块 (纵向排列) -->
+                <div class="info-section diff-section" id="statsPanel">
+                    <span class="info-section-tag">难度</span>
+                    <div class="diff-stats-list">
+                        <div class="diff-stat-card" title="难度名称">
+                            <span class="diff-stat-lbl">难度</span>
+                            <span class="diff-stat-val stats-value" id="stat-diff">-</span>
+                        </div>
+                        <div class="diff-stat-card" title="Mania 键数">
+                            <span class="diff-stat-lbl">键数</span>
+                            <span class="diff-stat-val stats-value" id="stat-keys">-</span>
+                        </div>
+                        <div class="diff-stat-card" title="歌曲总时长">
+                            <span class="diff-stat-lbl">时长</span>
+                            <span class="diff-stat-val stats-value" id="stat-time">-</span>
+                        </div>
+                        <div class="diff-stat-card" title="单键音符数">
+                            <span class="diff-stat-lbl">单键</span>
+                            <span class="diff-stat-val stats-value" id="stat-notes">-</span>
+                        </div>
+                        <div class="diff-stat-card" title="长条音符数">
+                            <span class="diff-stat-lbl">长条</span>
+                            <span class="diff-stat-val stats-value" id="stat-holds">-</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>

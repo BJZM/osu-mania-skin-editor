@@ -1,0 +1,77 @@
+    <!-- 详细设置抽屉/弹窗 -->
+    <div class="skin-editor-modal" id="skinEditorModal">
+        <div class="skin-editor-backdrop" id="skinEditorBackdrop"></div>
+        <div class="skin-editor-dialog" id="skinEditorDialog">
+            <div class="skin-editor-header" id="skinEditorHeader">
+                <div class="skin-editor-title-area">
+                    <span class="header-drag-handle" title="按住拖拽窗口移动位置">⠿</span>
+                    <div class="header-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </div>
+                    <div class="header-titles">
+                        <h2>详细设置</h2>
+                    </div>
+                </div>
+                <div class="skin-editor-header-actions">
+                    <button type="button" class="btn-icon" id="dockSkinEditorBtn" title="恢复靠右吸附位置">⤺</button>
+                    <button type="button" class="btn-icon" id="collapseSkinEditorBtn" title="折叠/展开窗口">−</button>
+                    <button type="button" class="btn-icon" id="closeSkinEditorBtn" title="关闭面板 (Esc)">✕</button>
+                </div>
+            </div>
+
+            <div class="skin-editor-toolbar">
+                <div class="search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="paramSearchInput" placeholder="快速搜索参数名、中文名称或说明 (如: 判定线, ColumnWidth, 402)...">
+                    <button type="button" class="clear-search-btn" id="clearSearchBtn" title="清空搜索">✕</button>
+                </div>
+                <div class="key-selector-group" id="keySelectorGroup">
+                    <span class="key-label">Mania 键位:</span>
+                    <div class="key-pills" id="keyPillsContainer">
+                        <!-- 动态生成的 4K, 7K 等键数按钮 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分类标签页导航 -->
+            <div class="skin-editor-tabs" id="skinEditorTabs">
+                <button type="button" class="tab-btn active" data-tab="mania">Mania 模式 (<span id="activeKeyCountTabLabel">4K</span>)</button>
+                <button type="button" class="tab-btn" data-tab="textures">贴图</button>
+                <button type="button" class="tab-btn" data-tab="fonts">字体与数字</button>
+                <button type="button" class="tab-btn" data-tab="general">基础设置</button>
+                <button type="button" class="tab-btn" data-tab="raw">skin.ini文本</button>
+            </div>
+
+            <!-- 参数列表容器 -->
+            <div class="skin-editor-body" id="skinEditorBody">
+                <div class="param-list-container" id="paramListContainer">
+                    <!-- 参数卡片动态渲染 -->
+                </div>
+                <div class="raw-ini-container" id="rawIniContainer" style="display: none;">
+                    <div class="raw-ini-toolbar">
+                        <span>预览当前修改并逆向计算生成的完整 skin.ini 内容：</span>
+                        <button type="button" class="copy-raw-btn" id="copyRawIniBtn">复制全文</button>
+                    </div>
+                    <textarea id="rawIniTextarea" readonly spellcheck="false"></textarea>
+                </div>
+            </div>
+
+            <!-- 底部操作栏 -->
+            <div class="skin-editor-footer">
+                <div class="footer-left"></div>
+                <div class="footer-right">
+                    <button type="button" class="footer-btn" id="modalUndoBtn" title="撤回上一步操作 (快捷键 Ctrl+Z)" style="opacity: 0.45; cursor: not-allowed;">撤回 (Ctrl+Z)</button>
+                    <button type="button" class="footer-btn" id="modalRevertSkinBtn" title="将所有修改过的参数和贴图复原为导入时的原始状态">复原初始皮肤</button>
+                    <button type="button" class="footer-btn" id="resetSkinParamsBtn">恢复此组默认值</button>
+                    <button type="button" class="footer-btn" id="modalExportOskBtn">导出为 .osk</button>
+                    <button type="button" class="footer-btn" id="modalExportZipBtn">导出为 .zip</button>
+                </div>
+            </div>
+        </div>
+    </div>

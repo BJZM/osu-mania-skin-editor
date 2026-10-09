@@ -1,0 +1,748 @@
+/* ============================================================================
+ * shell.css - 画布顶部工具栏
+ * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 画布顶部工具栏 (整合品牌、导入与工具) ===== */
+        .canvas-top-bar {
+            width: 100%;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 0 12px;
+            background: #14121a !important;
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            box-sizing: border-box;
+            flex-shrink: 0;
+            z-index: 100;
+            overflow: visible !important;
+        }
+
+        .canvas-top-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .canvas-top-tools-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            flex-wrap: nowrap;
+        }
+
+        .canvas-top-tools-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            flex-wrap: nowrap;
+        }
+
+        .topbar-divider {
+            width: 1px;
+            height: 18px;
+            background: rgba(255, 255, 255, 0.1);
+            flex-shrink: 0;
+            margin: 0 2px;
+        }
+
+        .topbar-divider:last-of-type {
+            margin: 0 4px;
+        }
+
+        /* 顶部导入按钮 */
+        .topbar-file-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+        }
+
+        .topbar-file-item input[type="file"] {
+            display: none;
+        }
+
+        .topbar-file-item.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .topbar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 32px;
+            padding: 0 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            border-radius: 6px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            user-select: none;
+            box-sizing: border-box;
+        }
+
+        .topbar-btn svg {
+            flex-shrink: 0;
+        }
+
+        .topbar-btn:hover {
+            background: #ffffff;
+            color: #111118;
+        }
+
+        .topbar-btn:active {
+            transform: scale(0.98);
+            background: #e2e2e8;
+        }
+
+        .topbar-ext-tag {
+            font-size: 0.68rem;
+            font-weight: 700;
+            opacity: 0.7;
+            background: rgba(0, 0, 0, 0.25);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        .topbar-btn:hover .topbar-ext-tag {
+            background: rgba(0, 0, 0, 0.12);
+            color: #111118;
+        }
+
+        .topbar-file-chip {
+            display: none;
+            max-width: 105px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.74rem;
+            padding: 2px 7px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
+            border: none;
+            color: #ff8cb9;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+
+        .topbar-file-chip.loaded {
+            display: inline-block;
+        }
+
+        /* 顶部难度选择器一体化下拉菜单 (与导出皮肤样式一致) */
+        #diffDropdownWrapper {
+            position: relative;
+            flex: 0 0 auto;
+            z-index: 101;
+        }
+
+        #diffSelectBtn {
+            height: 32px;
+            padding: 0 10px;
+            max-width: 240px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #diffSelectLabel {
+            max-width: 175px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        #diffMenu {
+            min-width: 280px;
+            max-width: 360px;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        #diffMenu::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        #diffMenu::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .diff-badge-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 5px;
+            color: #ffffff;
+            min-width: 28px;
+            height: 22px;
+            box-sizing: border-box;
+            transition: all 0.15s ease;
+        }
+
+        .dropdown-item:hover .diff-badge-icon {
+            border-color: rgba(255, 102, 170, 0.5);
+            color: #ff66aa;
+        }
+
+        .dropdown-item.active {
+            background: rgba(255, 102, 170, 0.16);
+            border: 1px solid rgba(255, 102, 170, 0.35);
+        }
+
+        .dropdown-item.active .title {
+            color: #ff66aa;
+        }
+
+        .dropdown-item.active .diff-badge-icon {
+            background: #ff66aa;
+            color: #ffffff;
+            border-color: #ff66aa;
+        }
+
+        /* 顶部原有工具按钮优化 */
+        .canvas-top-bar .tool-btn {
+            flex: 0 0 auto;
+            height: 32px;
+            padding: 0 9px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        .canvas-top-bar .dropdown-wrapper {
+            flex: 0 0 auto;
+            position: relative;
+            z-index: 101;
+        }
+
+        .canvas-top-switch {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: none;
+            height: 32px;
+            box-sizing: border-box;
+        }
+
+        .canvas-top-switch .switch-label {
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        
+        /* ===== 主舞台区域 (左侧信息栏与画布同级水平排布，保证画布永不被遮挡) ===== */
+        .player-main-area {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            width: 100%;
+            flex: 1 1 auto;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+            background: #14121a !important;
+        }
+
+        /* ===== 左侧资源信息面板 (纵向排列，独立占据画布左侧区域) ===== */
+        .left-info-panel {
+            position: relative;
+            width: 220px;
+            height: 100%;
+            flex-shrink: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 10;
+            background: #14121a !important;
+            border: none;
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0;
+            padding: 14px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: none;
+            box-sizing: border-box;
+            user-select: none;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+        }
+
+        .left-info-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .left-info-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+
+        .left-panel-header {
+            display: none !important;
+        }
+
+        .left-info-panel .info-section {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .left-info-panel .info-section + .info-section {
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .info-section-tag {
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .info-file-chip {
+            display: none !important;
+        }
+
+        .info-file-chip.loaded {
+            display: none !important;
+        }
+
+        .info-main-title {
+            font-size: 0.94rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.35;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .info-sub-title {
+            font-size: 0.82rem;
+            color: rgba(255, 255, 255, 0.65);
+            line-height: 1.35;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .info-meta-text {
+            font-size: 0.76rem;
+            color: rgba(255, 255, 255, 0.45);
+            margin-top: 1px;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .info-diff-badge {
+            display: none !important;
+        }
+
+        .diff-stats-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+            margin-top: 4px;
+            box-sizing: border-box;
+        }
+
+        .diff-stat-card {
+            background: rgba(0, 0, 0, 0.32);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 5px;
+            padding: 6px 10px;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+            transition: background 0.15s ease;
+        }
+
+        .diff-stat-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .diff-stat-lbl {
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 500;
+            flex-shrink: 0;
+            font-family: var(--font-clean);
+        }
+
+        .diff-stat-val {
+            font-size: 0.88rem;
+            color: #ffffff;
+            font-weight: 700;
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.2px;
+            max-width: 125px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: right;
+        }
+
+        /* 全屏时隐藏左侧面板 */
+        .canvas-wrapper:fullscreen ~ .left-info-panel,
+        .canvas-wrapper:-webkit-full-screen ~ .left-info-panel,
+        :fullscreen .left-info-panel,
+        .player-main-area:has(:fullscreen) .left-info-panel {
+            display: none !important;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            flex: 0 1 auto;
+            aspect-ratio: 16 / 9;
+            height: calc(100% - 24px);
+            max-height: calc(100vh - 128px);
+            max-width: calc(100vw - 244px);
+            margin: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 28px rgba(0, 0, 0, 0.55);
+            background: #000 !important;
+        }
+
+        .canvas-wrapper:fullscreen,
+        .canvas-wrapper:-webkit-full-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
+            aspect-ratio: unset;
+            border-radius: 0;
+            box-shadow: none;
+            background: #000;
+            z-index: 99999;
+        }
+
+        /* ===== 全屏悬浮按钮 ===== */
+        .fullscreen-btn {
+            position: absolute;
+            bottom: 14px;
+            right: 14px;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: rgba(20, 16, 32, 0.65);
+            border: none;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            backdrop-filter: blur(8px);
+            opacity: 0.45;
+            transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+            box-shadow: none;
+            padding: 0;
+            flex: none;
+        }
+
+        .canvas-wrapper:hover .fullscreen-btn {
+            opacity: 0.85;
+        }
+
+        .fullscreen-btn:hover {
+            opacity: 1 !important;
+            transform: none;
+            background: #ffffff;
+            color: #111118;
+            box-shadow: none;
+        }
+
+        .fullscreen-btn:active {
+            transform: scale(0.96);
+            background: #e2e2e8;
+        }
+
+        .fullscreen-btn svg {
+            width: 19px;
+            height: 19px;
+            transition: transform 0.2s ease;
+            pointer-events: none;
+        }
+
+        .fullscreen-btn .exit-icon {
+            display: none;
+        }
+
+        .canvas-wrapper:fullscreen .fullscreen-btn .enter-icon,
+        .canvas-wrapper:-webkit-full-screen .fullscreen-btn .enter-icon {
+            display: none;
+        }
+
+        .canvas-wrapper:fullscreen .fullscreen-btn .exit-icon,
+        .canvas-wrapper:-webkit-full-screen .fullscreen-btn .exit-icon {
+            display: block;
+        }
+
+        canvas {
+            background: #000;
+            width: 100%;
+            height: 100%;
+            display: block;
+            transition: filter 0.3s ease;
+        }
+
+        canvas.blurred {
+            filter: blur(8px) brightness(0.65);
+        }
+
+        /* ===== 画布中央加载进度遮罩 (osu! 风格) ===== */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(15, 12, 41, 0.35);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 5;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .loading-card {
+            width: 380px;
+            background: rgba(24, 20, 37, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 24px 28px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .loading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .loading-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .loading-percent {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 4px;
+            transition: width 0.15s ease-out;
+            box-shadow: none;
+        }
+
+        .loading-file-text {
+            font-size: 0.8rem;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: var(--font-clean);
+        }
+
+        /* ===== 右上角通知提示组件 (osu! 样式 - 适配全新紧凑现代化 UI) ===== */
+        .toast-container {
+            position: fixed;
+            top: 56px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 99999;
+            pointer-events: none;
+            max-width: calc(100vw - 32px);
+        }
+
+        .toast {
+            min-width: 200px;
+            max-width: 320px;
+            background: rgba(20, 18, 28, 0.94);
+            border-left: 3px solid #ff66aa;
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px);
+            color: #ffffff;
+            font-size: 0.78rem;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+            pointer-events: auto;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            box-sizing: border-box;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left-color: #ff4d6d;
+        }
+
+        .toast.error .toast-title {
+            color: #ff4d6d;
+        }
+
+        .toast.success {
+            border-left-color: #55e6a5;
+        }
+
+        .toast.success .toast-title {
+            color: #55e6a5;
+        }
+
+        .toast-title {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #ff66aa;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            line-height: 1.2;
+        }
+
+        .toast-title svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            stroke-width: 2.2;
+        }
+
+        .toast-close-btn {
+            margin-left: auto;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.95rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: color 0.15s, background-color 0.15s;
+        }
+
+        .toast-close-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .toast-file-list {
+            margin-top: 6px;
+            max-height: 110px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 102, 170, 0.2);
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-family: var(--font-clean);
+            font-size: 0.68rem;
+            color: #ff9ebb;
+            white-space: pre-line;
+            word-break: break-all;
+            user-select: text;
+        }
+
+        .toast-file-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .toast-file-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 102, 170, 0.4);
+            border-radius: 2px;
+        }
+
+        .toast-msg {
+            color: rgba(255, 255, 255, 0.85);
+            line-height: 1.35;
+            font-size: 0.72rem;
+            word-break: break-word;
+        }
+
+        /* ==========================================================================

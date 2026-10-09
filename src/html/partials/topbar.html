@@ -1,0 +1,129 @@
+        <!-- 画布顶部工具栏 (整合品牌、导入与工具) -->
+        <div class="canvas-top-bar" id="canvasTopBar">
+            <div class="canvas-top-tools-left">
+                <!-- 导入谱面 (.OSZ) -->
+                <div class="topbar-file-item" id="oszWrapper">
+                    <input type="file" id="oszInput" accept=".osz,.zip,.osu">
+                    <label for="oszInput" class="topbar-btn osz-btn" title="导入谱面文件 (.osz / .zip / .osu)">
+                        <span>导入谱面</span>
+                        <span class="topbar-ext-tag">.OSZ</span>
+                    </label>
+                    
+                </div>
+
+                <!-- 导入皮肤 (.OSK) -->
+                <div class="topbar-file-item" id="oskWrapper">
+                    <input type="file" id="oskInput" accept=".osk,.zip">
+                    <label for="oskInput" class="topbar-btn osk-btn" title="导入皮肤文件 (.osk / .zip)">
+                        <span>导入皮肤</span>
+                        <span class="topbar-ext-tag">.OSK</span>
+                    </label>
+                    
+                </div>
+
+                <!-- 难度选择下拉菜单 -->
+                <div class="dropdown-wrapper" id="diffDropdownWrapper">
+                    <button type="button" class="tool-btn" id="diffSelectBtn" title="选择谱面难度">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                        <span id="diffSelectLabel">选择难度 &#9662;</span>
+                    </button>
+                    <div class="dropdown-menu" id="diffMenu">
+                        <div class="dropdown-item empty" style="color: rgba(255, 255, 255, 0.45); cursor: default; justify-content: center; padding: 10px; font-size: 0.78rem;">
+                            等待导入谱面...
+                        </div>
+                    </div>
+                    <select id="diffSelect" class="topbar-diff-select" style="display: none;" title="选择谱面难度">
+                        <option value="">等待导入...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="canvas-top-tools-right">
+                <button type="button" class="tool-btn" id="openSkinEditorBtn" title="打开详细设置面板 (快捷键 E)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    <span>详细设置</span>
+                </button>
+                <div class="dropdown-wrapper" id="exportDropdownWrapper">
+                    <button type="button" class="tool-btn" id="exportSkinBtn" title="将所有修改逆向保存并打包导出">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span>导出皮肤 &#9662; </span>
+                    </button>
+                    <div class="dropdown-menu" id="exportMenu">
+                        <button type="button" class="dropdown-item" id="exportOskBtn">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                                </svg>
+                            </span>
+                            <div class="item-text">
+                                <span class="title">导出为 .osk (推荐)</span>
+                                <span class="desc">osu! 官方原生皮肤包，双击即可直接导入游戏</span>
+                            </div>
+                        </button>
+                        <button type="button" class="dropdown-item" id="exportZipBtn">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                            </span>
+                            <div class="item-text">
+                                <span class="title">导出为 .zip</span>
+                                <span class="desc">标准压缩包，便于在电脑中查看与备份</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+                <button type="button" class="tool-btn" id="sidebarRevertSkinBtn" title="将所有修改过的参数和贴图复原为导入时的原始状态">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path>
+                        <path d="M3 3v5h5"></path>
+                    </svg>
+                    <span>复原初始</span>
+                </button>
+                <button type="button" class="tool-btn" id="canvasUndoBtn" title="撤回上一步操作 (快捷键 Ctrl+Z)" style="opacity: 0.45; cursor: not-allowed;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 7v6h6"></path>
+                        <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+                    </svg>
+                    <span>撤回 (Ctrl+Z)</span>
+                </button>
+                <button type="button" class="tool-btn" id="topHelpBtn" title="查看皮肤各贴图拉伸与尺寸规则说明 (帮助)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>帮助</span>
+                </button>
+                <div class="topbar-divider"></div>
+                <div class="tool-switch-row canvas-top-switch" title="开启判定提示动态演示：按真实比率展示 300MAX/300/200/100/50 及 Miss 断连恢复">
+                    <label for="previewJudgementToggle" class="switch-label">
+                        <span>判定演示</span>
+                    </label>
+                    <label class="ios-switch">
+                        <input type="checkbox" id="previewJudgementToggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="tool-switch-row canvas-top-switch">
+                    <label for="canvasEditModeToggle" class="switch-label">
+                        <span>拖拽编辑</span>
+                    </label>
+                    <label class="ios-switch">
+                        <input type="checkbox" id="canvasEditModeToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>

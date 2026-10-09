@@ -1,0 +1,496 @@
+    <!-- 皮肤贴图拉伸规则帮助说明弹窗 -->
+    <div class="help-modal" id="helpModal" style="display: none;">
+        <div class="help-modal-backdrop" id="helpModalBackdrop"></div>
+        <div class="help-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="helpModalTitleText">
+            <div class="help-modal-header">
+                <div class="help-modal-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span id="helpModalTitleText">皮肤各贴图拉伸与尺寸规则指南</span>
+                </div>
+                <button type="button" class="help-modal-close-btn" id="helpModalCloseBtn" title="关闭 (Esc)">&times;</button>
+            </div>
+
+            <!-- 搜索与分类导航栏 -->
+            <div class="help-modal-toolbar">
+                <div class="help-search-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="helpSearchInput" placeholder="搜索贴图名称或规则 (如 NoteImage, Stage, 拉伸, @2x, 爆光)..." autocomplete="off">
+                </div>
+                <div class="help-filter-tabs" id="helpFilterTabs">
+                    <button type="button" class="help-tab-btn active" data-cat="all">全部规则</button>
+                    <button type="button" class="help-tab-btn" data-cat="notes">音符与长条</button>
+                    <button type="button" class="help-tab-btn" data-cat="stage">舞台与轨道</button>
+                    <button type="button" class="help-tab-btn" data-cat="light">爆光与判定</button>
+                    <button type="button" class="help-tab-btn" data-cat="hud">数字与HUD</button>
+                    <button type="button" class="help-tab-btn" data-cat="2x">@2x高清规范</button>
+                </div>
+            </div>
+
+            <!-- 规则卡片主体列表 -->
+            <div class="help-modal-body" id="helpModalBody">
+                <!-- 1. 音符与长条类 -->
+                <div class="help-rule-card" data-cat="notes" data-keywords="noteimage note image h noteimageh 单点 普通音符 长条头 轨道宽 columnwidth 宽度拉伸 高度 最小列宽 minimumcolumnwidth widthfornoteheightscale 宽高比">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">各轨音符与长条头</span>
+                            <span class="help-card-file">NoteImage0..K.png / NoteImage0H..KH.png</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-stretch-x">横向强制拉伸</span>
+                            <span class="help-badge badge-align">底边贴合判定线</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">横向拉伸：</span>
+                            <span class="desc-val">无视图片自身宽度，<strong>强制拉伸或压缩到该轨的 <code>ColumnWidth</code></strong>。每轨各自拉满，所以同一张贴图在不同列宽下显示宽度也不同。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">纵向高度：</span>
+                            <span class="desc-val">高度<strong>不按当前列宽</strong>换算，而是取「基准列宽 × (图片高 ÷ 图片宽)」。基准列宽优先读 <code>WidthForNoteHeightScale</code>；该项为 0 或未写时，自动取<strong>所有列宽中的最小值</strong>（<code>MinimumColumnWidth</code>）。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">对齐方式：</span>
+                            <span class="desc-val">音符下落到判定线时<strong>底边精确贴合 <code>HitPosition</code></strong>，不会越过判定线。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">制作建议：</span>
+                            <span class="desc-val">让图片宽高比等于「列宽 : 音符高度」即可完全不变形。各列列宽不一致时，较宽轨道上的音符会被横向拉宽、高度却仍按最窄列宽计算，最容易压扁；长条头 (<code>NoteImageH</code>) 使用与普通音符完全相同的规则。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="notes" data-keywords="notel holdbody hold noteimage0l 长条 身体 长身 平铺 循环 repeat notebodystyle stretch repeatfromtail repeatfromhead 768 裁剪">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">长条长身</span>
+                            <span class="help-card-file">NoteImage0L..KL.png</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-stretch-x">横向强制拉伸</span>
+                            <span class="help-badge badge-stretch-y">纵向按 768p 基准平铺</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">横向拉伸：</span>
+                            <span class="desc-val">宽度<strong>强制拉伸填满当前轨道</strong>（<code>ColumnWidth</code>），与音符同一套横向规则。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">平铺单元：</span>
+                            <span class="desc-val">循环平铺的<strong>单段高度 = 图片原生高度 × 768p 缩放系数</strong>（@2x 贴图先折半），<strong>与列宽无关</strong>。所以改列宽只会改长身的宽度，纵向段落比例永远由贴图自身与画布高度决定。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">平铺模式：</span>
+                            <span class="desc-val">由 <code>NoteBodyStyle</code> 决定：<strong>1</strong> 从尾部平铺（默认，Percy LN 风格）、<strong>2</strong> 从头部平铺、<strong>0</strong> 整段拉伸（不平铺）。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">不足一段：</span>
+                            <span class="desc-val">长身比单段还短时不会压缩变形，而是<strong>按比例裁剪贴图</strong>：从尾平铺取贴图上段，从头平铺取下段。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">覆盖范围：</span>
+                            <span class="desc-val">从长条头部中心一路铺到尾部贴图顶端，尾部贴图覆盖在其上，避免半透明尾巴与长身之间出现断层或色差。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">制作建议：</span>
+                            <span class="desc-val">设计成可上下无缝循环的纯色条或垂直渐变条；单段尺寸按 768p 基准出图，长身无论多长多短都能平滑衔接。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="notes" data-keywords="noteimaget holdend 长条 尾部 结尾 尾巴 锚定 结束 翻转 镜像">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">长条结尾</span>
+                            <span class="help-card-file">NoteImage0T..KT.png</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-stretch-x">横向强制拉伸</span>
+                            <span class="help-badge badge-original">上下翻转绘制</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">横向拉伸：</span>
+                            <span class="desc-val">宽度<strong>强制拉伸匹配当前轨道宽度</strong>（<code>ColumnWidth</code>）。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">纵向高度：</span>
+                            <span class="desc-val">与普通音符同一套换算（<strong>基准列宽 × 图片宽高比</strong>），不是直接取原图像素高度；基准列宽同样是 <code>WidthForNoteHeightScale</code> 或最小列宽。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">位置与方向：</span>
+                            <span class="desc-val">以长条结束时间所在高度为<strong>垂直中心</strong>绘制，并被<strong>上下翻转</strong>（对应 osu! 长条尾的镜像绘制规则），所以图案不对称时上下方向会与预览图相反。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 舞台与轨道类 -->
+                <div class="help-rule-card" data-cat="stage" data-keywords="keyimage keyimaged 按键 receptor 底座 按压 状态 轨道底 768">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">按键底图与按下状态</span>
+                            <span class="help-card-file">KeyImage0..K.png / KeyImage0D..KD.png</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-stretch-x">横向强制拉伸</span>
+                            <span class="help-badge badge-align">底边贴齐键区最底部</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">横向拉伸：</span>
+                            <span class="desc-val">贴图宽度<strong>强制拉伸匹配对应轨道宽度</strong>（<code>ColumnWidth</code>），与音符、长身同一套横向规则。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">纵向高度：</span>
+                            <span class="desc-val">高度 = 图片原生高度 × 768p 缩放系数（@2x 贴图先折半），<strong>与列宽无关</strong>：横向被拉宽或压窄都不会改变上下高度，所以贴图比例与列宽不匹配时按键会横向变形。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">对齐方式：</span>
+                            <span class="desc-val">底部贴齐<strong>画布（键区）最底边</strong>，不会对齐判定线。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">状态切换：</span>
+                            <span class="desc-val">按下瞬间整张无缝替换为 D 状态贴图，松开立即换回；两个状态建议保持尺寸一致以免跳动。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="stage" data-keywords="stageleft stageright 舞台 左右 边框 全屏 768 1536 1080 尺寸 高度 拉伸 贯穿">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">舞台左右边框</span>
+                            <span class="help-card-file">StageLeft.png / StageRight.png (或 mania-stage-left / right)</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-stretch-y">纵向强制拉满全屏</span>
+                            <span class="help-badge badge-original">横向绝不拉伸</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">横向规则：</span>
+                            <span class="desc-val"><strong>横向绝不拉伸</strong>，保持贴图自身像素宽度（1x 取原生宽度，@2x 贴图先折半参与换算），再随 768p 系数整体缩放。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">纵向机制：</span>
+                            <span class="desc-val"><strong>纵向强制拉满整个画面高度</strong>，从最顶端一直贯穿到底部。高度不匹配时会被强行垂直放大或缩小，带形状的图案会明显变形。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">不拉伸高度：</span>
+                            <span class="desc-val">
+                                • <strong>1x 普通贴图：高度设为 768px</strong>（对应 768p 官方基准高度，纵向 1:1 铺满，不发生比例形变）；<br>
+                                • <strong>@2x 高清推荐：高度设为 1536px</strong>（命名加 @2x，现代高分屏下点对点高清，完全不模糊不失真）；<br>
+                                • <strong>1080p 点对点全屏贴图：高度设为 1080px (1x) / 2160px (@2x)</strong>。
+                            </span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">制作建议：</span>
+                            <span class="desc-val">含固定比例图标或徽标时，务必按 768px / 1536px 画布高度设计；若是纯边框线或发光条，采用纵向均匀纯色或垂直线性渐变即可天然无视拉伸。开启 <code>SplitStages</code> 时左右舞台各自绘制一对边框；如需隐藏边界，使用 1x1 全透明 PNG 或输入 blank。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="stage" data-keywords="stagebottom 舞台 底栏 底座 覆盖 全舞台 宽度 等比 居中 轨道间距 最上层">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">舞台底栏</span>
+                            <span class="help-card-file">StageBottom.png / mania-stage-bottom</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-original">等比缩放不拉伸</span>
+                            <span class="help-badge badge-align">水平居中 / 贴底</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">缩放规则：</span>
+                            <span class="desc-val">宽高都按「原生尺寸 × 480p 缩放系数」计算（@2x 贴图先折半），<strong>横向与纵向等比缩放，不做任何拉伸</strong>，图片宽高比会被完整保留。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">位置：</span>
+                            <span class="desc-val">在舞台上<strong>水平居中</strong>，底边贴齐画布最底部。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">轨道间距：</span>
+                            <span class="desc-val">存在 <code>ColumnSpacing</code> 或开启 <code>SplitStages</code> 时，底栏会被<strong>逐轨裁剪</strong>，只在每条轨道范围内显示，轨道之间的空隙保持留空。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">图层顺序：</span>
+                            <span class="desc-val">StageBottom 绘制在音符与按键<strong>之上</strong>，属于最上层覆盖贴图，会挡住落在舞台底部的音符；如需隐藏，使用 1x1 全透明 PNG 或输入 blank。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="stage" data-keywords="stagehint 判定线 指示线 光条 hitposition 横跨 judgementline showjudgementline 隐藏 480">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">判定线指示光条</span>
+                            <span class="help-card-file">StageHint.png / mania-stage-hint</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-stretch-all">横向覆盖全舞台</span>
+                            <span class="help-badge badge-align">中心对齐判定线</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">横向拉伸：</span>
+                            <span class="desc-val">默认整条<strong>横跨所有轨道的总宽度</strong>（开启 <code>SplitStages</code> 时按左右舞台分段绘制）；若为单轨单独配置 <code>StageHint0..K</code>，则每轨各自拉满所在轨道宽度。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">纵向规则：</span>
+                            <span class="desc-val">高度 = 图片原生高度 × 480p 缩放系数（@2x 先折半），<strong>垂直中心精确对齐 <code>HitPosition</code></strong>。注意纵向用的是 480p 系数，与 StageLight / LightingN 的 768p 基准不同。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">与判定线区别：</span>
+                            <span class="desc-val">那条贯穿的白线由 <code>JudgementLine</code> 单独控制；<strong>只把 StageHint 换成 1x1 透明图并不会隐藏白线</strong>，需要把 JudgementLine 设为 0 才会消失。隐藏贴图本身可用 1x1 全透明 PNG 或 blank。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="stage" data-keywords="stagelight 按键 光柱 光柱延伸 轨道灯光 按压 lightposition colourlight lightframepersecond 768">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">按键按压光柱</span>
+                            <span class="help-card-file">StageLight.png / mania-stage-light</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-stretch-x">横向强制拉伸</span>
+                            <span class="help-badge badge-align">底部对齐 LightPosition</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">横向拉伸：</span>
+                            <span class="desc-val">宽度<strong>强制拉伸填满单轨宽度</strong>（<code>ColumnWidth</code>）。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">纵向规则：</span>
+                            <span class="desc-val">高度 = 图片原生高度 × 768p 缩放系数（@2x 先折半），<strong>底边对齐 <code>LightPosition</code></strong>（按键动画垂直位置，默认 413）并向轨道上方延展。它跟的是 LightPosition 而不是 HitPosition，两者不同时光柱不会贴在判定线上。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">触发与动画：</span>
+                            <span class="desc-val">只要按下按键就亮起（与是否打到音符无关）；松开后在 250ms 内<strong>向下收缩回 LightPosition 并同步淡出</strong>。多帧序列的播放速度由 <code>LightFramePerSecond</code> 控制。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">颜色：</span>
+                            <span class="desc-val">由 <code>ColourLight</code> 着色，以加色方式叠加。注意 osu! 会把 alpha=0 强制改成不透明，写 <code>255,0,0,0</code> 得到的是不透明红光；想彻底关闭请把 StageLight 设为 blank。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. 爆光与判定类 -->
+                <div class="help-rule-card" data-cat="light" data-keywords="lightingn lightingl 爆光 击打特效 爆炸 允许溢出 华丽 lightingnwidth lightinglwidth 768 加色">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">击打爆光特效</span>
+                            <span class="help-card-file">LightingN.png / LightingL.png (lightingN / lightingL)</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-original">保持原图比例不拉伸</span>
+                            <span class="help-badge badge-overflow">允许溢出相邻轨</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">尺寸规则：</span>
+                            <span class="desc-val"><strong>完全不按单轨宽度拉伸</strong>，宽高同时按「原生尺寸 × 768p 缩放系数 × 缩放倍率」等比计算（@2x 先折半），图片宽高比完整保留。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">缩放倍率：</span>
+                            <span class="desc-val">由 <code>LightingNWidth</code> / <code>LightingLWidth</code> 换算，<strong>倍率 = 该数值 ÷ 30</strong>；填 0 或未配置时自动按「当前列宽 ÷ 30」，也就是特效宽度会跟着轨道宽度走。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">位置：</span>
+                            <span class="desc-val">水平中心固定在对应轨道中心，垂直中心固定在判定线 <code>HitPosition</code>，因此不能拖动位置，但可以在画布上点选并左右拖拽边缘改宽度。<strong>允许大幅溢出覆盖相邻轨道</strong>，是实现华丽爆光动画的核心贴图。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">渲染方式：</span>
+                            <span class="desc-val">以<strong>加色（lighter）</strong>方式叠加，越亮的像素越会把背景提亮。<code>LightingN</code> 是命中单键时的一次性爆发（寿命 200ms），<code>LightingL</code> 是长条按住期间循环播放的持续光效。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="light" data-keywords="mania-hit hit300g hit300 hit200 hit100 hit50 hit0 判定文字 判定结果 居中 舞台中央 scoreposition 768 动画">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">判定文字结果</span>
+                            <span class="help-card-file">mania-hit300g..hit0.png / hit300g..hit0.png</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-original">保持原图比例不拉伸</span>
+                            <span class="help-badge badge-align">居中对齐全部轨道</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">尺寸规则：</span>
+                            <span class="desc-val"><strong>完全不拉伸</strong>，按「原生尺寸 × 768p 缩放系数」等比绘制（@2x 先折半），不受单轨宽度限制。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">位置规则：</span>
+                            <span class="desc-val">水平方向<strong>绝对居中对齐所有轨道的中央</strong>；垂直中心由 <code>ScorePosition</code>（480p 虚拟像素）控制，可在画布上直接拖拽。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">动画：</span>
+                            <span class="desc-val">贴图判定总寿命约 220ms：先快速放大到 1.0 倍，再回缩到 0.70 倍保持，最后缩到 0.40 倍并淡出。Miss 只有轻微随机旋转、不会位移；多帧贴图按 20 FPS 序列播放。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">缺图回退：</span>
+                            <span class="desc-val">皮肤没有对应贴图时，会退化成矢量文字（300g 蓝 / 300 金 / 200 绿 / 100 蓝 / 50 灰 / Miss 红），尺寸与位置规则与贴图版一致。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. HUD 与数字类 -->
+                <div class="help-rule-card" data-cat="hud" data-keywords="score scoreprefix 准度 分数 scoreoverlap 数字贴图 字距 固定宽度 等宽 score-dot score-percent 百分号 768">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">分数与准度数字</span>
+                            <span class="help-card-file">score-0..9.png / score-comma / score-dot / score-percent</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-original">保持原图比例不拉伸</span>
+                            <span class="help-badge badge-align">字距受 ScoreOverlap 控制</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">尺寸规则：</span>
+                            <span class="desc-val"><strong>完全不拉伸</strong>，每个字符按「原生尺寸 × 768p 缩放系数 × 0.96」等比渲染（@2x 先折半）。分数显示在画面右上角，准度紧随其下，两者共用同一套 <code>score-*</code> 贴图。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">固定宽度：</span>
+                            <span class="desc-val">所有数字共用同一个槽位宽度，槽宽取自基准字符 <code>score-5</code>（缺失时用 <code>score-0</code>），数字在槽内居中。<strong>所以 0~9 宽度不一致也不会让分数左右跳动</strong>。小数点、逗号、百分号不参与等宽，按各自原生宽度排列。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">字距重叠：</span>
+                            <span class="desc-val">字符水平间距受 <code>ScoreOverlap</code> 控制：<strong>正数把相邻数字向左叠合、缩短间距，负数则拉大间隔</strong>。数值同样会随分辨率等比缩放。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">百分号：</span>
+                            <span class="desc-val">把 <code>score-percent</code> 换成 1x1 全透明图即可<strong>隐藏 % 并只显示纯数字准度</strong>；若提供超宽的透明 percent 贴图，则会被当作纯水平推移垫片用来调整准度的水平位置。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="hud" data-keywords="combo comboprefix 连击数 combooverlap comboposition 连击数字 断连 弹跳 colourhold 768">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">连击数数字</span>
+                            <span class="help-card-file">combo-0..9.png</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-original">保持原图比例不拉伸</span>
+                            <span class="help-badge badge-align">位置受 ComboPosition 控制</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">尺寸规则：</span>
+                            <span class="desc-val"><strong>横向绝不拉伸</strong>，每个数字按「原生尺寸 × 768p 缩放系数」等比渲染（@2x 先折半）。与分数不同，连击数字<strong>不强制等宽</strong>，各字符按自身宽度排列。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">位置规则：</span>
+                            <span class="desc-val">水平方向居中对齐全部轨道中央；垂直中心由 <code>ComboPosition</code>（480p 虚拟像素）控制，可在画布上直接拖拽。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">字距重叠：</span>
+                            <span class="desc-val">各数字横向间距受 <code>ComboOverlap</code> 控制，正数叠合、负数拉开，数值随分辨率等比缩放。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">动画与颜色：</span>
+                            <span class="desc-val">连击增长瞬间整组数字会<strong>纵向弹性拉伸到 1.4 倍再回弹</strong>（只是动画，不是贴图规则）；断连时旧连击数变红并向外扩散淡出。长条按住期间数字会改用 <code>ColourHold</code> 着色。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-rule-card" data-cat="hud" data-keywords="scorebar bg colour marker 血条 血量 生命值 竖条 旋转 90 768 隐藏">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">血条</span>
+                            <span class="help-card-file">scorebar-bg / scorebar-colour / scorebar-marker</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-original">保持原图比例</span>
+                            <span class="help-badge badge-align">整体旋转 -90° 竖立</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">缩放规则：</span>
+                            <span class="desc-val">背景与颜色条都按「原生尺寸 × 768p 缩放系数 × 0.70」等比缩放（@2x 先折半），不做非等比拉伸。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">摆放方式：</span>
+                            <span class="desc-val">整条血条<strong>逆时针旋转 90° 竖立</strong>、底部贴齐画布底部，位置在所有轨道的右侧（紧跟在轨道区之后）。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">新旧样式：</span>
+                            <span class="desc-val">存在 <code>scorebar-marker</code> 时按新版样式摆放，颜色条相对背景偏移 (7.5, 7.8)；没有 marker 则用旧版偏移 (3.0, 10.0)。两组偏移都会再乘 1.6 倍并随分辨率缩放。若没有实体背景图，偏移自动归零。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">隐藏血条：</span>
+                            <span class="desc-val">只要皮肤提供了 <code>scorebar-colour</code> 或 <code>scorebar-bg</code>，就视为作者已自定义血条、<strong>不会再回退默认皮肤</strong>。把 <code>scorebar-colour</code> 换成 1x1 全透明图即可彻底隐去血条本体（很多 mania 皮肤就是用这一招去掉血条）。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. @2x 高清规范 -->
+                <div class="help-rule-card" data-cat="2x" data-keywords="@2x 高清 2x 视网膜 768 480 倍率 抗锯齿 减半 成对 命名">
+                    <div class="help-card-head">
+                        <div class="help-card-title-group">
+                            <span class="help-card-title">@2x 高清贴图制作标准规范</span>
+                            <span class="help-card-file">*@2x.png (例如 NoteImage0@2x.png, StageLeft@2x.png)</span>
+                        </div>
+                        <div class="help-badges-group">
+                            <span class="help-badge badge-stretch-y">分辨率严格 200%</span>
+                            <span class="help-badge badge-align">0.5x 尺寸高清渲染</span>
+                        </div>
+                    </div>
+                    <div class="help-card-desc">
+                        <div class="help-desc-item">
+                            <span class="desc-key">尺寸倍率：</span>
+                            <span class="desc-val">带 <code>@2x</code> 后缀的高清贴图，长与宽像素分辨率<strong>必须严格精确是普通 1x 贴图的整整 2 倍</strong>。例如 1x 尺寸为 30×60，则 @2x 必须为 60×120。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">渲染机制：</span>
+                            <span class="desc-val">读取到 @2x 贴图时，引擎会先<strong>把宽高各折半</strong>再参与全部尺寸计算，然后在 1080p / 2K / 4K 下按更高像素密度采样，从而得到锐利、无马赛克的边缘。上面每一条规则里说的「原生尺寸」，对 @2x 贴图都是先折半后的数值。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">命名规范：</span>
+                            <span class="desc-val">在原名基础上追加 <code>@2x</code>，如 <code>NoteImage0@2x.png</code>、<code>mania-note1L@2x.png</code>、<code>StageLeft@2x.png</code>；多帧序列写作 <code>mania-stage-light-0@2x.png</code>。查找优先级为 <strong>动态贴图 @2x &gt; 动态贴图 1x &gt; 静态 @2x &gt; 静态 1x</strong>。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">避坑指南：</span>
+                            <span class="desc-val">只放 @2x 而没有配套 1x 时，在只认 1x 的场合（老工具、老版本客户端、部分预览器）会按原始像素当成 1x 渲染，导致贴图异常放大。本编辑器内部会正确折半，但对外发布皮肤时<strong>强烈建议 1x 与 @2x 成对提供</strong>。</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 空搜索状态提示 -->
+                <div class="help-empty-search" id="helpEmptySearch" style="display: none;">
+                    未找到与当前搜索词匹配的贴图拉伸规则，请尝试输入其他关键词（如 Note、Stage、@2x 等）。
+                </div>
+            </div>
+
+            <!-- 弹窗底部操作栏 -->
+            <div class="help-modal-footer">
+                <div class="help-footer-hint">
+                    <span class="help-hint-icon">💡</span>
+                    <span>布局参数按 osu! stable 480p 虚拟网格换算，贴图尺寸按 768p 原生分辨率（@2x 为 1536p）换算</span>
+                </div>
+                <button type="button" class="help-footer-btn" id="helpModalConfirmBtn">我知道了</button>
+            </div>
+        </div>
+    </div>

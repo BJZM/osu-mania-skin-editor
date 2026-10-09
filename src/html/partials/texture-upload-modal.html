@@ -1,0 +1,99 @@
+            <!-- 贴图规格选择确认弹窗 (普通贴图 vs @2x 贴图) -->
+            <div class="texture-upload-modal" id="textureUploadModal" style="display: none;">
+                <div class="texture-upload-backdrop" id="textureUploadBackdrop"></div>
+                <div class="texture-upload-dialog" role="dialog" aria-modal="true" aria-labelledby="textureUploadTitleText">
+                    <div class="texture-upload-header">
+                        <div class="texture-upload-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                            <span id="textureUploadTitleText">选择贴图规格</span>
+                        </div>
+                        <button type="button" class="texture-upload-close-btn" id="textureUploadCloseBtn" title="关闭 (Esc)">&times;</button>
+                    </div>
+
+                    <div class="texture-upload-body">
+                        <!-- 贴图预览与元数据 -->
+                        <div class="texture-upload-preview-card">
+                            <div class="texture-upload-thumb-wrap" id="textureUploadThumbWrap">
+                                <img id="textureUploadPreviewImg" alt="贴图预览" />
+                            </div>
+                            <div class="texture-upload-info-list">
+                                <div class="texture-info-row">
+                                    <span class="info-label">目标贴图</span>
+                                    <span class="info-val info-highlight" id="textureUploadTargetLabel">-</span>
+                                </div>
+                                <div class="texture-info-row">
+                                    <span class="info-label">上传文件</span>
+                                    <span class="info-val" id="textureUploadFileName">-</span>
+                                </div>
+                                <div class="texture-info-row">
+                                    <span class="info-label">图片尺寸</span>
+                                    <span class="info-val" id="textureUploadFileSizeDim">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="texture-upload-prompt-text">请选择导入的贴图规格：</div>
+
+                        <!-- 规格选择单选卡片 -->
+                        <div class="texture-upload-options">
+                            <div class="texture-spec-card" id="specCard1x" tabindex="0">
+                                <div class="spec-card-radio">
+                                    <span class="radio-dot"></span>
+                                </div>
+                                <div class="spec-card-main">
+                                    <div class="spec-card-head">
+                                        <span class="spec-name">普通贴图 (1x)</span>
+                                        <span class="spec-tag tag-1x">标准标清</span>
+                                    </div>
+                                    <div class="spec-card-desc">
+                                        以图片原始像素 1:1 映射渲染。适合基础 480p 贴图。
+                                    </div>
+                                    <div class="spec-card-file" id="specFileName1x">导出文件名: filename.png</div>
+                                </div>
+                            </div>
+
+                            <div class="texture-spec-card selected" id="specCard2x" tabindex="0">
+                                <div class="spec-card-radio">
+                                    <span class="radio-dot"></span>
+                                </div>
+                                <div class="spec-card-main">
+                                    <div class="spec-card-head">
+                                        <span class="spec-name">@2x 高清贴图 (2x)</span>
+                                        <span class="spec-tag tag-2x">高清抗锯齿</span>
+                                    </div>
+                                    <div class="spec-card-desc">
+                                        osu! 官方高清素材规范，画布与游戏内以 0.5 倍物理尺寸抗锯齿渲染。
+                                    </div>
+                                    <div class="spec-card-file" id="specFileName2x">导出文件名: filename@2x.png</div>
+                                </div>
+                            </div>
+
+                            <div class="texture-spec-card" id="specCardAnim" tabindex="0">
+                                <div class="spec-card-radio">
+                                    <span class="radio-dot"></span>
+                                </div>
+                                <div class="spec-card-main">
+                                    <div class="spec-card-head">
+                                        <span class="spec-name">动态贴图序列 (多帧动画)</span>
+                                        <span class="spec-tag tag-anim">多帧序列</span>
+                                    </div>
+                                    <div class="spec-card-desc">
+                                        支持上传多张图片制作循环播放的动画序列（从第 0 帧开始依次轮播）。
+                                    </div>
+                                    <div class="spec-card-file">点击前往动态贴图序列管理器 →</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="texture-upload-footer">
+                        <button type="button" class="btn btn-secondary" id="textureUploadCancelBtn">取消</button>
+                        <button type="button" class="btn btn-primary" id="textureUploadConfirmBtn">确认导入</button>
+                    </div>
+                </div>
+            </div>
+

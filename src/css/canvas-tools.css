@@ -1,0 +1,559 @@
+/* ============================================================================
+ * canvas-tools.css - 画布可视化选中高亮
+ * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * ========================================================================== */
+
+           画布可视化选中高亮与紧贴吸附操作工具栏 (Canvas Selection Docked Toolbar)
+           ========================================================================== */
+
+        .canvas-selected-card {
+            position: absolute;
+            background: rgba(24, 22, 30, 0.96);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 5px 8px;
+            display: flex;
+            flex-direction: column;
+
+
+            align-items: stretch;
+            gap: 5px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            z-index: 150;
+            pointer-events: auto;
+            white-space: nowrap;
+            animation: cardPopIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+        }
+
+        .card-row-first {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-row-second {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .card-combo-edit-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 8px;
+            padding-top: 4px;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .card-edit-label {
+            flex-shrink: 0;
+            min-width: 52px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: left;
+        }
+
+        .card-colour-group {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            padding: 2px 6px;
+            gap: 6px;
+        }
+
+        .card-colour-picker {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .card-colour-picker::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        .card-colour-picker::-webkit-color-swatch {
+            border: none;
+            border-radius: 2px;
+        }
+
+        .card-colour-picker::-moz-color-swatch {
+            border: none;
+            border-radius: 2px;
+        }
+
+        .card-colour-slider {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 68px;
+            height: 14px;
+            background: transparent !important;
+            outline: none;
+            margin: 0;
+            padding: 0 !important;
+            border: none !important;
+            cursor: pointer;
+            vertical-align: middle;
+            display: inline-block;
+        }
+
+        .card-colour-slider::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%);
+            border-radius: 2px;
+            border: none !important;
+        }
+
+        .card-colour-slider::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: none !important;
+            margin-top: -3px;
+            border: none !important;
+            transition: transform 0.15s ease;
+        }
+
+        .card-colour-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .card-colour-slider::-moz-range-track {
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%);
+            border-radius: 2px;
+            border: none !important;
+        }
+
+        .card-colour-slider::-moz-range-thumb {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            border: none;
+            box-shadow: none;
+        }
+
+        .card-colour-val {
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.74rem;
+            color: #ffffff;
+            min-width: 24px;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        @keyframes cardPopIn {
+            from { opacity: 0; transform: scale(0.92); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .card-title-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #ffffff;
+            white-space: nowrap;
+        }
+
+
+        .card-divider {
+            width: 1px;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .card-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .card-btn {
+            padding: 4px 6px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            border: none;
+            background: rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.9);
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            box-shadow: none;
+        }
+
+        .card-btn svg {
+            width: 11px;
+            height: 11px;
+            flex-shrink: 0;
+        }
+
+        .card-btn:hover {
+            background: #ffffff;
+            color: #111118;
+            box-shadow: none;
+        }
+
+        .card-btn:active {
+            transform: scale(0.96);
+            background: #e2e2e8;
+        }
+
+        .card-btn.active {
+            background: #ffffff;
+            color: #111118;
+        }
+
+        .card-close-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+            cursor: pointer;
+            padding: 2px 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .card-close-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* 拖拽时的数值悬浮气泡 */
+        .canvas-drag-tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #ffffff;
+            pointer-events: none;
+            z-index: 160;
+            white-space: nowrap;
+        }
+
+        /* 轨道拖拽模式切换 */
+        .track-drag-mode-toggle {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            border-radius: 5px;
+            padding: 2px;
+            gap: 2px;
+        }
+
+        .track-mode-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+
+        .track-mode-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .track-mode-btn.active {
+            background: rgba(255, 255, 255, 0.28);
+            color: #ffffff;
+            box-shadow: none;
+        }
+
+        /* 快捷步进调节器 (针对单独轨道宽度与间距调节) */
+        .card-quick-stepper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stepper-item {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            border-radius: 4px;
+            padding: 2px 4px;
+            gap: 3px;
+        }
+
+        .stepper-label {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 600;
+            padding-left: 2px;
+        }
+
+        .stepper-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: none;
+            color: #ffffff;
+            width: 18px;
+            height: 18px;
+            border-radius: 3px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            user-select: none;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .stepper-btn:hover {
+            background: rgba(255, 255, 255, 0.28);
+        }
+
+        .stepper-btn:active {
+            transform: scale(0.92);
+        }
+
+        .stepper-val {
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.76rem;
+            color: #ffffff;
+            min-width: 24px;
+            text-align: center;
+            font-weight: 600;
+            padding: 0 2px;
+            border-radius: 2px;
+            transition: background 0.12s ease;
+        }
+
+        .stepper-val:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* skin.ini 参数列表中的单轨芯片栅格 */
+        .array-chips-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+            width: 100%;
+        }
+
+        .array-chip {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: transparent;
+            border: none;
+            padding: 2px 4px;
+        }
+
+        .chip-label {
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.7);
+            white-space: nowrap;
+        }
+
+        .array-chip-input {
+            width: 52px;
+            background: rgba(0, 0, 0, 0.45);
+            border: none;
+            border-radius: 4px;
+            color: #ffffff;
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 2px 4px;
+            text-align: center;
+        }
+
+        .array-chip-input:focus {
+            outline: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: none;
+        }
+
+        /* 右上角分数与准度数字独立管理 */
+        .hud-font-glyphs-block {
+            margin-bottom: 20px;
+            padding: 0;
+        }
+
+        .hud-glyphs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+        }
+
+        .hud-glyph-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 8px;
+            transition: all 0.18s ease;
+        }
+
+        .hud-glyph-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .hud-glyph-preview-box {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            background: rgba(0, 0, 0, 0.45);
+            border: none;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .hud-glyph-img,
+        .hud-glyph-preview-box canvas {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            image-rendering: auto;
+            display: block;
+        }
+
+        .hud-glyph-default-text {
+            font-size: 1.35rem;
+            font-weight: bold;
+            color: #ffffff;
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .hud-glyph-placeholder {
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.45);
+        }
+
+        .hud-glyph-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            width: 100%;
+        }
+
+        .hud-glyph-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .hud-glyph-filename {
+            font-family: var(--font-clean);
+            font-size: 0.72rem;
+            color: rgba(255, 255, 255, 0.55);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hud-glyph-actions {
+            display: flex;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .hud-glyph-btn {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            padding: 4px 6px;
+            font-size: 0.72rem;
+            border-radius: 4px;
+            border: none;
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .hud-glyph-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+            color: #ffffff;
+        }
+
+        .hud-glyph-btn.upload {
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .hud-glyph-btn.upload:hover {
+            background: #ffffff;
+            color: #111118;
+            box-shadow: none;
+        }
+
+        .hud-glyph-btn.upload:active {
+            transform: scale(0.96);
+            background: #e2e2e8;
+        }
+
+        /* ==========================================================================
+        /* ============================================================

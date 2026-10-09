@@ -1,0 +1,62 @@
+        <!-- 现代化全功能底栏播放器与控制台 (Docked Studio Player Bar) -->
+        <div class="player-controls studio-bottom-bar disabled" id="playerControls">
+            <!-- 顶行：时间轴进度与时间显示 -->
+            <div class="progress-section">
+                <span id="currentTimeText" class="time-label">00:00</span>
+                <div class="slider-wrapper">
+                    <input type="range" id="progressRange" class="progress-slider" min="0" max="100" value="0" step="0.05" disabled>
+                </div>
+                <span id="remainTimeText" class="time-label">-00:00</span>
+            </div>
+
+            <!-- 底行：播放控制、游戏选项与谱面实时统计 -->
+            <div class="controls-action-row">
+                <!-- 左区：播放/暂停与音量 -->
+                <div class="deck-group deck-playback">
+                    <button class="play-pause-btn" id="playPauseBtn" title="播放 / 暂停 (空格键)" disabled>
+                        <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        <svg class="pause-icon" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="4" width="4" height="16"></rect>
+                            <rect x="14" y="4" width="4" height="16"></rect>
+                        </svg>
+                    </button>
+
+                    <div class="volume-control">
+                        <button class="volume-mute-btn" id="volumeMuteBtn" title="静音切换">
+                            <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <path class="vol-wave" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                <path class="vol-wave-loud" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                            </svg>
+                            <svg class="mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <line x1="23" y1="9" x2="17" y2="15"></line>
+                                <line x1="17" y1="9" x2="23" y2="15"></line>
+                            </svg>
+                        </button>
+                        <input type="range" id="volumeRange" class="volume-slider" min="0" max="1" step="0.01" value="0.8">
+                        <span id="volumeText" class="volume-percent">80%</span>
+                    </div>
+                </div>
+
+                <div class="deck-divider"></div>
+
+                <!-- 中区：流速调节与背景暗化 -->
+                <div class="deck-group deck-tweaks">
+                    <div class="tweak-slider-item" title="流速调节 (Scroll Speed)">
+                        <span class="tweak-label">流速 </span>
+                        <input type="range" id="speedRange" min="0.5" max="3.0" step="0.1" value="1.5">
+                        <span id="speedText" class="tweak-val stats-value osu-stat-pill">1.5</span>
+                    </div>
+                    <div class="tweak-slider-item" title="背景暗化 (Background Dim)">
+                        <span class="tweak-label">暗化 </span>
+                        <input type="range" id="dimRange" min="0" max="100" step="1" value="80">
+                        <span id="dimText" class="tweak-val stats-value osu-stat-pill">80%</span>
+                    </div>
+                </div>
+
+                
+            </div>
+        </div>

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Generated test output
+test-results/
+dist/
+playwright-report/
+
+# Local assets and historical data
+samples/
+
+# Local-only helper binaries (not referenced by project scripts)
+tools/bin/
+
+# Environment files
+.env
+.env.*
+
+# Accidental shell redirect artifact
+/$null
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
+*.log

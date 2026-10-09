@@ -1,0 +1,122 @@
+            <!-- 隐藏的动态贴图上传表单 -->
+            <input type="file" id="animSingleFrameInput" accept="image/*" style="display: none;">
+            <input type="file" id="animBatchFrameInput" multiple accept="image/*" style="display: none;">
+
+            <!-- 动态贴图序列帧管理器弹窗 -->
+            <div class="anim-texture-modal" id="animTextureModal" style="display: none;">
+                <div class="anim-texture-backdrop" id="animTextureBackdrop"></div>
+                <div class="anim-texture-dialog" role="dialog" aria-modal="true" aria-labelledby="animTextureTitleText">
+                    <div class="anim-texture-header">
+                        <div class="anim-texture-title-group">
+                            <div class="anim-texture-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                                    <line x1="7" y1="2" x2="7" y2="22"></line>
+                                    <line x1="17" y1="2" x2="17" y2="22"></line>
+                                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    <line x1="2" y1="7" x2="7" y2="7"></line>
+                                    <line x1="2" y1="17" x2="7" y2="17"></line>
+                                    <line x1="17" y1="17" x2="22" y2="17"></line>
+                                    <line x1="17" y1="7" x2="22" y2="7"></line>
+                                </svg>
+                            </div>
+                            <div class="anim-texture-titles">
+                                <h3 id="animTextureTitleText">动态贴图序列管理器</h3>
+                                <span class="anim-texture-target" id="animTextureTargetLabel">目标贴图: lightingN</span>
+                            </div>
+                        </div>
+                        <button type="button" class="texture-upload-close-btn" id="animTextureCloseBtn" title="关闭 (Esc)">&times;</button>
+                    </div>
+
+                    <!-- 顶部工具栏与操作区域 -->
+                    <div class="anim-texture-toolbar">
+                        <div class="anim-toolbar-actions">
+                            <button type="button" class="btn btn-primary anim-add-btn" id="animAddSingleBtn" title="按顺序添加一张贴图作为下一帧">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>+ 单帧添加</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary anim-batch-btn" id="animBatchBtn" title="同时选择多张图片批量导入">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                                <span>批量上传贴图</span>
+                            </button>
+
+                            <!-- 分辨率规格切换 -->
+                            <div class="anim-spec-switch">
+                                <span class="anim-spec-label">规格:</span>
+                                <button type="button" class="anim-spec-btn active" id="animSpec1xBtn" data-spec="1x">普通 (1x)</button>
+                                <button type="button" class="anim-spec-btn" id="animSpec2xBtn" data-spec="2x">@2x 高清</button>
+                            </div>
+                        </div>
+
+                        <!-- 批量上传排序提示注释 (严格遵照用户要求) -->
+                        <div class="anim-toolbar-note">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <span>注释：批量上传贴图时，动画帧顺序由所选贴图的文件名自然排序（如 0.png, 1.png 或 frame_01, frame_02）依次决定，自动从第 0 帧开始排列。</span>
+                        </div>
+                    </div>
+
+                    <!-- 中间主体：帧序列列表与播放预览 -->
+                    <div class="anim-texture-body">
+                        <!-- 帧序列滚动容器 (初始为空) -->
+                        <div class="anim-frames-scroll" id="animFramesScroll">
+                            <!-- 空状态提示 (初始状态为空) -->
+                            <div class="anim-empty-state" id="animEmptyState">
+                                <div class="anim-empty-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+                                        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                                        <line x1="7" y1="2" x2="7" y2="22"></line>
+                                        <line x1="17" y1="2" x2="17" y2="22"></line>
+                                        <line x1="2" y1="12" x2="22" y2="12"></line>
+                                    </svg>
+                                </div>
+                                <div class="anim-empty-title">当前动画序列为空</div>
+                                <div class="anim-empty-desc">点击上方「+ 单帧添加」逐帧上传，或点击「批量上传贴图」按文件名顺序一键导入整套多帧动画</div>
+                                <div class="anim-empty-actions">
+                                    <button type="button" class="btn btn-primary" id="animEmptyAddBtn">+ 上传第 0 帧贴图</button>
+                                    <button type="button" class="btn btn-secondary" id="animEmptyBatchBtn">批量选择多张贴图</button>
+                                </div>
+                            </div>
+
+                            <!-- 帧列表网格 -->
+                            <div class="anim-frames-grid" id="animFramesGrid" style="display: none;"></div>
+                        </div>
+
+                        <!-- 侧边实时预览面板 (当有帧时显示) -->
+                        <div class="anim-preview-panel" id="animPreviewPanel" style="display: none;">
+                            <div class="anim-preview-head">
+                                <span>实时播放预览</span>
+                                <span class="anim-preview-badge" id="animPreviewFrameCount">0 帧</span>
+                            </div>
+                            <div class="anim-preview-canvas-wrap">
+                                <canvas id="animPreviewCanvas" width="128" height="128"></canvas>
+                            </div>
+                            <div class="anim-preview-controls">
+                                <div class="anim-fps-control">
+                                    <span class="anim-fps-label">速率:</span>
+                                    <input type="range" id="animFpsRange" min="5" max="60" value="30" step="5">
+                                    <span class="anim-fps-val" id="animFpsVal">30 fps</span>
+                                </div>
+                                <button type="button" class="btn btn-secondary anim-play-btn" id="animPlayToggleBtn">暂停</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 底部按钮栏 -->
+                    <div class="anim-texture-footer">
+                        <button type="button" class="btn btn-danger" id="animClearAllBtn" style="display: none;">清空全部帧</button>
+                        <div class="footer-right-btns">
+                            <button type="button" class="btn btn-secondary" id="animCancelBtn">取消</button>
+                            <button type="button" class="btn btn-primary" id="animConfirmBtn" disabled>确认应用动态贴图 (0 帧)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>

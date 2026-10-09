@@ -1,0 +1,48 @@
+/* ============================================================================
+ * cursor.css - Imported skin cursor overlay
+ * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * ========================================================================== */
+
+        /* Imported skin cursor overlay */
+        #skinCursorLayer {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            pointer-events: none;
+            display: none;
+            visibility: hidden;
+            contain: strict;
+            background: transparent;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
+        html.skin-cursor-active,
+        html.skin-cursor-active body,
+        html.skin-cursor-active * {
+            cursor: none !important;
+        }
+
+
+        html.skin-cursor-active body input[type="range"],
+        html.skin-cursor-active body input[type="range"]:hover,
+        html.skin-cursor-active body input[type="range"]:active {
+            cursor: none !important;
+        }
+
+        html.skin-cursor-active input[type="range"]::-webkit-slider-runnable-track {
+            cursor: none !important;
+        }
+
+        html.skin-cursor-active input[type="range"]::-webkit-slider-thumb {
+            cursor: none !important;
+        }
+
+        html.skin-cursor-active input[type="range"]::-moz-range-track {
+            cursor: none !important;
+        }
+
+        html.skin-cursor-active input[type="range"]::-moz-range-thumb {
+            cursor: none !important;
+        }
+

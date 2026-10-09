@@ -1,0 +1,550 @@
+/* ============================================================================
+ * player.css - 现代化全功能底栏播放器控制台
+ * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 现代化全功能底栏播放器控制台 (Studio Docked Player Bar) ===== */
+        .player-controls.studio-bottom-bar {
+            flex-direction: column;
+
+
+            gap: 6px;
+            margin: 0;
+            padding: 6px 24px 8px 24px;
+            background: #14121a !important;
+            backdrop-filter: blur(16px);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: none !important;
+            border-right: none !important;
+            border-bottom: none !important;
+            border-radius: 0;
+            box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.4);
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            flex-shrink: 0 !important;
+            z-index: 30;
+            position: relative;
+            transition: opacity 0.3s ease, filter 0.3s ease;
+        }
+
+        .player-controls.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            filter: grayscale(0.5);
+            cursor: not-allowed;
+        }
+
+        /* 进度条与时间行 (紧凑横排) */
+        .studio-bottom-bar .progress-section {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .studio-bottom-bar .time-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.88);
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.3px;
+            font-family: var(--font-clean);
+            flex-shrink: 0;
+            min-width: 44px;
+            text-align: center;
+        }
+
+        .studio-bottom-bar .slider-wrapper {
+            flex: 1;
+            position: relative;
+            height: 14px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* 底层控制 Deck：播放、调节与数据 */
+        .studio-bottom-bar .controls-action-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            width: 100%;
+        }
+
+        .deck-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .deck-playback {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .deck-playback .play-pause-btn {
+            width: 36px;
+            height: 36px;
+        }
+
+        .deck-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            flex-shrink: 0;
+        }
+
+        /* 中区流速与背景暗化调节 */
+        .deck-tweaks {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .tweak-slider-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 3px 10px;
+            border-radius: 6px;
+            border: none !important;
+            height: 30px;
+            box-sizing: border-box;
+        }
+
+        .tweak-label {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.65);
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .tweak-slider-item input[type="range"] {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 70px !important;
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 50%), rgba(255, 255, 255, 0.2) var(--slider-pct, 50%), rgba(255, 255, 255, 0.2) 100%) !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            cursor: pointer;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        #speedRange {
+            --slider-pct: 40%;
+        }
+
+        #dimRange {
+            --slider-pct: 80%;
+        }
+
+        .tweak-slider-item input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .tweak-slider-item input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+            margin-top: -3px !important;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        .tweak-slider-item input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .tweak-slider-item input[type="range"]::-moz-range-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        .tweak-slider-item input[type="range"]::-moz-range-thumb {
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+
+        .tweak-slider-item input[type="range"]::-moz-range-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        .tweak-val {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #ff8cb9;
+            min-width: 32px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.2px;
+            font-family: var(--font-clean);
+        }
+
+        /* 右区横向谱面统计徽章 */
+        .stats-panel.deck-stats {
+            background: transparent;
+            border-radius: 0;
+            padding: 0;
+            width: auto;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: none;
+            border: none;
+        }
+
+        .deck-stats .stat-chip {
+            margin: 0;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            background: rgba(0, 0, 0, 0.45);
+            border: none !important;
+            border-radius: 5px;
+            font-size: 0.76rem;
+            color: #ffffff;
+            white-space: nowrap;
+            width: auto;
+            box-sizing: border-box;
+            user-select: none;
+            height: 30px;
+        }
+
+        .deck-stats .stat-label {
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 0.74rem;
+            font-weight: 500;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .deck-stats .stats-value {
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.78rem;
+            flex-shrink: 0;
+            white-space: nowrap;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            font-family: var(--font-clean);
+        }
+
+        .deck-stats .stat-chip[title*="星级"] .stat-label {
+            color: #ffaa00;
+            font-size: 0.82rem;
+        }
+
+        .deck-stats .stat-chip[title*="星级"] .stats-value {
+            color: #ffaa00;
+        }
+
+        .time-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #ffffff;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.3px;
+            font-family: var(--font-clean);
+        }
+
+        .slider-wrapper {
+            position: relative;
+            width: 100%;
+            height: 16px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* ===== 播放器控制器内滑动条样式 (细线 + 小圆点) ===== */
+        .player-controls input[type="range"] {
+            padding: 0 !important;
+            margin: 0 !important;
+            height: 4px !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            box-sizing: border-box !important;
+        }
+
+        .player-controls input[type="range"]::-webkit-slider-runnable-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+        }
+
+        .player-controls input[type="range"]::-moz-range-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+        }
+
+        /* 自定义进度滑动条 (粉色细线 + 暗色未播放背景 + 扁平圆形滑块，无描边) */
+        .progress-slider {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 100% !important;
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%) !important;
+            outline: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            cursor: pointer !important;
+        }
+
+        .progress-slider::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            margin-top: -3px !important;
+        }
+
+        .progress-slider::-moz-range-thumb {
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+        }
+
+        .progress-slider:disabled {
+            cursor: not-allowed !important;
+            opacity: 0.6 !important;
+        }
+
+        /* 控制按键与音量行 */
+        .controls-action-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        /* 播放/暂停圆形大按键 */
+        .play-pause-btn {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            padding: 0;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: none;
+            transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
+        }
+
+        .play-pause-btn:hover:not(:disabled) {
+            transform: none;
+            background: #ffffff;
+            color: #111118;
+            box-shadow: none;
+            filter: none;
+        }
+
+        .play-pause-btn:active:not(:disabled) {
+            transform: scale(0.96);
+            background: #e2e2e8;
+        }
+
+        .play-pause-btn:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.3);
+            border-color: transparent;
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.5;
+        }
+
+        .play-pause-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .play-pause-btn .play-icon {
+            display: block;
+            margin-left: 2px;
+        }
+
+        .play-pause-btn .pause-icon {
+            display: none;
+        }
+
+        .play-pause-btn.playing .play-icon {
+            display: none;
+        }
+
+        .play-pause-btn.playing .pause-icon {
+            display: block;
+            margin-left: 0;
+        }
+
+        /* 音量控件 (类似视频网站：粉色进度条 + 白色圆形滑块，无多余边框) */
+        .volume-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            padding: 0;
+            background: transparent;
+            border-radius: 0;
+            border: none;
+        }
+
+        .volume-mute-btn {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: none;
+            flex: 0 0 24px;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+
+        .volume-mute-btn:hover {
+            transform: scale(1.15);
+            opacity: 0.9;
+        }
+
+        .volume-mute-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .volume-mute-btn .vol-icon {
+            display: block;
+        }
+
+        .volume-mute-btn .mute-icon {
+            display: none;
+        }
+
+        .volume-mute-btn.muted .vol-icon {
+            display: none;
+        }
+
+        .volume-mute-btn.muted .mute-icon {
+            display: block;
+            color: #ff789c;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            flex: 1 !important;
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 80%), rgba(255, 255, 255, 0.2) var(--slider-pct, 80%), rgba(255, 255, 255, 0.2) 100%) !important;
+            outline: none !important;
+            border: none !important;
+            padding: 0 !important;
+            cursor: pointer !important;
+            margin: 0 !important;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: none !important;
+            cursor: pointer !important;
+            box-shadow: none !important;
+            margin-top: -3px !important;
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: none !important;
+            cursor: pointer !important;
+            box-shadow: none !important;
+        }
+
+        .volume-percent {
+            font-size: 0.75rem;
+            color: #ffffff;
+            min-width: 32px;
+            text-align: right;
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+        }
+
+        .player-container {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: space-between;
+            padding: 0;
+            position: relative;
+            box-sizing: border-box;
+            overflow: hidden;
+            background: #14121a !important;
+        }
+

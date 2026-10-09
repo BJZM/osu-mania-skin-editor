@@ -1,0 +1,63 @@
+    <!-- 依赖库 -->
+    <script src="vendor/jszip.min.js"></script>
+    <script>
+        if (typeof JSZip === 'undefined') {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\/script>');
+        }
+    </script>
+    <script src="vendor/utif.min.js"></script>
+    <script>
+        if (typeof UTIF === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.min.js"><\/script>');
+        }
+    </script>
+    <!-- 谱面解析默认使用本地原生实现，桌面版无需加载外部模块 -->
+    <!-- osu! stable 默认皮肤资源配置 -->
+    <script defer src="src/js/default_skin.js?v=20261009_3"></script>
+    <!-- 主逻辑脚本：按依赖顺序加载（普通脚本引入，兼容 file:// 协议） -->
+    <!-- 1) 全局状态、skin.ini 解析与参数元数据 -->
+    <script defer src="src/js/core/stage-layout.js?v=20261009_2"></script>
+    <script defer src="src/js/core/state.js?v=20261009_6"></script>
+    <script defer src="src/js/skin/skin-ini.js?v=20261009_2"></script>
+    <script defer src="src/js/skin/mania-config.js?v=20261009_2"></script>
+    <script defer src="src/js/skin/parameter-schema.js?v=20261009_6"></script>
+    <script defer src="src/js/skin/texture-lookup-map.js?v=20261009_4"></script>
+    <!-- 2) 谱面解析、zip / 皮肤资源处理 -->
+    <script defer src="src/js/parser/beatmap-format.js?v=20261009_2"></script>
+    <script defer src="src/js/parser/zip-timing.js?v=20261009_2"></script>
+    <script defer src="src/js/parser/beatmap-load.js?v=20261009_2"></script>
+    <script defer src="src/js/parser/beatmap-import.js?v=20261009_2"></script>
+    <script defer src="src/js/parser/skin-assets.js?v=20261009_2"></script>
+    <script defer src="src/js/parser/tiff.js?v=20261009_2"></script>
+    <script defer src="src/js/parser/skin-import.js?v=20261009_6"></script>
+    <!-- 3) Canvas 画布绘制核心 -->
+    <script defer src="src/js/render/effects.js?v=20261009_2"></script>
+    <script defer src="src/js/render/fonts.js?v=20261009_6"></script>
+    <script defer src="src/js/render/textures.js?v=20261009_3"></script>
+    <script defer src="src/js/render/combo.js?v=20261009_2"></script>
+    <script defer src="src/js/render/frame.js?v=20261009_2"></script>
+    <script defer src="src/js/render/judgements.js?v=20261009_2"></script>
+    <script defer src="src/js/render/hud.js?v=20261009_6"></script>
+    <script defer src="src/js/render/diagnostics.js?v=20261009_2"></script>
+    <!-- 在后续 UI 脚本解析时并行加载默认皮肤图片 -->
+    <script defer src="src/js/core/bootstrap.js?v=20261009_2"></script>
+    <!-- 4) 皮肤光标覆盖层 -->
+    <script defer src="src/js/cursor.js?v=20261009_3"></script>
+    <!-- 5) 界面交互层与启动初始化（必须最后加载） -->
+    <script defer src="src/js/ui/feedback.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/transport.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/canvas-editor.js?v=20261010_1"></script>
+    <script defer src="src/js/ui/ini-export.js?v=20261009_3"></script>
+    <script defer src="src/js/ui/param-core.js?v=20261009_6"></script>
+    <script defer src="src/js/ui/texture-resolve.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/texture-controls.js?v=20261009_6"></script>
+    <script defer src="src/js/ui/param-render.js?v=20261009_5"></script>
+    <script defer src="src/js/ui/export.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/history.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/editor-dialog.js?v=20261010_1"></script>
+    <script defer src="src/js/ui/animation-editor.js?v=20261009_4"></script>
+    <script defer src="src/js/ui/texture-upload.js?v=20261009_4"></script>
+    <script defer src="src/js/ui/canvas-interactions.js?v=20261009_6"></script>
+    <script defer src="src/js/ui/shortcuts.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/app-shell.js?v=20261010_1"></script>
