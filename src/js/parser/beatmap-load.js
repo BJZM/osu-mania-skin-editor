@@ -57,26 +57,30 @@
                         ui.bg.classList.remove('visible');
                     }
                     const nextImg = new Image();
-                    await new Promise((resolve) => {
-                        nextImg.onload = () => {
-                            if (canvasBgImage && canvasBgImage.complete && canvasBgImage.src && hasCanvasBg) {
-                                prevCanvasBgImage = canvasBgImage;
-                            } else {
-                                prevCanvasBgImage = null;
-                            }
-                            canvasBgImage = nextImg;
-                            hasCanvasBg = true;
-                            bgFadeStartTime = performance.now();
-                            drawFrame();
-                            resolve();
-                        };
-                        nextImg.onerror = () => {
-                            hasCanvasBg = false;
-                            drawFrame();
-                            resolve();
-                        };
-                        nextImg.src = bgUrl;
-                    });
+                    try {
+                        await new Promise((resolve) => {
+                            nextImg.onload = () => {
+                                if (canvasBgImage && canvasBgImage.complete && canvasBgImage.src && hasCanvasBg) {
+                                    prevCanvasBgImage = canvasBgImage;
+                                } else {
+                                    prevCanvasBgImage = null;
+                                }
+                                canvasBgImage = nextImg;
+                                hasCanvasBg = true;
+                                bgFadeStartTime = performance.now();
+                                drawFrame();
+                                resolve();
+                            };
+                            nextImg.onerror = () => {
+                                hasCanvasBg = false;
+                                drawFrame();
+                                resolve();
+                            };
+                            nextImg.src = bgUrl;
+                        });
+                    } finally {
+                        try { URL.revokeObjectURL(bgUrl); } catch (_) { }
+                    }
                 } catch (e) {
                     console.warn("加载难度背景图异常:", e);
                     hasCanvasBg = false;

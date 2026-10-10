@@ -501,8 +501,6 @@
         function getStoryboardImage(state, path, timeMs = 0) {
             const asset = getStoryboardAsset(state, path);
             if (!asset) return null;
-            asset.lastUsedFrame = state.assetFrameSerial;
-            asset.lastUsedTime = timeMs;
             if (!asset.ready && !asset.loading && !asset.error) {
                 queueStoryboardAssetLoad(state, asset);
             }
