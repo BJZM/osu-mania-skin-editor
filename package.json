@@ -10,6 +10,7 @@
     "build:icon": "electron tools/build-icon.cjs",
     "build:css": "node tools/build-css.mjs",
     "build:html": "node tools/build-html.mjs",
+    "build:site": "npm run build:css && npm run build:html && node tools/build-site.mjs",
     "check:css": "node tools/build-css.mjs --check",
     "audit:css": "node tools/audit-css.mjs",
     "check:html": "node tools/build-html.mjs --check",
@@ -18,7 +19,8 @@
     "test:e2e": "npm run build:css && npm run build:html && playwright test",
     "test": "npm run check && npm run test:e2e",
     "desktop": "npm run build:css && npm run build:html && electron .",
-    "dist:win": "node tools/build-exe.mjs"
+    "dist:win": "node tools/build-exe.mjs",
+    "deploy:pages": "npm run build:site && node tools/deploy-pages.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.64.0",

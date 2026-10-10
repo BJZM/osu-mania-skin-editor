@@ -5,6 +5,7 @@ node_modules/
 test-results/
 dist/
 playwright-report/
+site/
 
 # Local assets and historical data
 samples/
