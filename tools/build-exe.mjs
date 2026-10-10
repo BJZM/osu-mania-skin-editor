@@ -38,7 +38,7 @@ function run(command, args) {
 }
 
 async function copyRuntimeFiles() {
-  const entries = ['index.html', 'electron', 'src', 'vendor', 'assets'];
+  const entries = ['index.html', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'electron', 'src', 'vendor', 'assets'];
   for (const entry of entries) {
     await fs.cp(path.join(root, entry), path.join(stageDir, entry), { recursive: true });
   }

@@ -190,7 +190,12 @@
                 drawFrame();
                 updateSkinInfoDisplay();
                 if (selectedCanvasElement) {
-                    const liveElem = canvasInteractiveElements.find(e => e.id === selectedCanvasElement.id) || selectedCanvasElement;
+                    const liveElem = canvasInteractiveElements.find(e => {
+                        if (selectedCanvasElement.noteInstanceKey && e.noteInstanceKey) {
+                            return e.noteInstanceKey === selectedCanvasElement.noteInstanceKey;
+                        }
+                        return e.id === selectedCanvasElement.id;
+                    }) || selectedCanvasElement;
                     syncCanvasSelectedCard(liveElem);
                 }
             } catch (err) {

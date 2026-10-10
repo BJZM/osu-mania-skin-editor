@@ -43,6 +43,7 @@ load-time access remain ordered correctly.
 - `skin/parameter-schema.js`: metadata for the visual parameter editor.
 - `skin/texture-lookup-map.js`: parameter key to skin lookup mapping.
 - `parser/beatmap-format.js`: `.osu` decoding and native text parsing.
+- `parser/storyboard.js`: stable `.osu` / `.osb` storyboard and video event parsing.
 - `parser/beatmap-import.js`: `.osz` / `.osu` import workflow.
 - `parser/beatmap-load.js`: difficulty loading, audio/background and note state.
 - `parser/skin-assets.js`: image stores, default skin and animation lookup.
@@ -50,6 +51,9 @@ load-time access remain ordered correctly.
 - `parser/tiff.js`: TIFF compatibility decoder.
 - `parser/zip-timing.js`: zip lookup, background and timing/barline helpers.
 - `render/frame.js`: main Canvas frame.
+- `render/storyboard-assets.js`: lazy storyboard asset loading and video sync.
+- `render/storyboard.js`: storyboard timeline evaluation and Canvas drawing.
+- `render/storyboard-composite.js`: cached/offscreen composition for expensive backgrounds.
 - `render/fonts.js`, `render/textures.js`, `render/combo.js`: shared draw assets.
 - `render/judgements.js`, `render/hud.js`, `render/diagnostics.js`: overlays/HUD.
 - `ui/editor-dialog.js`: editor shell and initialization coordinator.

@@ -10,8 +10,17 @@
 
             // 状态立即更新为播放中，画面循环立即启动，确保拖拽后无论 Promise 状态如何均能立刻开始播放
             isPlaying = true;
+
+            // 播放开始时：若当前选中了 note/长条相关元素，自动取消选中
+            if (selectedCanvasElement && (selectedCanvasElement.id.startsWith('note_') || selectedCanvasElement.id.startsWith('hold_'))) {
+                selectedCanvasElement = null;
+                const card = document.getElementById('canvasSelectedCard');
+                if (card) card.style.display = 'none';
+            }
+
             setPlayPauseUi(true);
             animationId = requestAnimationFrame(drawFrame);
+            resumeStoryboardPlayback();
 
             try {
                 const p = audio.play();
@@ -20,6 +29,7 @@
                         console.warn("音频播放反馈:", err.name, err.message);
                         if (err.name === 'NotAllowedError') {
                             isPlaying = false;
+                            pauseStoryboardPlayback();
                             setPlayPauseUi(false);
                             cancelAnimationFrame(animationId);
                             animationId = null;
@@ -35,6 +45,7 @@
         function pauseAudioAndBeatmap() {
             try { audio.pause(); } catch (_) {}
             isPlaying = false;
+            pauseStoryboardPlayback();
             playbackBreakResumeTime = 0;
             setPlayPauseUi(false);
             cancelAnimationFrame(animationId);
@@ -183,6 +194,7 @@
 
         audio.onended = () => {
             isPlaying = false;
+            resetStoryboardPlayback();
             setPlayPauseUi(false);
             audio.currentTime = 0;
             if (ui.progressRange) ui.progressRange.value = 0;

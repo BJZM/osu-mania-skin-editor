@@ -57,7 +57,8 @@
                 ShowJudgementLine: true,
                 KeysUnderNotes: 0,
                 LightFramePerSecond: 60,
-                NoteBodyStyle: null,
+                NoteBodyStyle: 1,
+                NoteBodyStyles: new Array(k).fill(null),
                 ColumnStart: 136,
                 ColumnRight: 19,
                 UpsideDown: false,
@@ -154,6 +155,7 @@
             if (!cfg) {
                 if (lookup === LML.KeysUnderNotes) return { ok: true, value: 0 };
                 if (lookup === LML.ColumnBackgroundColour) return { ok: true, value: { r: 0, g: 0, b: 0, a: 255 } };
+                if (lookup === LML.NoteBodyStyle) return { ok: true, value: 1 };
                 return null;
             }
 
@@ -286,7 +288,15 @@
                     return { ok: true, value: (val === 1 || val === '1' || val === true) ? 1 : 0 };
                 }
                 case LML.LightFramePerSecond: return { ok: true, value: cfg.LightFramePerSecond };
-                case LML.NoteBodyStyle: return { ok: true, value: cfg.NoteBodyStyle };
+                case LML.NoteBodyStyle: {
+                    if (columnIndex != null && Array.isArray(cfg.NoteBodyStyles) && cfg.NoteBodyStyles[columnIndex] != null) {
+                        return { ok: true, value: cfg.NoteBodyStyles[columnIndex] };
+                    }
+                    if (cfg.NoteBodyStyle != null) {
+                        return { ok: true, value: cfg.NoteBodyStyle };
+                    }
+                    return { ok: true, value: 1 };
+                }
                 default:
                     return null;
             }

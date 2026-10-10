@@ -358,7 +358,7 @@ test('D4 流速与背景暗化滑块写入状态', async ({ page }) => {
 
   await page.evaluate(() => {
     const r = document.getElementById('speedRange');
-    r.value = '2.4';
+    r.value = '28';
     r.dispatchEvent(new Event('input', { bubbles: true }));
     const d = document.getElementById('dimRange');
     d.value = '65';
@@ -366,7 +366,7 @@ test('D4 流速与背景暗化滑块写入状态', async ({ page }) => {
   });
   await page.waitForTimeout(200);
   const state = await page.evaluate(() => ({ speed: scrollSpeed, dim: bgDim, dimText: document.getElementById('dimText').textContent }));
-  expect(state.speed).toBeCloseTo(2.4, 1);
+  expect(state.speed).toBe(28);
   expect(state.dim).toBe(65);
   expect(state.dimText).toContain('65');
   expect(errors).toEqual([]);

@@ -202,12 +202,16 @@
         let beatmaps = [];
         let currentBeatmap = null;
         let currentTimingPoints = [];
+        let currentManiaScrollState = null;
+        let enableStoryboard = true;
+        let enableVideo = true;
         let activeNotes = [];
         let isPreviewMode = false;
         let audio = new Audio();
         let audioBlobUrl = null;
 
-        let scrollSpeed = 1.5;
+        // osu!stable / lazer 常用默认流速为 24 (范围 1~40)
+        let scrollSpeed = 24;
         let isPlaying = false;
         let animationId;
         let judgements = [];

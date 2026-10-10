@@ -91,7 +91,8 @@
                     ShowJudgementLine: true,
                     KeysUnderNotes: globalKeysUnderNotes !== undefined ? globalKeysUnderNotes : 0,
                     LightFramePerSecond: 60,
-                    NoteBodyStyle: null,
+                    NoteBodyStyle: 1,
+                    NoteBodyStyles: new Array(keys).fill(null),
                     ColumnStart: 136,
                     ColumnRight: 19,
                     UpsideDown: false,
@@ -406,8 +407,8 @@
                             } else {
                                 const low = V.toLowerCase().trim();
                                 if (low === 'stretch') currentConfig.NoteBodyStyle = 0;
-                                else if (low === 'repeatfromtail' || low === 'repeattail') currentConfig.NoteBodyStyle = 1;
-                                else if (low === 'repeatfromhead' || low === 'repeathead') currentConfig.NoteBodyStyle = 2;
+                                else if (low === 'repeatfromtail' || low === 'repeattail' || low.includes('top')) currentConfig.NoteBodyStyle = 1;
+                                else if (low === 'repeatfromhead' || low === 'repeathead' || low.includes('bottom')) currentConfig.NoteBodyStyle = 2;
                             }
                             break;
                         }
@@ -503,6 +504,24 @@
                                 imgKeyCi.startsWith('noteflipwhenupsidedown')) {
                                 currentConfig.FlipSettings.set(K, V);
                                 currentConfig.FlipSettings.set(imgKeyCi, V);
+                            } else if (/^notebodystyle\d+$/i.test(imgKeyCi)) {
+                                const m = imgKeyCi.match(/^notebodystyle(\d+)$/i);
+                                if (m) {
+                                    const colIdx = parseInt(m[1], 10);
+                                    const raw = parseInt(V, 10);
+                                    let sVal = null;
+                                    if (!isNaN(raw) && raw >= 0 && raw <= 2) sVal = raw;
+                                    else {
+                                        const low = V.toLowerCase().trim();
+                                        if (low === 'stretch') sVal = 0;
+                                        else if (low === 'repeatfromtail' || low === 'repeattail' || low.includes('top')) sVal = 1;
+                                        else if (low === 'repeatfromhead' || low === 'repeathead' || low.includes('bottom')) sVal = 2;
+                                    }
+                                    if (sVal !== null && colIdx >= 0 && colIdx < currentConfig.Keys) {
+                                        if (!Array.isArray(currentConfig.NoteBodyStyles)) currentConfig.NoteBodyStyles = new Array(currentConfig.Keys).fill(null);
+                                        currentConfig.NoteBodyStyles[colIdx] = sVal;
+                                    }
+                                }
                             }
                             break;
                     }

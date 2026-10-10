@@ -105,6 +105,26 @@
             gap: 12px;
         }
 
+        .tweak-switch-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.45);
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: none !important;
+            height: 30px;
+            box-sizing: border-box;
+            user-select: none;
+            cursor: pointer;
+        }
+
+        .tweak-switch-item .ios-switch {
+            transform: scale(0.75);
+            transform-origin: center center;
+            margin: 0 -4px;
+        }
+
         .tweak-slider-item {
             display: flex;
             align-items: center;

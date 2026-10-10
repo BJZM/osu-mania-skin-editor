@@ -4,6 +4,9 @@
 // ============================================================================
 
 // 获取可选的 BeatmapDecoder；主解析流程使用本地原生 parseOsuBeatmap。
+// 该全局入口用于兼容 kionell/osu-parsers (MIT) 等提供
+// new BeatmapDecoder().decodeFromString(text) 的外部解码器；
+// 本仓库不包含该库，未注入时始终走内置解析器。
 async function getBeatmapDecoder() {
     return window.BeatmapDecoder || null;
 }
@@ -25,6 +28,8 @@ async function getBeatmapDecoder() {
             const difficulty = { circleSize: 4, sliderTickRate: 1 };
             const hitObjects = [];
             let bgPath = null;
+            const formatMatch = text.match(/osu file format v(\d+)/i);
+            const formatVersion = formatMatch ? parseInt(formatMatch[1], 10) : 14;
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
@@ -99,6 +104,7 @@ async function getBeatmapDecoder() {
                 general: general,
                 metadata: metadata,
                 difficulty: difficulty,
+                formatVersion: formatVersion,
                 hitObjects: hitObjects,
                 bgPath: bgPath
             };

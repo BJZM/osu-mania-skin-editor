@@ -9,6 +9,7 @@
             position: fixed;
             top: 0;
             left: 0;
+            width: 100vw;
             height: 100vh;
             z-index: 3500;
             display: flex;
@@ -349,4 +350,145 @@
 
         .help-footer-btn:active {
             transform: scale(0.97);
+        }
+
+        /* ==========================================================================
+           关于、版权与第三方许可弹窗 (About Modal)
+           ============================================================ */
+        .about-modal-dialog {
+            width: 640px;
+            height: auto;
+            max-height: 85vh;
+        }
+
+        .about-modal-body {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            padding: 18px 22px;
+        }
+
+        .about-hero {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .about-app-name {
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: 0.2px;
+        }
+
+        .about-app-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        .about-app-meta strong {
+            color: #ff66aa;
+            font-weight: 700;
+        }
+
+        .about-app-desc {
+            margin: 0;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.68);
+        }
+
+        .about-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .about-section-title {
+            margin: 0;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #ff66aa;
+            letter-spacing: 0.4px;
+        }
+
+        .about-list {
+            margin: 0;
+            padding-left: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.8rem;
+            line-height: 1.55;
+            color: rgba(255, 255, 255, 0.75);
+        }
+
+        .about-list-compact {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 6px;
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .about-list-compact li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .about-license-tag {
+            flex-shrink: 0;
+            padding: 2px 7px;
+            border-radius: 9999px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: #ffb3d5;
+            background: rgba(255, 102, 170, 0.12);
+            border: 1px solid rgba(255, 102, 170, 0.3);
+        }
+
+        .about-license-tag-gpl {
+            color: #ffd28a;
+            background: rgba(255, 176, 64, 0.12);
+            border-color: rgba(255, 176, 64, 0.35);
+        }
+
+        .about-disclaimer {
+            margin: 0;
+            padding: 12px 14px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.72);
+            background: rgba(255, 102, 170, 0.06);
+            border: 1px solid rgba(255, 102, 170, 0.18);
+        }
+
+        .about-link {
+            color: #ff9ecb;
+            font-size: 0.78rem;
+            text-decoration: none;
+            border-bottom: 1px dashed rgba(255, 158, 203, 0.5);
+        }
+
+        .about-link:hover {
+            color: #ffd0e6;
+        }
+
+        @media (max-width: 640px) {
+            .about-list-compact {
+                grid-template-columns: 1fr;
+            }
         }

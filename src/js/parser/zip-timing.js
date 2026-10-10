@@ -73,8 +73,24 @@
                         const beatLength = parseFloat(parts[1]);
                         const meter = (parts.length >= 3 && parseInt(parts[2], 10) > 0) ? parseInt(parts[2], 10) : 4;
                         const uninherited = (parts.length >= 7) ? parseInt(parts[6], 10) === 1 : (beatLength > 0);
-                        if (uninherited && beatLength > 0 && !isNaN(time)) {
-                            timingPoints.push({ time, beatLength, meter });
+                        if (!isNaN(time) && isFinite(beatLength) && beatLength !== 0) {
+                            if (uninherited && beatLength > 0) {
+                                timingPoints.push({
+                                    time: time,
+                                    beatLength: beatLength,
+                                    meter: meter,
+                                    uninherited: true
+                                });
+                            } else if (!uninherited && beatLength < 0) {
+                                // osu!stable / lazer legacy: inherited timing point SV = -100 / beatLength.
+                                timingPoints.push({
+                                    time: time,
+                                    beatLength: beatLength,
+                                    meter: meter,
+                                    uninherited: false,
+                                    scrollSpeed: -100 / beatLength
+                                });
+                            }
                         }
                     }
                 }
@@ -84,11 +100,12 @@
         }
 
         function getBeatLengthAt(timingPoints, time) {
-            if (!timingPoints || timingPoints.length === 0) return 500;
-            let active = timingPoints[0];
-            for (let i = 0; i < timingPoints.length; i++) {
-                if (timingPoints[i].time <= time) {
-                    active = timingPoints[i];
+            const redPoints = getUninheritedTimingPoints(timingPoints);
+            if (redPoints.length === 0) return 500;
+            let active = redPoints[0];
+            for (let i = 0; i < redPoints.length; i++) {
+                if (redPoints[i].time <= time) {
+                    active = redPoints[i];
                 } else {
                     break;
                 }
@@ -96,8 +113,168 @@
             return active.beatLength;
         }
 
+        function getUninheritedTimingPoints(timingPoints) {
+            return (timingPoints || [])
+                .filter(tp => tp && tp.uninherited !== false && isFinite(tp.beatLength) && tp.beatLength > 0)
+                .sort((a, b) => a.time - b.time);
+        }
+
+        // 对齐 lazer Beatmap.GetMostCommonBeatLength()（mania stable 兼容的 RelativeScaleBeatLengths）：
+        // 按每个红线的持续时间累计，取持续时间最长的节拍长度；第一条红线由 stable 强制从 0ms 开始。
+        function getMostCommonBeatLength(timingPoints, lastObjectTime) {
+            const redPoints = getUninheritedTimingPoints(timingPoints);
+            if (redPoints.length === 0) return 500;
+
+            const lastTime = (isFinite(lastObjectTime) && lastObjectTime > 0)
+                ? lastObjectTime
+                : redPoints[redPoints.length - 1].time;
+            const durations = new Map();
+
+            for (let i = 0; i < redPoints.length; i++) {
+                const point = redPoints[i];
+                if (point.time > lastTime) continue;
+
+                const currentTime = (i === 0) ? 0 : point.time;
+                const nextTime = (i === redPoints.length - 1) ? lastTime : redPoints[i + 1].time;
+                const duration = Math.max(0, nextTime - currentTime);
+                const roundedBeatLength = Math.round(point.beatLength * 1000) / 1000;
+                durations.set(roundedBeatLength, (durations.get(roundedBeatLength) || 0) + duration);
+            }
+
+            let mostCommon = 0;
+            let maxDuration = -Infinity;
+            for (const entry of durations.entries()) {
+                if (entry[1] > maxDuration) {
+                    mostCommon = entry[0];
+                    maxDuration = entry[1];
+                }
+            }
+
+            if (!(mostCommon > 0)) return 500;
+            const minBeatLength = Math.min(...redPoints.map(tp => tp.beatLength));
+            const maxBeatLength = Math.max(...redPoints.map(tp => tp.beatLength));
+            return Math.max(minBeatLength, Math.min(maxBeatLength, mostCommon));
+        }
+
+        // osu!stable 的固定流速模式：BPM/BeatLength 变化不改变屏幕流速，
+        // 只有 inherited timing point 的 SV 会改变滚动倍率。
+        // relativePosition 的单位是“倍率为 1 时的毫秒数”，之后只需乘以基础 px/ms 即得滚动距离。
+        function createManiaScrollState(timingPoints, lastObjectTime) {
+            const rawPoints = (timingPoints || [])
+                .filter(tp => tp && isFinite(tp.time))
+                .map((tp, order) => ({
+                    time: tp.time,
+                    beatLength: Number(tp.beatLength),
+                    uninherited: tp.uninherited !== false && tp.beatLength > 0,
+                    scrollSpeed: (isFinite(tp.scrollSpeed) && tp.scrollSpeed > 0) ? tp.scrollSpeed : 1,
+                    order: order
+                }))
+                .sort((a, b) => a.time - b.time || a.order - b.order);
+
+            const baseBeatLength = getMostCommonBeatLength(timingPoints, lastObjectTime);
+            const points = [];
+            let currentScrollSpeed = 1;
+
+            let i = 0;
+            while (i < rawPoints.length) {
+                const pointTime = rawPoints[i].time;
+                let j = i;
+                while (j < rawPoints.length && rawPoints[j].time === pointTime) {
+                    const point = rawPoints[j];
+                    if (!point.uninherited && isFinite(point.scrollSpeed) && point.scrollSpeed > 0) {
+                        currentScrollSpeed = point.scrollSpeed;
+                    }
+                    j++;
+                }
+
+                const multiplier = currentScrollSpeed;
+                if (points.length === 0 || Math.abs(points[points.length - 1].multiplier - multiplier) > 1e-9) {
+                    points.push({ time: pointTime, multiplier: multiplier, position: 0 });
+                }
+                i = j;
+            }
+
+            for (let k = 1; k < points.length; k++) {
+                points[k].position = points[k - 1].position
+                    + (points[k].time - points[k - 1].time) * points[k - 1].multiplier;
+            }
+
+            return {
+                baseBeatLength: baseBeatLength,
+                points: points
+            };
+        }
+
+        function getManiaScrollMultiplierAt(time, scrollState) {
+            if (!scrollState || !scrollState.points || scrollState.points.length === 0) return 1;
+
+            const points = scrollState.points;
+            if (time < points[0].time) return points[0].multiplier;
+
+            let lo = 0;
+            let hi = points.length - 1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (points[mid].time <= time) {
+                    lo = mid + 1;
+                } else {
+                    hi = mid - 1;
+                }
+            }
+            return points[Math.max(0, hi)].multiplier;
+        }
+
+        function getManiaScrollPositionAt(time, scrollState) {
+            const safeTime = isFinite(time) ? time : 0;
+            if (!scrollState || !scrollState.points || scrollState.points.length === 0) return safeTime;
+
+            const points = scrollState.points;
+            if (safeTime < points[0].time) {
+                return (safeTime - points[0].time) * points[0].multiplier;
+            }
+
+            let lo = 0;
+            let hi = points.length - 1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (points[mid].time <= safeTime) {
+                    lo = mid + 1;
+                } else {
+                    hi = mid - 1;
+                }
+            }
+
+            const activeIndex = Math.max(0, hi);
+            const active = points[activeIndex];
+            return active.position + (safeTime - active.time) * active.multiplier;
+        }
+
+        // =========================================================================
+        // 流速与可见时间计算（对齐 osu!stable 机制与 lazer 源码实现）
+        // 参考 lazer: DrawableManiaRuleset.cs + SequentialScrollAlgorithm.cs
+        // 1. MIN_TIME_RANGE = 290ms (scrollSpeed = 40)
+        // 2. MAX_TIME_RANGE = 11485ms (scrollSpeed = 1)
+        // 3. ComputeScrollTime(scrollSpeed) = MAX_TIME_RANGE / scrollSpeed
+        // 4. 音符下落速度 (px/ms) = (DEFAULT_HIT_POSITION / scrollTime) * scale48
+        // 5. 缩放机制保证音符实际下落速度独立于 skin.ini 自定义 HitPosition，与 stable 表现一致
+        // =========================================================================
+        const MANIA_MIN_TIME_RANGE = 290;
+        const MANIA_MAX_TIME_RANGE = 11485;
+
+        function computeManiaScrollTime(speed) {
+            const safeSpeed = Math.max(1, Math.min(40, isFinite(speed) && speed > 0 ? Math.round(Number(speed)) : 24));
+            return MANIA_MAX_TIME_RANGE / safeSpeed;
+        }
+
+        function getManiaSpeedFactor(speed, scale48) {
+            const scrollTime = computeManiaScrollTime(speed);
+            const defaultHp = (typeof DEFAULT_HIT_POSITION !== 'undefined') ? DEFAULT_HIT_POSITION : 402;
+            const baseSpeed = defaultHp / scrollTime;
+            return baseSpeed * (scale48 || 1);
+        }
+
         // 计算当前可视视口范围内需要渲染的小节线垂直坐标 (barline Y positions)
-        function getVisibleBarlines(timingPoints, currentTime, minTime, maxTime, isPreviewMode, speedFactor, hitPos, isUpsideDown) {
+        function getVisibleBarlines(timingPoints, currentTime, minTime, maxTime, isPreviewMode, positionAtTime, hitPos, isUpsideDown) {
             if (isPreviewMode) {
                 // 预览模式：在判定线前后生成静态小节线供视觉预览
                 return isUpsideDown
@@ -105,9 +282,14 @@
                     : [hitPos - 220, hitPos - 440];
             }
 
-            const calcY = (t) => isUpsideDown
-                ? hitPos + (t - currentTime) * speedFactor
-                : hitPos - (t - currentTime) * speedFactor;
+            const calcY = (typeof positionAtTime === 'function')
+                ? positionAtTime
+                : (t) => {
+                    const fallbackSpeedFactor = Number(positionAtTime) || 1;
+                    return isUpsideDown
+                        ? hitPos + (t - currentTime) * fallbackSpeedFactor
+                        : hitPos - (t - currentTime) * fallbackSpeedFactor;
+                };
 
             const isYVisible = (y) => isUpsideDown
                 ? (y <= canvas.height + 25 && y >= hitPos - 25)
@@ -175,4 +357,30 @@
             }
 
             return yPositions;
+        }
+
+        if (typeof window !== 'undefined') {
+            window.MANIA_MIN_TIME_RANGE = MANIA_MIN_TIME_RANGE;
+            window.MANIA_MAX_TIME_RANGE = MANIA_MAX_TIME_RANGE;
+            window.computeManiaScrollTime = computeManiaScrollTime;
+            window.getManiaSpeedFactor = getManiaSpeedFactor;
+        }
+
+        if (typeof module !== 'undefined' && module.exports) {
+            module.exports = {
+                findZipEntry,
+                getBeatmapBackgroundKey,
+                parseTimingPointsFromOsuText,
+                getActiveBeatLengthAt,
+                getUninheritedTimingPoints,
+                getMostCommonBeatLength,
+                createManiaScrollState,
+                getManiaScrollMultiplierAt,
+                getManiaScrollPositionAt,
+                getVisibleBarlines,
+                MANIA_MIN_TIME_RANGE,
+                MANIA_MAX_TIME_RANGE,
+                computeManiaScrollTime,
+                getManiaSpeedFactor
+            };
         }

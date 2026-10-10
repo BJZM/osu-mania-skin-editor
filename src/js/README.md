@@ -8,7 +8,7 @@ ordered according to the groups below.
 
 - `core/stage-layout.js`: 480p stage width, track limits and clamping.
 - `core/state.js`: canvas references, mutable runtime state and constants.
-- `core/bootstrap.js`: loads core default skin assets before UI scripts finish.
+- `core/bootstrap.js`: exposes `window.APP_INFO` and loads core default skin assets before UI scripts finish.
 
 ## Skin
 
@@ -20,6 +20,7 @@ ordered according to the groups below.
 ## Parser
 
 - `parser/beatmap-format.js`: `BeatmapDecoder` and native `.osu` parser.
+- `parser/storyboard.js`: stable `.osu` / `.osb` storyboard and video event parsing.
 - `parser/zip-timing.js`: zip lookup, background and TimingPoints/barlines.
 - `parser/beatmap-load.js`: difficulty loading and active note construction.
 - `parser/beatmap-import.js`: `.osz` / `.osu` import events.
@@ -33,6 +34,9 @@ ordered according to the groups below.
 - `render/fonts.js`: skin digit lookup and text rendering.
 - `render/textures.js`: note, key and lighting texture resolution.
 - `render/combo.js`: combo rendering.
+- `render/storyboard-assets.js`: storyboard image/video loading and playback lifecycle.
+- `render/storyboard.js`: storyboard command evaluation and Canvas rendering.
+- `render/storyboard-composite.js`: throttled offscreen composition for video and heavy storyboards.
 - `render/frame.js`: main Canvas frame.
 - `render/judgements.js`: judgement preview and animations.
 - `render/hud.js`: score, accuracy and health display.

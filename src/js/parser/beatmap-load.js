@@ -10,6 +10,7 @@
             if (isPlaying) {
                 pauseAudioAndBeatmap();
             }
+            disposeStoryboardPlayback();
 
             const bmInfo = beatmaps[diffIdx];
             currentBeatmap = bmInfo.data;
@@ -86,11 +87,21 @@
                 canvasBgImage = null;
             }
 
-            // 3. 构建当前难度的 activeNotes (对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中持续增加连击数)
+            // 3. 初始化当前难度的视频与故事板播放状态。资源按需解码，不阻塞音符构建。
+            await loadStoryboardPlayback(currentOszZip, bmInfo.storyboard);
+
+            // 4. 构建当前难度的 activeNotes (对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中持续增加连击数)
             const timingPoints = (bmInfo && bmInfo.timingPoints) ? bmInfo.timingPoints : [];
             const sliderTickRate = (currentBeatmap && currentBeatmap.difficulty && currentBeatmap.difficulty.sliderTickRate > 0)
                 ? currentBeatmap.difficulty.sliderTickRate
                 : 1;
+            const lastObjectTime = (currentBeatmap.hitObjects || []).reduce((maxTime, obj) => {
+                const startTime = parseFloat(obj.startTime);
+                const endTime = obj.endTime !== undefined && obj.endTime !== null ? parseFloat(obj.endTime) : NaN;
+                const objectEndTime = isFinite(endTime) ? endTime : startTime;
+                return Math.max(maxTime, isFinite(objectEndTime) ? objectEndTime : 0);
+            }, 0);
+            currentManiaScrollState = createManiaScrollState(timingPoints, lastObjectTime);
 
             activeNotes = (currentBeatmap.hitObjects || []).map(obj => {
                 const safeKeys = Math.max(1, isFinite(keys) ? (keys | 0) : 4);
@@ -128,6 +139,8 @@
                 return {
                     startTime: startTime,
                     endTime: e,
+                    scrollPositionStart: getManiaScrollPositionAt(startTime, currentManiaScrollState),
+                    scrollPositionEnd: getManiaScrollPositionAt(e, currentManiaScrollState),
                     column: column,
                     isHold: isHold,
                     ticks: ticks,
@@ -141,7 +154,7 @@
             activeExplosions = [];
             cancelAnimationFrame(animationId);
 
-            // 4. 初始化进度条与时间显示
+            // 5. 初始化进度条与时间显示
             const totalDurationSec = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
                 ? audio.duration
                 : (bmInfo.stats.lengthMs / 1000);
@@ -150,12 +163,12 @@
             updateTimeLabels(0, totalDurationSec);
             updateProgressFill(0, totalDurationSec);
 
-            // 5. 解锁播放控制器并更新 UI 状态
+            // 6. 解锁播放控制器并更新 UI 状态
             ui.playerControls.classList.remove('disabled');
             ui.progressRange.disabled = false;
             ui.playPauseBtn.disabled = false;
             setPlayPauseUi(false);
 
-            // 6. 绘制初始静止预览帧
+            // 7. 绘制初始静止预览帧
             drawFrame();
         }

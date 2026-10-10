@@ -287,30 +287,13 @@
         }
 
         function getManiaNoteDrawHeight(keys, columnIndex, img, colW, scale48) {
-            if (!img || img.width <= 0 || img.height <= 0) return 20 * (scale48 / 1.5);
+            if (!img || img.width <= 0 || img.height <= 0) return Math.round(20 * scale48);
             const wnRes = getManiaSkinConfig(keys, LML.WidthForNoteHeightScale);
 
-            // 1. 如果 skin.ini 明确定义了 WidthForNoteHeightScale，严格按照该参考宽度计算高度（对齐 osu! 官方规范）
-            if (wnRes && wnRes.value > 0) {
-                const refW = wnRes.value * scale48;
-                return Math.max(4, refW * (img.height / img.width));
-            }
-
-            // 2. 若未显式配置 WidthForNoteHeightScale，对齐 osu! 官方 (LegacyNotePiece / LegacySkin) 规范：
-            // 基准高度优先采用 MinimumColumnWidth (全轨道最小列宽)；未指定各列宽度时使用当前列宽 colW。
-            // 贴图高度严格按横向等比缩放 (baseW * (img.height / img.width))，绝不人为截断高度或压缩宽高比。
-            let minColW = null;
-            if (keys && keys > 0) {
-                for (let c = 0; c < keys; c++) {
-                    const cwRes = getManiaSkinConfig(keys, LML.ColumnWidth, c);
-                    if (cwRes && cwRes.value > 0) {
-                        if (minColW === null || cwRes.value < minColW) {
-                            minColW = cwRes.value;
-                        }
-                    }
-                }
-            }
-            const baseW = (minColW !== null && minColW > 0) ? (minColW * scale48) : colW;
+            // 对齐 osu! lazer / stable 官方规范 (LegacyNotePiece):
+            // float noteHeight = widthForNoteHeightScale ?? DrawWidth;
+            // 贴图高度 = (img.height / img.width) * (widthForNoteHeightScale ?? colW)
+            const baseW = (wnRes && wnRes.value > 0) ? (wnRes.value * scale48) : colW;
             return Math.max(4, baseW * (img.height / img.width));
         }
 

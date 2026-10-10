@@ -144,6 +144,38 @@
                 };
             }
 
+            // 故事板渲染开关
+            const storyboardToggle = document.getElementById('storyboardToggle');
+            if (storyboardToggle) {
+                storyboardToggle.checked = enableStoryboard;
+                storyboardToggle.onchange = (e) => {
+                    enableStoryboard = e.target.checked;
+                    if (storyboardPlaybackState) {
+                        storyboardPlaybackState.compositeDirty = true;
+                    }
+                    drawFrame();
+                };
+            }
+
+            // 视频背景渲染开关
+            const videoToggle = document.getElementById('videoToggle');
+            if (videoToggle) {
+                videoToggle.checked = enableVideo;
+                videoToggle.onchange = (e) => {
+                    enableVideo = e.target.checked;
+                    if (storyboardPlaybackState) {
+                        storyboardPlaybackState.compositeDirty = true;
+                        if (!enableVideo && storyboardPlaybackState.video && storyboardPlaybackState.video.element) {
+                            try { storyboardPlaybackState.video.element.pause(); } catch (_) {}
+                        } else if (enableVideo) {
+                            ensureStoryboardVideoLoaded(storyboardPlaybackState, true);
+                            syncStoryboardVideoToTime(audio.currentTime * 1000, isPlaying);
+                        }
+                    }
+                    drawFrame();
+                };
+            }
+
             // 导出与难度选择下拉菜单与按钮
             const exportDropdown = document.getElementById('exportDropdownWrapper');
             const exportSkinBtn = document.getElementById('exportSkinBtn');

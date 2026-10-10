@@ -12,6 +12,7 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
   '.mp3': 'audio/mpeg',
   '.ogg': 'audio/ogg',

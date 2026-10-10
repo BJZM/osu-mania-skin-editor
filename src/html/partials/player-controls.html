@@ -43,12 +43,26 @@
 
                 <div class="deck-divider"></div>
 
-                <!-- 中区：流速调节与背景暗化 -->
+                <!-- 中区：故事板/视频开关、流速调节与背景暗化 -->
                 <div class="deck-group deck-tweaks">
-                    <div class="tweak-slider-item" title="流速调节 (Scroll Speed)">
+                    <div class="tweak-switch-item" title="开启 / 关闭故事板渲染 (对齐 osu!stable 故事板开关)">
+                        <span class="tweak-label">故事板</span>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="storyboardToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="tweak-switch-item" title="开启 / 关闭视频背景播放 (对齐 osu!stable 视频背景开关)">
+                        <span class="tweak-label">视频</span>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="videoToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="tweak-slider-item" title="流速调节 (Scroll Speed 1-40)">
                         <span class="tweak-label">流速 </span>
-                        <input type="range" id="speedRange" min="0.5" max="3.0" step="0.1" value="1.5">
-                        <span id="speedText" class="tweak-val stats-value osu-stat-pill">1.5</span>
+                        <input type="range" id="speedRange" min="1" max="40" step="1" value="24">
+                        <span id="speedText" class="tweak-val stats-value osu-stat-pill">24</span>
                     </div>
                     <div class="tweak-slider-item" title="背景暗化 (Background Dim)">
                         <span class="tweak-label">暗化 </span>

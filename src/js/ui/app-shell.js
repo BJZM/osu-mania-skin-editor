@@ -163,6 +163,35 @@
             }
         }
 
+        // 关于、版权与第三方许可弹窗交互绑定
+        function initAboutModalUI() {
+            const aboutBtn = document.getElementById('topAboutBtn');
+            const modal = document.getElementById('aboutModal');
+            const closeBtn = document.getElementById('aboutModalCloseBtn');
+            const confirmBtn = document.getElementById('aboutModalConfirmBtn');
+            const backdrop = document.getElementById('aboutModalBackdrop');
+            const versionEl = document.getElementById('aboutAppVersion');
+
+            if (!modal) return;
+
+            if (versionEl && window.APP_INFO && window.APP_INFO.version) {
+                versionEl.textContent = window.APP_INFO.version;
+            }
+
+            function openAboutModal() {
+                modal.style.display = 'flex';
+            }
+
+            function closeAboutModal() {
+                modal.style.display = 'none';
+            }
+
+            if (aboutBtn) aboutBtn.onclick = openAboutModal;
+            if (closeBtn) closeBtn.onclick = closeAboutModal;
+            if (confirmBtn) confirmBtn.onclick = closeAboutModal;
+            if (backdrop) backdrop.onclick = closeAboutModal;
+        }
+
         // 定位到菜单中具体参数行并执行聚焦高亮动画。
         // 放在最后加载的启动模块中，确保完整 UI 初始化完成后才向测试/外部调用暴露。
         function focusParameter(paramKey) {
@@ -267,6 +296,8 @@
         initSkinEditorUI();
         // 初始化贴图拉伸规则帮助说明弹窗
         initHelpModalUI();
+        // 初始化关于、版权与第三方许可弹窗
+        initAboutModalUI();
         // 保存初始皮肤快照
         saveInitialSkinSnapshot();
         // 初始化时立即同步画布像素与显示视口尺寸

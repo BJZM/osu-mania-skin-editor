@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "Visual editor and previewer for osu!stable mania skins",
+  "author": "BJZM",
+  "license": "MIT",
   "main": "electron/main.cjs",
   "scripts": {
     "build:icon": "electron tools/build-icon.cjs",
@@ -11,7 +13,7 @@
     "check:css": "node tools/build-css.mjs --check",
     "audit:css": "node tools/audit-css.mjs",
     "check:html": "node tools/build-html.mjs --check",
-    "serve": "npm run build:css && npm run build:html && python -m http.server 8765 --bind 127.0.0.1",
+    "serve": "npm run build:css && npm run build:html && node tools/static-server.cjs",
     "check": "node tools/check-js.mjs && npm run check:css && npm run audit:css && npm run check:html",
     "test:e2e": "npm run build:css && npm run build:html && playwright test",
     "test": "npm run check && npm run test:e2e",
@@ -39,6 +41,8 @@
       "src/**/*",
       "vendor/**/*",
       "assets/**/*",
+      "LICENSE",
+      "THIRD_PARTY_NOTICES.md",
       "package.json"
     ],
     "win": {

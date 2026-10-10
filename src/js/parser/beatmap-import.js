@@ -19,6 +19,7 @@
             showProgress('正在解压与解析谱面...');
 
             try {
+                disposeStoryboardPlayback();
                 beatmaps = [];
                 ui.diff.innerHTML = '';
                 loadedOszForBg = false;
@@ -33,6 +34,12 @@
                     const timingPoints = parseTimingPointsFromOsuText(osuText);
 
                     if (parsedMap) {
+                        const storyboard = parseStoryboardEvents(osuText, parsedMap.formatVersion);
+                        parsedMap.storyboard = storyboard;
+                        if (!parsedMap.bgPath && storyboard.backgroundPath) {
+                            parsedMap.bgPath = storyboard.backgroundPath;
+                        }
+
                         let noteCnt = 0, holdCnt = 0, lastTime = 0;
                         parsedMap.hitObjects.forEach(obj => {
                             const s = parseFloat(obj.startTime);
@@ -47,6 +54,7 @@
                             path: file.name,
                             data: parsedMap,
                             bgPath: parsedMap.bgPath,
+                            storyboard: storyboard,
                             timingPoints: timingPoints,
                             stats: {
                                 keys: Math.round(parsedMap.difficulty.circleSize) || 4,
@@ -67,6 +75,20 @@
                     const fileEntries = Object.keys(currentOszZip.files);
                     const totalFiles = fileEntries.length;
                     let processed = 0;
+                    const osbEntries = [];
+
+                    for (const relativePath of fileEntries) {
+                        if (!relativePath.toLowerCase().endsWith('.osb')) continue;
+                        try {
+                            const osbText = await currentOszZip.files[relativePath].async('string');
+                            osbEntries.push({
+                                path: relativePath,
+                                text: osbText
+                            });
+                        } catch (osbError) {
+                            console.warn(`解析故事板文件 [${relativePath}] 异常，已跳过:`, osbError);
+                        }
+                    }
 
                     for (const relativePath of fileEntries) {
                         processed++;
@@ -84,6 +106,20 @@
                                 const timingPoints = parseTimingPointsFromOsuText(osuText);
 
                                 if (parsedMap.mode === 3) {
+                                    const osuStoryboard = parseStoryboardEvents(
+                                        osuText,
+                                        parsedMap.formatVersion || 14
+                                    );
+                                    const osbEntry = findStoryboardEntryForBeatmap(relativePath, osbEntries);
+                                    if (osbEntry && !osbEntry.parsed) {
+                                        osbEntry.parsed = parseStoryboardEvents(osbEntry.text, parsedMap.formatVersion || 14);
+                                    }
+                                    const storyboard = mergeStoryboardData(
+                                        osuStoryboard,
+                                        osbEntry ? osbEntry.parsed : null
+                                    );
+                                    parsedMap.storyboard = storyboard;
+
                                     let noteCnt = 0, holdCnt = 0, lastTime = 0;
                                     (parsedMap.hitObjects || []).forEach(obj => {
                                         const s = parseFloat(obj.startTime);
@@ -94,16 +130,21 @@
                                         if (curMax > lastTime) lastTime = curMax;
                                     });
 
-                                    let bgPath = parsedMap.bgPath || null;
+                                    let bgPath = parsedMap.bgPath || storyboard.backgroundPath || null;
                                     if (!bgPath) {
                                         const bgMatch = osuText.match(/^\s*(?:0|Background)\s*,\s*0\s*,\s*"?([^",\r\n]+?)"?\s*(?:,.*)?$/im);
                                         if (bgMatch && bgMatch[1]) {
                                             bgPath = bgMatch[1].trim();
                                         }
                                     }
+                                    if (bgPath) {
+                                        bgPath = normalizeStoryboardPath(bgPath);
+                                    }
+                                    parsedMap.bgPath = bgPath;
 
                                     beatmaps.push({
                                         path: relativePath, data: parsedMap, bgPath: bgPath,
+                                        storyboard: storyboard,
                                         timingPoints: timingPoints,
                                         stats: {
                                             keys: Math.round(parsedMap.difficulty.circleSize) || 4,

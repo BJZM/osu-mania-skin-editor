@@ -110,14 +110,27 @@
                     }
 
                     // 阶段 2: 判定线以上的正在下落活动音符/长条
-                    if (!hit && mouseY < curHitPos) {
-                        for (const item of canvasInteractiveElements) {
+                    // 播放过程中不能选取 note 与长条相关元素；仅在暂停/非播放时可点选
+                    // 采用逆序查找并就近判定：由于 notesList 按时间正序排列（下方/较早到达判定线的 note 在前，上方/较晚的在后），
+                    // 从后向前遍历并选择垂直中心离鼠标最近的 note，防止同轨上有多个 note 时点击上面的 note 却选中下方的 note。
+                    if (!hit && !isPlaying && mouseY < curHitPos) {
+                        let bestNote = null;
+                        let minCenterDist = Infinity;
+                        for (let i = canvasInteractiveElements.length - 1; i >= 0; i--) {
+                            const item = canvasInteractiveElements[i];
                             if (item.id.startsWith('note_') || item.id.startsWith('hold_')) {
                                 if (mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                                    hit = item;
-                                    break;
+                                    const centerY = item.y + item.h / 2;
+                                    const dist = Math.abs(mouseY - centerY);
+                                    if (dist < minCenterDist) {
+                                        minCenterDist = dist;
+                                        bestNote = item;
+                                    }
                                 }
                             }
+                        }
+                        if (bestNote) {
+                            hit = bestNote;
                         }
                     }
 
@@ -180,7 +193,11 @@
                     }
 
                     if (hit) {
-                        if (!selectedCanvasElement || selectedCanvasElement.id !== hit.id) {
+                        const isDifferentElement = !selectedCanvasElement ||
+                            (selectedCanvasElement.noteInstanceKey || hit.noteInstanceKey
+                                ? selectedCanvasElement.noteInstanceKey !== hit.noteInstanceKey
+                                : selectedCanvasElement.id !== hit.id);
+                        if (isDifferentElement) {
                             selectionAnimStartTime = performance.now();
                         }
                         selectedCanvasElement = hit;
@@ -526,14 +543,26 @@
                         }
 
                         // 阶段 2: 判定线以上的音符优先
-                        if (!hoverHit && mouseY < curHitPos) {
-                            for (const item of canvasInteractiveElements) {
+                        // 播放过程中不能选取/悬停 note 与长条相关元素
+                        // 与 mousedown 保持一致：逆序查找并就近判定，防止同轨上有多个 note 时悬停在上方却高亮下方
+                        if (!hoverHit && !isPlaying && mouseY < curHitPos) {
+                            let bestHover = null;
+                            let minHoverDist = Infinity;
+                            for (let i = canvasInteractiveElements.length - 1; i >= 0; i--) {
+                                const item = canvasInteractiveElements[i];
                                 if (item.id.startsWith('note_') || item.id.startsWith('hold_')) {
                                     if (mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                                        hoverHit = item;
-                                        break;
+                                        const centerY = item.y + item.h / 2;
+                                        const dist = Math.abs(mouseY - centerY);
+                                        if (dist < minHoverDist) {
+                                            minHoverDist = dist;
+                                            bestHover = item;
+                                        }
                                     }
                                 }
+                            }
+                            if (bestHover) {
+                                hoverHit = bestHover;
                             }
                         }
 

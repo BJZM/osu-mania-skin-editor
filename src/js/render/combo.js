@@ -4,8 +4,9 @@
 // ============================================================================
 
         function drawCoverImage(ctx, img, targetW, targetH) {
-            const imgW = img.width;
-            const imgH = img.height;
+            const imgW = img.videoWidth || img.naturalWidth || img.width;
+            const imgH = img.videoHeight || img.naturalHeight || img.height;
+            if (!imgW || !imgH || !targetW || !targetH) return;
             const targetRatio = targetW / targetH;
             const imgRatio = imgW / imgH;
             let renderW, renderH, offsetX, offsetY;

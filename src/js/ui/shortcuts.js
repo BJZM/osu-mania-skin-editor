@@ -27,6 +27,16 @@
                 }
             }
 
+            // 关于弹窗快捷键处理
+            const aboutModal = document.getElementById('aboutModal');
+            if (aboutModal && aboutModal.style.display !== 'none') {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    aboutModal.style.display = 'none';
+                    return;
+                }
+            }
+
             // 贴图拉伸规则帮助说明弹窗快捷键处理
             const helpModal = document.getElementById('helpModal');
             if (helpModal && helpModal.style.display !== 'none') {
@@ -92,6 +102,25 @@
             // 如果用户正在表单或输入控件中输入，不响应游戏内快捷键
             const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
             if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+            // osu!stable 快捷键：F3 减小流速，F4 增大流速（只能整数步进）
+            if (e.key === 'F3' || e.code === 'F3') {
+                e.preventDefault();
+                scrollSpeed = Math.max(1, Math.min(40, Math.round(scrollSpeed - 1)));
+                if (ui.speedRange) ui.speedRange.value = scrollSpeed;
+                if (ui.speedText) ui.speedText.innerText = String(scrollSpeed);
+                if (typeof updateSpeedFill === 'function') updateSpeedFill(scrollSpeed);
+                drawFrame();
+                return;
+            } else if (e.key === 'F4' || e.code === 'F4') {
+                e.preventDefault();
+                scrollSpeed = Math.max(1, Math.min(40, Math.round(scrollSpeed + 1)));
+                if (ui.speedRange) ui.speedRange.value = scrollSpeed;
+                if (ui.speedText) ui.speedText.innerText = String(scrollSpeed);
+                if (typeof updateSpeedFill === 'function') updateSpeedFill(scrollSpeed);
+                drawFrame();
+                return;
+            }
 
             if (e.code === 'Space') {
                 e.preventDefault();

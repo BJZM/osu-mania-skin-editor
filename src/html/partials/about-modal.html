@@ -1,0 +1,71 @@
+    <!-- 关于、版权与第三方许可弹窗 -->
+    <div class="help-modal" id="aboutModal" style="display: none;">
+        <div class="help-modal-backdrop" id="aboutModalBackdrop"></div>
+        <div class="help-modal-dialog about-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="aboutModalTitleText">
+            <div class="help-modal-header">
+                <div class="help-modal-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    <span id="aboutModalTitleText">关于 osu!mania 皮肤编辑器</span>
+                </div>
+                <button type="button" class="help-modal-close-btn" id="aboutModalCloseBtn" title="关闭 (Esc)">&times;</button>
+            </div>
+
+            <div class="help-modal-body about-modal-body">
+                <section class="about-hero">
+                    <div class="about-app-name">osu!mania Skin Editor</div>
+                    <div class="about-app-meta">
+                        <span>版本 <strong id="aboutAppVersion">0.1.0</strong></span>
+                        <span class="about-license-tag">MIT License</span>
+                    </div>
+                    <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>
+                </section>
+
+                <section class="about-section">
+                    <h3 class="about-section-title">版权</h3>
+                    <ul class="about-list">
+                        <li>本项目源码：© 2026 BJZM，以 MIT License 授权。</li>
+                        <li>参考源码：osu!lazer（ppy/osu），© ppy Pty Ltd，MIT License。</li>
+                        <li>可选兼容：kionell/osu-parsers，MIT（未捆绑，内置解析器为默认实现）。</li>
+                        <li>默认皮肤素材：© ppy Pty Ltd 及 osu! 贡献者，仅限非商业使用。</li>
+                    </ul>
+                </section>
+
+                <section class="about-section">
+                    <h3 class="about-section-title">第三方组件</h3>
+                    <ul class="about-list about-list-compact">
+                        <li><span>JSZip 3.10.1</span><span class="about-license-tag">MIT</span></li>
+                        <li><span>UTIF.js 3.1.0</span><span class="about-license-tag">MIT</span></li>
+                        <li><span>Feather Icons 4.x</span><span class="about-license-tag">MIT</span></li>
+                        <li><span>FFmpeg.wasm 0.12.9</span><span class="about-license-tag about-license-tag-gpl">GPL-2.0+</span></li>
+                        <li><span>Electron 44.7.0</span><span class="about-license-tag">MIT</span></li>
+                        <li><span>electron-builder 26.15.3</span><span class="about-license-tag">MIT</span></li>
+                        <li><span>@electron/asar 3.4.1</span><span class="about-license-tag">MIT</span></li>
+                        <li><span>@electron/get 5.1.0</span><span class="about-license-tag">MIT</span></li>
+                        <li><span>extract-zip 2.0.1</span><span class="about-license-tag">BSD-2-Clause</span></li>
+                        <li><span>Playwright 1.64.0</span><span class="about-license-tag">Apache-2.0</span></li>
+                    </ul>
+                </section>
+
+                <section class="about-section">
+                    <h3 class="about-section-title">素材与商标</h3>
+                    <ul class="about-list">
+                        <li>assets/default_skin 素材来自 osu! 官方默认皮肤，其中公开部分按 CC BY-NC 4.0 提供，不适用本项目 MIT 许可。</li>
+                        <li>osu!、osu!mania 是 ppy Pty Ltd 的商标。</li>
+                    </ul>
+                </section>
+
+                <p class="about-disclaimer">本项目为非官方第三方工具，与 ppy Pty Ltd 无隶属、赞助或背书关系。完整许可文本见随附的 LICENSE 与 THIRD_PARTY_NOTICES.md。</p>
+            </div>
+
+            <div class="help-modal-footer">
+                <div class="help-footer-hint">
+                    <a class="about-link" id="aboutNoticeLink" href="THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">查看完整第三方许可声明</a>
+                </div>
+                <button type="button" class="help-footer-btn" id="aboutModalConfirmBtn">关闭</button>
+            </div>
+        </div>
+    </div>

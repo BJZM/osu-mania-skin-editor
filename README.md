@@ -63,6 +63,8 @@ npm run build:html
 
 ```text
 /
+  LICENSE                    # 本项目源码的 MIT 许可
+  THIRD_PARTY_NOTICES.md     # 第三方组件、参考项目与素材的许可声明
   index.html                 # 唯一入口
   src/
     html/
@@ -102,8 +104,22 @@ npm run build:html
 ## 依赖说明
 
 - `jszip` 与 `utif` 已放在 `vendor/`，页面在离线环境仍可使用其本地副本。
-- 谱面解析使用本地原生解析器，桌面版可完全离线运行。
+- 谱面解析使用本地原生解析器，并支持 `.osu` / `.osb` storyboard、图片动画与 `Video` 背景播放；桌面版可完全离线运行（视频能否解码取决于 Chromium 支持的容器/编码）。
 - `samples/` 和 `test-results/` 默认被 `.gitignore` 排除，避免测试素材与生成结果污染源码仓库。
+
+## 版权与许可
+
+- 本项目自身编写的源码以 [MIT License](LICENSE) 授权，版权归 `BJZM` 所有。
+- 第三方组件、参考源码与游戏素材的归属见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+- `docs/lazer-reference/` 摘录自 [ppy/osu](https://github.com/ppy/osu)，按 MIT 许可使用并保留原始版权头。
+- 谱面解析默认使用项目自带的 `parseOsuBeatmap`；storyboard / Video 的 stable 事件解码行为对照了 [kionell/osu-parsers](https://github.com/kionell/osu-parsers)（MIT），代码同时保留可选 `BeatmapDecoder` 入口，但未捆绑该库源码。
+- `vendor/` 内的 JSZip 与 UTIF.js 分别按 MIT 许可使用。
+- 界面内联 SVG 图标来自 [Feather Icons](https://github.com/feathericons/feather)（MIT）。
+- 视频回落转码使用 [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) 0.12.9：加载器为 MIT，WASM 核心为 **GPL-2.0-or-later**，再分发前请阅读 `vendor/ffmpeg/NOTICE.md`。
+- `assets/default_skin/` 来自 osu! 官方默认皮肤，版权归 ppy Pty Ltd，**不适用本项目 MIT 许可**，仅限非商业使用；详见 `assets/default_skin/NOTICE.md`。
+- osu!、osu!mania 是 ppy Pty Ltd 的商标。本项目为非官方第三方工具，与 ppy Pty Ltd 无隶属或背书关系。
+
+页面顶栏的“关于”按钮会展示版本、许可与上述第三方声明。
 
 ## 项目约束
 

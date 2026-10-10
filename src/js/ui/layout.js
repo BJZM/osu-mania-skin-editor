@@ -35,8 +35,8 @@
 
         function updateSpeedFill(val) {
             if (!ui.speedRange) return;
-            const min = parseFloat(ui.speedRange.min) || 0.5;
-            const max = parseFloat(ui.speedRange.max) || 3.0;
+            const min = parseFloat(ui.speedRange.min) || 1;
+            const max = parseFloat(ui.speedRange.max) || 40;
             const percent = Math.min(100, Math.max(0, ((val - min) / (max - min)) * 100));
             const grad = `linear-gradient(to right, #ff66aa 0%, #ff66aa ${percent}%, rgba(255, 255, 255, 0.2) ${percent}%, rgba(255, 255, 255, 0.2) 100%)`;
             ui.speedRange.style.setProperty('--slider-pct', `${percent}%`);
@@ -60,11 +60,15 @@
 
         if (ui.speedRange) {
             ui.speedRange.addEventListener('input', (e) => {
-                scrollSpeed = parseFloat(e.target.value);
-                if (ui.speedText) ui.speedText.innerText = scrollSpeed.toFixed(1);
+                scrollSpeed = Math.max(1, Math.min(40, Math.round(parseFloat(e.target.value)) || 1));
+                if (ui.speedText) ui.speedText.innerText = String(scrollSpeed);
                 updateSpeedFill(scrollSpeed);
                 drawFrame();
             });
+            if (ui.speedRange.value !== String(scrollSpeed)) {
+                ui.speedRange.value = scrollSpeed;
+            }
+            if (ui.speedText) ui.speedText.innerText = String(scrollSpeed);
             updateSpeedFill(scrollSpeed);
         }
 

@@ -13,6 +13,7 @@
 - `partials/player-controls.html`: timeline, playback, volume and preview controls.
 - `partials/skin-editor-modal.html`: skin.ini visual parameter editor shell.
 - `partials/help-modal.html`: stable-compatible texture sizing reference.
+- `partials/about-modal.html`: version, copyright and third-party licence notice.
 - `partials/scripts.html`: dependency and ordered runtime script list.
 
 Run `npm run build:html` after editing any source fragment. Run
