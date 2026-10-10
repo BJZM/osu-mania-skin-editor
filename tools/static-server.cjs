@@ -1,6 +1,10 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const {
+  VIDEO_TRANSCODE_PATH,
+  handleVideoTranscodeRequest
+} = require('../electron/video-transcoder.cjs');
 
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -29,7 +33,13 @@ const MIME_TYPES = {
 
 const root = path.resolve(__dirname, '..');
 const server = http.createServer((req, res) => {
-  let urlPath = decodeURIComponent(new URL(req.url, 'http://127.0.0.1:8765').pathname);
+  const requestUrl = new URL(req.url, 'http://127.0.0.1:8765');
+  if (requestUrl.pathname === VIDEO_TRANSCODE_PATH) {
+    void handleVideoTranscodeRequest(req, res);
+    return;
+  }
+
+  let urlPath = decodeURIComponent(requestUrl.pathname);
   if (urlPath.endsWith('/')) urlPath += 'index.html';
   const filePath = path.resolve(root, '.' + urlPath);
   if (!filePath.startsWith(root)) {

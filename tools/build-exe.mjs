@@ -42,6 +42,16 @@ async function copyRuntimeFiles() {
   for (const entry of entries) {
     await fs.cp(path.join(root, entry), path.join(stageDir, entry), { recursive: true });
   }
+
+  // Native executables cannot run from inside app.asar, so keep the LGPL
+  // FFmpeg build beside app.asar in the Electron resources directory.
+  await fs.rm(path.join(stageDir, 'vendor', 'ffmpeg-lgpl-win64'), { recursive: true, force: true });
+  await fs.cp(
+    path.join(root, 'vendor', 'ffmpeg-lgpl-win64'),
+    path.join(resourcesDir, 'ffmpeg-lgpl-win64'),
+    { recursive: true }
+  );
+  await fs.access(path.join(resourcesDir, 'ffmpeg-lgpl-win64', 'bin', 'ffmpeg.exe'));
 }
 
 async function cleanBuildFiles() {

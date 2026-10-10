@@ -17,7 +17,7 @@
 | JSZip | 3.10.1 | MIT（自 MIT / GPLv3 双许可中选择 MIT） | `.osz` / `.osk` 压缩包读写 | https://github.com/Stuk/jszip |
 | UTIF.js | 3.1.0 | MIT | TIFF 及伪装 PNG 图像解码 | https://github.com/photopea/UTIF.js |
 | Feather Icons | 4.x | MIT | 顶栏、弹窗与播放器按钮的内联 SVG 图标 | https://github.com/feathericons/feather |
-| ffmpeg.wasm | 0.12.9 | 加载器 MIT；WASM 核心 **GPL-2.0-or-later** | 浏览器端视频回落转码 | https://github.com/ffmpegwasm/ffmpeg.wasm |
+| FFmpeg LGPL shared（Windows x64） | n8.1.3-16-ge0a878dd70 | **LGPL-3.0-or-later** | 本机视频回落转码，输出 VP8/WebM | https://github.com/BtbN/FFmpeg-Builds |
 
 两个库以本地副本形式存放于 `vendor/`，详见 `vendor/README.md`。页面在
 `vendor/` 副本缺失时会回退到 cdnjs / jsDelivr 上的同版本文件。
@@ -26,26 +26,29 @@
 其中 `settings`、`help-circle`、`download`、`star` 等图形的路径数据与
 Feather Icons 一致，属于该图标集的衍生使用。
 
-### FFmpeg.wasm（GPL 组件，再分发前必读）
+### FFmpeg LGPL shared（再分发前必读）
 
-`vendor/ffmpeg/` 下为 ffmpeg.wasm 0.12.9：
+`vendor/ffmpeg-lgpl-win64/` 使用 BtbN 的 Windows x64 LGPL shared 构建
+`n8.1.3-16-ge0a878dd70`。该构建未启用 `--enable-gpl` 或
+`--enable-nonfree`，启用了 `--enable-version3`、`--enable-libvpx` 和
+WebM muxer，整体按 **LGPL-3.0-or-later** 使用。
 
-- `ffmpeg.min.js`、`814.ffmpeg.js`、`046d0074eee1d99a674a.js` 来自
-  `@ffmpeg/ffmpeg@0.12.9`，MIT License；
-- `ffmpeg-core.js`、`ffmpeg-core.wasm`、`ffmpeg-core.worker.js` 来自
-  `@ffmpeg/core@0.12.9`，**GPL-2.0-or-later**。
+程序通过独立 `ffmpeg.exe` 进程与可替换 DLL 调用该组件，不把 FFmpeg
+代码静态链接进本项目；用户也可用 `OSU_SKIN_EDITOR_FFMPEG_DIR` 指向自己的
+兼容构建。再分发时必须：
 
-由于 WASM 核心是强 copyleft 许可，对外分发（含打包后的便携版 exe）时必须：
+1. 随附 LGPLv3、GPLv3 与 FFmpeg 自身的许可说明；
+2. 保留版权、构建来源和对应源码链接；
+3. 不限制用户替换兼容版本的 FFmpeg 动态库。
 
-1. 随附 GPL 全文，见 `vendor/ffmpeg/LICENSE.GPL-2.0.txt`；
-2. 提供对应的 FFmpeg 源码，或按 GPLv2 第 3 条给出有效的书面要约；
-3. 保留版权与许可声明。
+对应源码与构建参数：
 
-源码位置：https://github.com/ffmpegwasm/ffmpeg.wasm 与
-https://ffmpeg.org/download.html 。
+- BtbN 构建配方：https://github.com/BtbN/FFmpeg-Builds
+- 固定构建版本：https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-10-09-14-16
+- FFmpeg 源码：https://github.com/FFmpeg/FFmpeg
+- libvpx 源码：https://chromium.googlesource.com/webm/libvpx/
 
-本项目自身的 MIT 许可不适用于该组件；若计划公开发布或商业使用，建议先确认
-是否改用 LGPL 构建或其它转码方案。详见 `vendor/ffmpeg/NOTICE.md`。
+完整说明与文件校验值见 `vendor/ffmpeg-lgpl-win64/NOTICE.md`。
 
 ### JSZip
 

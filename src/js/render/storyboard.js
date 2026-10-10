@@ -27,6 +27,9 @@
         }
 
         function storyboardAssetDimensions(asset) {
+            if (asset && asset.width && asset.height) {
+                return { width: asset.width, height: asset.height };
+            }
             const image = asset && asset.image;
             if (!image) return { width: 0, height: 0 };
             return {
@@ -271,6 +274,7 @@
             let lastFadeEndAlpha = 0;
 
             for (const cmd of expanded) {
+                if (cmd.trigger) continue;
                 if (cmd.startTime < minStartTime) minStartTime = cmd.startTime;
                 if (cmd.endTime > maxEndTime) maxEndTime = cmd.endTime;
                 if (cmd.type === 'F') {
@@ -513,14 +517,24 @@
             const frame = storyboardAnimationFrame(element, timeMs);
             const path = frame.asset;
             const asset = getStoryboardAsset(state, path);
-            const image = getStoryboardImage(state, path, timeMs);
-            if (!image) return false;
-
-            const dimensions = storyboardAssetDimensions(asset);
-            if (!dimensions.width || !dimensions.height) return false;
-
             if (!runtimeElement.origin) runtimeElement.origin = storyboardOrigin(element.origin);
             const origin = runtimeElement.origin;
+            let dimensions = storyboardAssetDimensions(asset);
+            if (dimensions.width && dimensions.height && !storyboardSpriteIntersectsViewport(
+                visual,
+                origin,
+                dimensions,
+                viewport,
+                viewport.width,
+                viewport.height
+            )) {
+                return false;
+            }
+
+            const image = getStoryboardImage(state, path);
+            if (!image) return false;
+            dimensions = storyboardAssetDimensions(asset);
+            if (!dimensions.width || !dimensions.height) return false;
             if (!storyboardSpriteIntersectsViewport(
                 visual,
                 origin,
@@ -532,6 +546,8 @@
                 return false;
             }
 
+            asset.lastUsedFrame = state.assetFrameSerial;
+            asset.lastUsedTime = timeMs;
             const scaleX = (visual.scaleX || 1) * (visual.flipX ? -1 : 1);
             const scaleY = (visual.scaleY || 1) * (visual.flipY ? -1 : 1);
             const rotation = visual.rotation || 0;
@@ -608,7 +624,7 @@
             const elementsByLayer = state.elementsByLayer;
             const activeElementsByLayer = state.activeElementsByLayer;
             const layerCursor = state.layerCursor;
-            const seekedBackwards = timeMs < state.lastStoryboardDrawTime;
+            const seekedBackwards = timeMs + 1 < state.lastStoryboardDrawTime;
 
             if (seekedBackwards) {
                 for (let layer = 0; layer < activeElementsByLayer.length; layer++) {

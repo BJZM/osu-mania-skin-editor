@@ -14,8 +14,8 @@ test('关于弹窗展示版本、版权与第三方许可', async ({ page }) => 
   await expect(page.locator('#aboutModal')).toContainText('JSZip');
   await expect(page.locator('#aboutModal')).toContainText('UTIF.js');
   await expect(page.locator('#aboutModal')).toContainText('Feather Icons');
-  await expect(page.locator('#aboutModal')).toContainText('FFmpeg.wasm');
-  await expect(page.locator('#aboutModal')).toContainText('GPL-2.0');
+  await expect(page.locator('#aboutModal')).toContainText('FFmpeg 8.1 LGPL shared');
+  await expect(page.locator('#aboutModal')).toContainText('LGPL-3.0');
   await expect(page.locator('#aboutModal')).toContainText('CC BY-NC');
 
   await page.click('#aboutModalConfirmBtn');

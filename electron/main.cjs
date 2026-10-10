@@ -2,6 +2,10 @@ const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { app, BrowserWindow, Menu, session, shell } = require('electron');
+const {
+  VIDEO_TRANSCODE_PATH,
+  handleVideoTranscodeRequest
+} = require('./video-transcoder.cjs');
 
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
@@ -29,6 +33,7 @@ const MIME_TYPES = {
 
 function createStaticServer(root) {
   const resolvedRoot = path.resolve(root);
+  const packagedFFmpegDir = path.join(process.resourcesPath, 'ffmpeg-lgpl-win64', 'bin');
 
   return http.createServer((request, response) => {
     let url;
@@ -37,6 +42,13 @@ function createStaticServer(root) {
     } catch {
       response.writeHead(400);
       response.end('Bad Request');
+      return;
+    }
+
+    if (url.pathname === VIDEO_TRANSCODE_PATH) {
+      void handleVideoTranscodeRequest(request, response, {
+        ffmpegDir: app.isPackaged ? packagedFFmpegDir : undefined
+      });
       return;
     }
 

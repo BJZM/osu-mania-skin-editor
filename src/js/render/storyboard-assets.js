@@ -7,8 +7,9 @@
         let storyboardPlaybackGeneration = 0;
 
         const STORYBOARD_DEFAULT_ASSET_CACHE_BYTES = 192 * 1024 * 1024;
-        const STORYBOARD_DEFAULT_TINT_CACHE_BYTES = 64 * 1024 * 1024;
+        const STORYBOARD_DEFAULT_TINT_CACHE_BYTES = 128 * 1024 * 1024;
         const STORYBOARD_MAX_QUEUED_ASSET_LOADS = 64;
+        const STORYBOARD_MAX_RENDER_PIXELS = 1280 * 720;
 
         function storyboardAnimationFramePath(path, frameIndex) {
             const dot = path.lastIndexOf('.');
@@ -31,6 +32,29 @@
         function storyboardCanvasBytes(canvas) {
             if (!canvas) return 0;
             return Math.max(0, (canvas.width || 0) * (canvas.height || 0) * 4);
+        }
+
+        function createStoryboardRenderSource(state, image, width, height) {
+            const sourcePixels = width * height;
+            const canvasWidth = typeof canvas !== 'undefined' ? canvas.width : 0;
+            const canvasHeight = typeof canvas !== 'undefined' ? canvas.height : 0;
+            const availablePixels = Math.max(640 * 480, canvasWidth * canvasHeight || 0);
+            const maxPixels = Math.min(
+                STORYBOARD_MAX_RENDER_PIXELS,
+                state.maxRenderPixels || STORYBOARD_MAX_RENDER_PIXELS,
+                availablePixels
+            );
+            if (!sourcePixels || sourcePixels <= maxPixels) return image;
+
+            const scale = Math.sqrt(maxPixels / sourcePixels);
+            const renderWidth = Math.max(1, Math.round(width * scale));
+            const renderHeight = Math.max(1, Math.round(height * scale));
+            const renderSource = document.createElement('canvas');
+            renderSource.width = renderWidth;
+            renderSource.height = renderHeight;
+            const renderCtx = renderSource.getContext('2d');
+            renderCtx.drawImage(image, 0, 0, renderWidth, renderHeight);
+            return renderSource;
         }
 
         function clearStoryboardTintCache(state, asset) {
@@ -78,7 +102,10 @@
             const candidates = [];
             for (const asset of state.assets.values()) {
                 if (!asset.ready || asset.loading || asset.queued) continue;
-                if (asset.lastUsedFrame === state.assetFrameSerial) continue;
+                if (asset.lastUsedFrame === state.assetFrameSerial ||
+                    asset.lastRequestedFrame === state.assetFrameSerial) {
+                    continue;
+                }
                 candidates.push(asset);
             }
             candidates.sort((a, b) => (a.lastUsedFrame || 0) - (b.lastUsedFrame || 0));
@@ -89,14 +116,17 @@
             }
         }
 
-        function pruneStoryboardTintCache(state) {
+        function pruneStoryboardTintCache(state, preserveCurrent = true) {
             if (!state || state.tintCacheBytes <= state.maxTintCacheBytes) return;
 
             const candidates = [];
             for (const asset of state.assets.values()) {
                 if (!asset.tintCache) continue;
                 for (const [key, canvas] of asset.tintCache) {
-                    if (canvas._storyboardLastUsedFrame === state.assetFrameSerial) continue;
+                    if (preserveCurrent &&
+                        canvas._storyboardLastUsedFrame === state.assetFrameSerial) {
+                        continue;
+                    }
                     candidates.push({ asset, key, canvas });
                 }
             }
@@ -144,6 +174,7 @@
             state.activeAssetLoads = 0;
             state.assetCacheBytes = 0;
             state.tintCacheBytes = 0;
+            state.assetDimensions.clear();
 
             if (state.compositeCanvas) {
                 try {
@@ -375,6 +406,7 @@
                 videoFailed: false,
                 videoFailureNotified: false,
                 assets: new Map(),
+                assetDimensions: new Map(),
                 fileKeyCache: new Map(),
                 assetLoadQueue: [],
                 activeAssetLoads: 0,
@@ -384,6 +416,7 @@
                 maxAssetCacheBytes: STORYBOARD_DEFAULT_ASSET_CACHE_BYTES,
                 tintCacheBytes: 0,
                 maxTintCacheBytes: STORYBOARD_DEFAULT_TINT_CACHE_BYTES,
+                maxRenderPixels: STORYBOARD_MAX_RENDER_PIXELS,
                 assetFrameSerial: 0,
                 redrawPending: false,
                 compositeCanvas: null,
@@ -426,8 +459,14 @@
                 decodedBytes: 0,
                 lastUsedFrame: -1,
                 lastUsedTime: 0,
+                lastRequestedFrame: -1,
                 tintCache: new Map()
             };
+            const dimensions = state.assetDimensions.get(cacheKey);
+            if (dimensions) {
+                asset.width = dimensions.width;
+                asset.height = dimensions.height;
+            }
             state.assets.set(cacheKey, asset);
             return asset;
         }
@@ -473,13 +512,29 @@
                         asset.url = null;
                         return;
                     }
-                    asset.image = image;
+                    const sourceWidth = image.naturalWidth || image.videoWidth || image.width || 0;
+                    const sourceHeight = image.naturalHeight || image.videoHeight || image.height || 0;
+                    asset.image = createStoryboardRenderSource(
+                        state,
+                        image,
+                        sourceWidth,
+                        sourceHeight
+                    );
                     asset.ready = true;
                     asset.loading = false;
-                    asset.decodedBytes = storyboardImageDecodedBytes(image);
+                    asset.width = sourceWidth;
+                    asset.height = sourceHeight;
+                    state.assetDimensions.set(asset.cacheKey, {
+                        width: asset.width,
+                        height: asset.height
+                    });
+                    asset.decodedBytes = storyboardImageDecodedBytes(asset.image);
                     state.assetCacheBytes += asset.decodedBytes;
                     revokeStoryboardUrl(asset.url);
                     asset.url = null;
+                    if (asset.image !== image) {
+                        try { image.src = ''; } catch (_) {}
+                    }
                     pruneStoryboardAssetCache(state);
                     requestStoryboardRedraw(state);
                 };
@@ -498,9 +553,12 @@
             }
         }
 
-        function getStoryboardImage(state, path, timeMs = 0) {
+        function getStoryboardImage(state, path) {
             const asset = getStoryboardAsset(state, path);
             if (!asset) return null;
+            if (!asset.ready) {
+                asset.lastRequestedFrame = state.assetFrameSerial;
+            }
             if (!asset.ready && !asset.loading && !asset.error) {
                 queueStoryboardAssetLoad(state, asset);
             }
@@ -559,7 +617,10 @@
             if (typeof enableVideo !== 'undefined' && !enableVideo) return false;
             const state = storyboardPlaybackState;
             if (!state || !state.storyboard || !state.storyboard.video || state.videoFailed) return false;
-            if (!state.video) return false;
+            if (!state.video) {
+                ensureStoryboardVideoLoaded(state, true);
+                return false;
+            }
             if (state.video.failed) return false;
 
             const video = state.video.element;

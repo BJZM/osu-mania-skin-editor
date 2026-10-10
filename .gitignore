@@ -19,6 +19,7 @@ tools/bin/
 # Accidental shell redirect artifact
 /$null
 /20MB
+/typeof
 
 # Editor / OS files
 .DS_Store

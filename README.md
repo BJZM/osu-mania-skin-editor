@@ -104,7 +104,7 @@ npm run build:html
 ## 依赖说明
 
 - `jszip` 与 `utif` 已放在 `vendor/`，页面在离线环境仍可使用其本地副本。
-- 谱面解析使用本地原生解析器，并支持 `.osu` / `.osb` storyboard、图片动画与 `Video` 背景播放；桌面版可完全离线运行（视频能否解码取决于 Chromium 支持的容器/编码）。
+- 谱面解析使用本地原生解析器，并支持 `.osu` / `.osb` storyboard、图片动画与 `Video` 背景播放；桌面版可完全离线运行。Chromium 不支持的视频会交给随包附带的 LGPL FFmpeg 转为 VP8/WebM 后播放。
 - `samples/` 和 `test-results/` 默认被 `.gitignore` 排除，避免测试素材与生成结果污染源码仓库。
 
 ## 版权与许可
@@ -115,7 +115,7 @@ npm run build:html
 - 谱面解析默认使用项目自带的 `parseOsuBeatmap`；storyboard / Video 的 stable 事件解码行为对照了 [kionell/osu-parsers](https://github.com/kionell/osu-parsers)（MIT），代码同时保留可选 `BeatmapDecoder` 入口，但未捆绑该库源码。
 - `vendor/` 内的 JSZip 与 UTIF.js 分别按 MIT 许可使用。
 - 界面内联 SVG 图标来自 [Feather Icons](https://github.com/feathericons/feather)（MIT）。
-- 视频回落转码使用 [ffmpeg.wasm](https://github.com/ffmpegwasm/ffmpeg.wasm) 0.12.9：加载器为 MIT，WASM 核心为 **GPL-2.0-or-later**，再分发前请阅读 `vendor/ffmpeg/NOTICE.md`。
+- 视频回落转码使用随包附带的 [BtbN FFmpeg Builds](https://github.com/BtbN/FFmpeg-Builds) `n8.1.3-16-ge0a878dd70` Windows x64 LGPL shared 构建，转码输出为 VP8/WebM。组件按 **LGPL-3.0-or-later** 使用，动态库与独立进程均可替换；详见 `vendor/ffmpeg-lgpl-win64/NOTICE.md`。
 - `assets/default_skin/` 来自 osu! 官方默认皮肤，版权归 ppy Pty Ltd，**不适用本项目 MIT 许可**，仅限非商业使用；详见 `assets/default_skin/NOTICE.md`。
 - osu!、osu!mania 是 ppy Pty Ltd 的商标。本项目为非官方第三方工具，与 ppy Pty Ltd 无隶属或背书关系。
 

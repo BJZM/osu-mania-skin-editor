@@ -92,7 +92,12 @@
             }
 
             // 3. 初始化当前难度的视频与故事板播放状态。资源按需解码，不阻塞音符构建。
-            await loadStoryboardPlayback(currentOszZip, bmInfo.storyboard);
+            const storyboardState = await loadStoryboardPlayback(currentOszZip, bmInfo.storyboard);
+            const videoPath = bmInfo.storyboard && bmInfo.storyboard.video
+                ? bmInfo.storyboard.video.path
+                : null;
+            const videoFileKey = videoPath ? getStoryboardFileKey(storyboardState, videoPath) : null;
+            updateStoryboardControlAvailability(bmInfo.storyboard, !!videoFileKey);
 
             // 4. 构建当前难度的 activeNotes (对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中持续增加连击数)
             const timingPoints = (bmInfo && bmInfo.timingPoints) ? bmInfo.timingPoints : [];

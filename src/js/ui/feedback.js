@@ -29,6 +29,29 @@
             drawFrame();
         }
 
+        function updateStoryboardControlAvailability(storyboard, hasVideoFile = false) {
+            const storyboardToggle = document.getElementById('storyboardToggle');
+            const videoToggle = document.getElementById('videoToggle');
+            const hasStoryboard = !!(storyboard && Array.isArray(storyboard.sprites) &&
+                storyboard.sprites.length > 0);
+            const hasVideo = !!(hasVideoFile && storyboard && storyboard.video && storyboard.video.path);
+
+            if (storyboardToggle) {
+                storyboardToggle.disabled = !hasStoryboard;
+                storyboardToggle.checked = hasStoryboard && enableStoryboard;
+                storyboardToggle.setAttribute('aria-disabled', String(!hasStoryboard));
+                const item = storyboardToggle.closest('.tweak-switch-item');
+                if (item) item.classList.toggle('is-disabled', !hasStoryboard);
+            }
+            if (videoToggle) {
+                videoToggle.disabled = !hasVideo;
+                videoToggle.checked = hasVideo && enableVideo;
+                videoToggle.setAttribute('aria-disabled', String(!hasVideo));
+                const item = videoToggle.closest('.tweak-switch-item');
+                if (item) item.classList.toggle('is-disabled', !hasVideo);
+            }
+        }
+
         // 统一控制加载遮罩
         function showProgress(title) {
             // 加载谱面或皮肤时，直接暂停播放并禁用进度条与控制器

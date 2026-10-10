@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test('LN scroll length follows stable fixed speed and inherited SV', async ({ page }) => {
+test('LN scroll length follows stable default speed and inherited SV', async ({ page }) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
 
@@ -79,7 +79,7 @@ test('LN scroll length follows stable fixed speed and inherited SV', async ({ pa
   expect(pageErrors).toEqual([]);
 });
 
-test('fixed scroll speed ignores BPM changes while preserving inherited SV', async ({ page }) => {
+test('stable default speed is anchored to the map common BPM and preserves inherited SV', async ({ page }) => {
   const pageErrors = [];
   page.on('pageerror', error => pageErrors.push(error.message));
 
@@ -110,10 +110,10 @@ test('fixed scroll speed ignores BPM changes while preserving inherited SV', asy
     };
   });
 
-  expect(result.multiplierAt0).toBeCloseTo(1, 6);
+  expect(result.multiplierAt0).toBeCloseTo(0.5, 6);
   expect(result.multiplierAt1000).toBeCloseTo(1, 6);
   expect(result.multiplierAt2000).toBeCloseTo(2, 6);
-  expect(result.length).toBeCloseTo(4000, 6);
+  expect(result.length).toBeCloseTo(3500, 6);
   expect(pageErrors).toEqual([]);
 });
 

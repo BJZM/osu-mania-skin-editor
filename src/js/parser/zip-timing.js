@@ -156,8 +156,9 @@
             return Math.max(minBeatLength, Math.min(maxBeatLength, mostCommon));
         }
 
-        // osu!stable 的固定流速模式：BPM/BeatLength 变化不改变屏幕流速，
-        // 只有 inherited timing point 的 SV 会改变滚动倍率。
+        // osu!stable 默认的固定流速模式：
+        // 以地图主 BPM (commonBeatLength) 为基准，地图内红线 BPM 变化仍会按相对拍长改变流速；
+        // inherited timing point 的 SV 再叠乘到该倍率上。
         // relativePosition 的单位是“倍率为 1 时的毫秒数”，之后只需乘以基础 px/ms 即得滚动距离。
         function createManiaScrollState(timingPoints, lastObjectTime) {
             const rawPoints = (timingPoints || [])
@@ -173,6 +174,7 @@
 
             const baseBeatLength = getMostCommonBeatLength(timingPoints, lastObjectTime);
             const points = [];
+            let currentBeatLength = baseBeatLength;
             let currentScrollSpeed = 1;
 
             let i = 0;
@@ -181,13 +183,15 @@
                 let j = i;
                 while (j < rawPoints.length && rawPoints[j].time === pointTime) {
                     const point = rawPoints[j];
-                    if (!point.uninherited && isFinite(point.scrollSpeed) && point.scrollSpeed > 0) {
+                    if (point.uninherited && isFinite(point.beatLength) && point.beatLength > 0) {
+                        currentBeatLength = point.beatLength;
+                    } else if (!point.uninherited && isFinite(point.scrollSpeed) && point.scrollSpeed > 0) {
                         currentScrollSpeed = point.scrollSpeed;
                     }
                     j++;
                 }
 
-                const multiplier = currentScrollSpeed;
+                const multiplier = currentScrollSpeed * baseBeatLength / currentBeatLength;
                 if (points.length === 0 || Math.abs(points[points.length - 1].multiplier - multiplier) > 1e-9) {
                     points.push({ time: pointTime, multiplier: multiplier, position: 0 });
                 }

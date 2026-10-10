@@ -15,6 +15,9 @@ let tmpDir;
 let storyboardOsz;
 let stressOsz;
 let aviOsz;
+let aviStoryboardOsz;
+let boundedCacheOsz;
+let noMediaOsz;
 
 test.beforeAll(async () => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mania-storyboard-test-'));
@@ -98,6 +101,39 @@ test.beforeAll(async () => {
   stressOsz = path.join(tmpDir, 'stress-storyboard.osz');
   fs.writeFileSync(stressOsz, await stressZip.generateAsync({ type: 'nodebuffer' }));
 
+  const boundedZip = new JSZip();
+  const boundedEvents = ['[Events]'];
+  for (let i = 0; i < 16; i++) {
+    const imagePath = `bounded-${i}.png`;
+    boundedZip.file(imagePath, image);
+    const startTime = i * 500;
+    boundedEvents.push(`Sprite,Background,TopLeft,"${imagePath}",${i * 4},${i * 3}`);
+    boundedEvents.push(` F,0,${startTime},${startTime + 300},1,0`);
+  }
+  boundedZip.file('Bounded Cache.osu', [
+    'osu file format v14',
+    '',
+    '[General]',
+    'AudioFilename: audio.mp3',
+    'Mode: 3',
+    '',
+    '[Metadata]',
+    'Title:Bounded Cache',
+    'Version:Test',
+    '',
+    '[Difficulty]',
+    'CircleSize:4',
+    '',
+    '[TimingPoints]',
+    '0,500,4,2,0,100,1,0',
+    '',
+    '[HitObjects]',
+    '64,192,0,1,0,0:0:0:0:'
+  ].join('\n'));
+  boundedZip.file('Bounded Cache.osb', boundedEvents.join('\n'));
+  boundedCacheOsz = path.join(tmpDir, 'bounded-cache.osz');
+  fs.writeFileSync(boundedCacheOsz, await boundedZip.generateAsync({ type: 'nodebuffer' }));
+
   const aviZip = new JSZip();
   aviZip.file('video.avi', VIDEO_AVI);
   aviZip.file('bg.png', image);
@@ -127,6 +163,72 @@ test.beforeAll(async () => {
   ].join('\n'));
   aviOsz = path.join(tmpDir, 'avi-video.osz');
   fs.writeFileSync(aviOsz, await aviZip.generateAsync({ type: 'nodebuffer' }));
+
+  const aviStoryboardZip = new JSZip();
+  aviStoryboardZip.file('video.avi', VIDEO_AVI);
+  aviStoryboardZip.file('bg.png', image);
+  aviStoryboardZip.file('AVI Storyboard.osu', [
+    'osu file format v14',
+    '',
+    '[General]',
+    'AudioFilename: audio.mp3',
+    'Mode: 3',
+    '',
+    '[Metadata]',
+    'Title:AVI Storyboard Test',
+    'Version:Test',
+    '',
+    '[Difficulty]',
+    'CircleSize:4',
+    '',
+    '[Events]',
+    '0,0,"bg.png",0,0',
+    'Video,0,"video.avi",0,0',
+    '',
+    '[TimingPoints]',
+    '0,500,4,2,0,100,1,0',
+    '',
+    '[HitObjects]',
+    '64,192,0,1,0,0:0:0:0:'
+  ].join('\n'));
+  aviStoryboardZip.file('AVI Storyboard.osb', [
+    '[Events]',
+    'Sprite,Background,Centre,"bg.png",320,240',
+    ' F,0,0,2000,1,0'
+  ].join('\n'));
+  aviStoryboardOsz = path.join(tmpDir, 'avi-storyboard.osz');
+  fs.writeFileSync(
+    aviStoryboardOsz,
+    await aviStoryboardZip.generateAsync({ type: 'nodebuffer' })
+  );
+
+  const noMediaZip = new JSZip();
+  noMediaZip.file('bg.png', image);
+  noMediaZip.file('No Media.osu', [
+    'osu file format v14',
+    '',
+    '[General]',
+    'AudioFilename: audio.mp3',
+    'Mode: 3',
+    '',
+    '[Metadata]',
+    'Title:No Media',
+    'Version:Test',
+    '',
+    '[Difficulty]',
+    'CircleSize:4',
+    '',
+    '[Events]',
+    '0,0,"bg.png",0,0',
+    '',
+    '[TimingPoints]',
+    '0,500,4,2,0,100,1,0',
+    '',
+    '[HitObjects]',
+    '64,192,0,1,0,0:0:0:0:'
+  ].join('\n'));
+  noMediaOsz = path.join(tmpDir, 'no-media.osz');
+  fs.writeFileSync(noMediaOsz, await noMediaZip.generateAsync({ type: 'nodebuffer' }));
 });
 
 test.afterAll(() => {
@@ -316,10 +418,68 @@ test('高密度故事板导入与连续绘制保持响应', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('AVI 背景自动转码为可播放 MP4', async ({ page }) => {
+test('故事板资源缓存有上限且结束元素会被释放', async ({ page }) => {
   const errors = captureErrors(page);
   await boot(page);
-  await page.waitForFunction(() => window.FFmpegWASM, null, { timeout: 30000 });
+
+  await page.setInputFiles('#oszInput', boundedCacheOsz);
+  await page.waitForFunction(
+    () => beatmaps.length > 0 &&
+      storyboardPlaybackState &&
+      storyboardPlaybackState.elements.length === 16,
+    null,
+    { timeout: 30000 }
+  );
+
+  await page.evaluate(() => {
+    storyboardPlaybackState.maxAssetCacheBytes = 2 * 1024 * 1024;
+    storyboardPlaybackState.maxTintCacheBytes = 1024 * 1024;
+    enableVideo = false;
+    isPlaying = false;
+    isSeeking = true;
+  });
+
+  for (let i = 0; i < 16; i++) {
+    await page.evaluate((timeMs) => {
+      ui.progressRange.value = String(timeMs / 1000);
+      drawFrame();
+    }, i * 500 + 100);
+    await page.waitForFunction(
+      () => storyboardPlaybackState.assetLoadQueue.length === 0 &&
+        storyboardPlaybackState.activeAssetLoads === 0,
+      null,
+      { timeout: 30000 }
+    );
+  }
+
+  const cache = await page.evaluate(() => {
+    const state = storyboardPlaybackState;
+    const assets = Array.from(state.assets.values());
+    const meta = state.elements.map(element => element.data._meta);
+    return {
+      assetBytes: state.assetCacheBytes,
+      tintBytes: state.tintCacheBytes,
+      assetCount: assets.length,
+      allUrlsReleased: assets.every(asset => !asset.url),
+      deadElementCount: meta.filter(value => value && value.isDeadAfterEnd).length,
+      activeCount: state.activeElementsByLayer.reduce((sum, layer) => sum + layer.length, 0)
+    };
+  });
+
+  expect(cache.assetBytes).toBeLessThanOrEqual(2 * 1024 * 1024);
+  expect(cache.tintBytes).toBeLessThanOrEqual(1024 * 1024);
+  expect(cache.assetCount).toBeLessThanOrEqual(8);
+  expect(cache.allUrlsReleased).toBe(true);
+  expect(cache.deadElementCount).toBe(16);
+  expect(cache.activeCount).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+
+  await page.evaluate(() => { isSeeking = false; });
+});
+
+test('AVI 背景自动转码为可播放 WebM', async ({ page }) => {
+  const errors = captureErrors(page);
+  await boot(page);
 
   await page.setInputFiles('#oszInput', aviOsz);
   await page.waitForFunction(
@@ -364,6 +524,103 @@ test('AVI 背景自动转码为可播放 MP4', async ({ page }) => {
   expect(pixel[0]).toBeGreaterThan(35);
   expect(pixel[0]).toBeGreaterThan(pixel[1] + 20);
   expect(pixel[0]).toBeGreaterThan(pixel[2] + 20);
+  expect(errors).toEqual([]);
+});
+
+test('AVI 背景与故事板共存时仍会加载并播放视频', async ({ page }) => {
+  const errors = captureErrors(page);
+  await boot(page);
+
+  await page.setInputFiles('#oszInput', aviStoryboardOsz);
+  await page.waitForFunction(
+    () => beatmaps.length > 0 &&
+      storyboardPlaybackState &&
+      storyboardPlaybackState.elements.length > 0 &&
+      storyboardPlaybackState.storyboard &&
+      storyboardPlaybackState.storyboard.video,
+    null,
+    { timeout: 30000 }
+  );
+
+  await page.waitForFunction(
+    () => storyboardPlaybackState.video &&
+      storyboardPlaybackState.video.transcoded &&
+      storyboardPlaybackState.video.ready &&
+      !storyboardPlaybackState.videoFailed,
+    null,
+    { timeout: 60000 }
+  );
+
+  await page.evaluate(() => {
+    isSeeking = true;
+    ui.progressRange.value = 0.5;
+    drawFrame();
+  });
+  await page.waitForFunction(
+    () => storyboardPlaybackState.video.element.currentTime >= 0.45 &&
+      storyboardPlaybackState.video.element.readyState >= 2,
+    null,
+    { timeout: 10000 }
+  );
+
+  const result = await page.evaluate(() => {
+    drawFrame();
+    const withStoryboard = Array.from(
+      ctx.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data
+    );
+    enableStoryboard = false;
+    storyboardPlaybackState.compositeDirty = true;
+    drawFrame();
+    const withoutStoryboard = Array.from(
+      ctx.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data
+    );
+    return {
+      withStoryboard,
+      withoutStoryboard,
+      videoFailed: storyboardPlaybackState.videoFailed,
+      transcoded: storyboardPlaybackState.video.transcoded
+    };
+  });
+  expect(result.videoFailed).toBe(false);
+  expect(result.transcoded).toBe(true);
+  expect(result.withoutStoryboard[0]).toBeGreaterThan(35);
+  expect(errors).toEqual([]);
+});
+
+test('无视频且无故事板时对应开关保持禁用', async ({ page }) => {
+  const errors = captureErrors(page);
+  await boot(page);
+  await page.setInputFiles('#oszInput', noMediaOsz);
+
+  await page.waitForFunction(
+    () => beatmaps.length > 0 && currentBeatmap && storyboardPlaybackState,
+    null,
+    { timeout: 30000 }
+  );
+
+  const controls = await page.evaluate(() => {
+    const storyboardToggle = document.getElementById('storyboardToggle');
+    const videoToggle = document.getElementById('videoToggle');
+    return {
+      storyboardDisabled: storyboardToggle.disabled,
+      videoDisabled: videoToggle.disabled,
+      storyboardChecked: storyboardToggle.checked,
+      videoChecked: videoToggle.checked,
+      storyboardItemDisabled: storyboardToggle.closest('.tweak-switch-item')
+        .classList.contains('is-disabled'),
+      videoItemDisabled: videoToggle.closest('.tweak-switch-item')
+        .classList.contains('is-disabled')
+    };
+  });
+
+  expect(controls).toEqual({
+    storyboardDisabled: true,
+    videoDisabled: true,
+    storyboardChecked: false,
+    videoChecked: false,
+    storyboardItemDisabled: true,
+    videoItemDisabled: true
+  });
   expect(errors).toEqual([]);
 });
 

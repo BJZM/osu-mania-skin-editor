@@ -654,14 +654,14 @@
                     <div class="tweak-switch-item" title="开启 / 关闭故事板渲染 (对齐 osu!stable 故事板开关)">
                         <span class="tweak-label">故事板</span>
                         <label class="ios-switch">
-                            <input type="checkbox" id="storyboardToggle" checked>
+                            <input type="checkbox" id="storyboardToggle" checked disabled>
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="tweak-switch-item" title="开启 / 关闭视频背景播放 (对齐 osu!stable 视频背景开关)">
                         <span class="tweak-label">视频</span>
                         <label class="ios-switch">
-                            <input type="checkbox" id="videoToggle" checked>
+                            <input type="checkbox" id="videoToggle" checked disabled>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -1297,7 +1297,7 @@
                         <li><span>JSZip 3.10.1</span><span class="about-license-tag">MIT</span></li>
                         <li><span>UTIF.js 3.1.0</span><span class="about-license-tag">MIT</span></li>
                         <li><span>Feather Icons 4.x</span><span class="about-license-tag">MIT</span></li>
-                        <li><span>FFmpeg.wasm 0.12.9</span><span class="about-license-tag about-license-tag-gpl">GPL-2.0+</span></li>
+                        <li><span>FFmpeg 8.1 LGPL shared</span><span class="about-license-tag">LGPL-3.0+</span></li>
                         <li><span>Electron 44.7.0</span><span class="about-license-tag">MIT</span></li>
                         <li><span>electron-builder 26.15.3</span><span class="about-license-tag">MIT</span></li>
                         <li><span>@electron/asar 3.4.1</span><span class="about-license-tag">MIT</span></li>
@@ -1339,7 +1339,6 @@
             document.write('<script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.min.js"><\/script>');
         }
     </script>
-    <script src="vendor/ffmpeg/ffmpeg.min.js"></script>
     <!-- 谱面解析默认使用本地原生实现，桌面版无需加载外部模块 -->
     <!-- osu! stable 默认皮肤资源配置 -->
     <script defer src="src/js/default_skin.js?v=20261009_3"></script>
@@ -1355,7 +1354,7 @@
     <script defer src="src/js/parser/beatmap-format.js?v=20261010_3"></script>
     <script defer src="src/js/parser/storyboard.js?v=20261010_2"></script>
     <script defer src="src/js/parser/zip-timing.js?v=20261010_4"></script>
-    <script defer src="src/js/parser/beatmap-load.js?v=20261010_4"></script>
+    <script defer src="src/js/parser/beatmap-load.js?v=20261010_5"></script>
     <script defer src="src/js/parser/beatmap-import.js?v=20261010_3"></script>
     <script defer src="src/js/parser/skin-assets.js?v=20261009_2"></script>
     <script defer src="src/js/parser/tiff.js?v=20261009_2"></script>
@@ -1365,8 +1364,8 @@
     <script defer src="src/js/render/fonts.js?v=20261009_6"></script>
     <script defer src="src/js/render/textures.js?v=20261009_3"></script>
     <script defer src="src/js/render/combo.js?v=20261010_3"></script>
-    <script defer src="src/js/render/video-transcoder.js?v=20261010_1"></script>
-    <script defer src="src/js/render/storyboard-assets.js?v=20261010_3"></script>
+    <script defer src="src/js/render/video-transcoder.js?v=20261010_2"></script>
+    <script defer src="src/js/render/storyboard-assets.js?v=20261010_4"></script>
     <script defer src="src/js/render/storyboard.js?v=20261010_2"></script>
     <script defer src="src/js/render/storyboard-composite.js?v=20261010_1"></script>
     <script defer src="src/js/render/frame.js?v=20261010_5"></script>
@@ -1378,7 +1377,7 @@
     <!-- 4) 皮肤光标覆盖层 -->
     <script defer src="src/js/cursor.js?v=20261009_3"></script>
     <!-- 5) 界面交互层与启动初始化（必须最后加载） -->
-    <script defer src="src/js/ui/feedback.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/feedback.js?v=20261010_3"></script>
     <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
     <script defer src="src/js/ui/transport.js?v=20261010_3"></script>
     <script defer src="src/js/ui/canvas-editor.js?v=20261010_1"></script>

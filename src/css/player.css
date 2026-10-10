@@ -125,6 +125,18 @@
             margin: 0 -4px;
         }
 
+        .tweak-switch-item.is-disabled {
+            opacity: 0.38;
+            filter: grayscale(1);
+            cursor: not-allowed;
+        }
+
+        .tweak-switch-item.is-disabled .ios-switch,
+        .tweak-switch-item.is-disabled .slider {
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
         .tweak-slider-item {
             display: flex;
             align-items: center;
