@@ -6,7 +6,9 @@
         let preferredTextureUploadSpec = null;
 
         // 10. 触发本地图片替换
-        function triggerTextureUpload(textureName, textureKey = null, paramKey = null, colIndex = null, preferredSpec = '1x') {
+        // 详细设置入口会传入已选择的 '1x' / '2x'，选完本地文件后直接导入；
+        // 画布入口不传规格，继续通过弹窗询问导入类型。
+        function triggerTextureUpload(textureName, textureKey = null, paramKey = null, colIndex = null, preferredSpec = null) {
             targetTextureUploadKey = textureKey;
             targetTextureUploadFilename = textureName;
             targetTextureUploadParamKey = paramKey;

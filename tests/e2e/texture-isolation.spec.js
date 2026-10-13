@@ -23,7 +23,7 @@ test('StageLight 上传不会按源文件名覆盖 LightingN', async ({ page }) 
     window._beforeStage = get('mania-stage-light');
   });
 
-  await page.evaluate(() => triggerTextureUpload('mania-stage-light', LML.LightImage, 'StageLight', null, '1x'));
+  await page.evaluate(() => triggerTextureUpload('mania-stage-light', LML.LightImage, 'StageLight'));
   await page.setInputFiles('#textureReplaceInput', {
     name: 'lightingN.png',
     mimeType: 'image/png',

@@ -8,7 +8,7 @@
     <title>osu!mania 可视化皮肤编辑器</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <meta name="theme-color" content="#1b1622">
-    <link rel="stylesheet" href="src/css/style.css?v=20261010_4">
+    <link rel="stylesheet" href="src/css/style.css?v=20261013_6">
 </head>
 
 <body>
@@ -73,6 +73,13 @@
                     </svg>
                     <span>详细设置</span>
                 </button>
+                <button type="button" class="tool-btn" id="openTextureImageEditorBtn" title="裁剪贴图或用透明像素增加画布尺寸">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
+                        <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
+                    </svg>
+                    <span>贴图编辑</span>
+                </button>
                 <div class="dropdown-wrapper" id="exportDropdownWrapper">
                     <button type="button" class="tool-btn" id="exportSkinBtn" title="将所有修改逆向保存并打包导出">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -109,20 +116,54 @@
                         </button>
                     </div>
                 </div>
-                <button type="button" class="tool-btn" id="sidebarRevertSkinBtn" title="将所有修改过的参数和贴图复原为导入时的原始状态">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path>
-                        <path d="M3 3v5h5"></path>
-                    </svg>
-                    <span>复原初始</span>
-                </button>
-                <button type="button" class="tool-btn" id="canvasUndoBtn" title="撤回上一步操作 (快捷键 Ctrl+Z)" style="opacity: 0.45; cursor: not-allowed;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 7v6h6"></path>
-                        <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
-                    </svg>
-                    <span>撤回 (Ctrl+Z)</span>
-                </button>
+                <div class="dropdown-wrapper" id="editDropdownWrapper">
+                    <button type="button" class="tool-btn" id="editMenuBtn" title="重做、撤回或恢复初始状态">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                        </svg>
+                        <span>编辑 &#9662;</span>
+                    </button>
+                    <div class="dropdown-menu" id="editMenu">
+                        <button type="button" class="dropdown-item" id="canvasRedoBtn" title="暂无可重做的操作 (Ctrl+Y / Ctrl+Shift+Z)" disabled>
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <path d="M23 4v6h-6"></path>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                </svg>
+                            </span>
+                            <div class="item-text">
+                                <span class="title">重做</span>
+                                <span class="desc">重做已撤回的修改 (Ctrl+Y)</span>
+                            </div>
+                        </button>
+                        <button type="button" class="dropdown-item" id="canvasUndoBtn" title="暂无可撤回的操作 (Ctrl+Z)" disabled>
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <path d="M3 7v6h6"></path>
+                                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+                                </svg>
+                            </span>
+                            <div class="item-text">
+                                <span class="title">撤回</span>
+                                <span class="desc">撤回上一步操作 (Ctrl+Z)</span>
+                            </div>
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <button type="button" class="dropdown-item" id="sidebarRevertSkinBtn" title="将所有修改过的参数和贴图复原为导入时的原始状态">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path>
+                                    <path d="M3 3v5h5"></path>
+                                </svg>
+                            </span>
+                            <div class="item-text">
+                                <span class="title">恢复初始</span>
+                                <span class="desc">复原为导入时的参数与贴图</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
                 <button type="button" class="tool-btn" id="topHelpBtn" title="查看皮肤各贴图拉伸与尺寸规则说明 (帮助)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -286,7 +327,7 @@
                             <circle cx="8.5" cy="8.5" r="1.5"></circle>
                             <polyline points="21 15 16 10 5 21"></polyline>
                         </svg>
-                        <span>定位连击贴图</span>
+                        <span>替换贴图</span>
                     </button>
                     <button type="button" class="card-btn" id="cardPreviewJudgementBtn" title="开启/关闭判定提示动态演示 (包含各等级判定与Miss断连恢复)" style="display: none;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
@@ -597,6 +638,213 @@
                         <div class="footer-right-btns">
                             <button type="button" class="btn btn-secondary" id="animCancelBtn">取消</button>
                             <button type="button" class="btn btn-primary" id="animConfirmBtn" disabled>确认应用动态贴图 (0 帧)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 简单贴图编辑器：裁剪与透明扩边 -->
+            <div class="texture-image-modal" id="textureImageEditorModal" style="display: none;">
+                <div class="texture-image-backdrop" id="textureImageEditorBackdrop"></div>
+                <div class="texture-image-dialog" id="textureImageEditorDialog" role="dialog" aria-labelledby="textureImageEditorTitle">
+                    <div class="texture-image-header" id="textureImageEditorHeader">
+                        <div class="texture-image-title-group">
+                            <span class="header-drag-handle" title="按住拖拽窗口移动位置">⠿</span>
+                            <div class="texture-image-title-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                                    <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
+                                    <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 id="textureImageEditorTitle">贴图编辑</h3>
+                            </div>
+                        </div>
+                        <div class="texture-image-header-actions">
+                            <button type="button" class="btn-icon" id="textureImageUndoBtn" title="暂无可撤回的贴图编辑 (Ctrl+Z)" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                                    <path d="M9 14 4 9l5-5"></path>
+                                    <path d="M4 9h10a6 6 0 0 1 0 12h-3"></path>
+                                </svg>
+                            </button>
+                            <button type="button" class="btn-icon" id="textureImageRedoBtn" title="暂无可重做的贴图编辑 (Ctrl+Y / Ctrl+Shift+Z)" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                                    <path d="m15 14 5-5-5-5"></path>
+                                    <path d="M20 9H10a6 6 0 0 0 0 12h3"></path>
+                                </svg>
+                            </button>
+                            <button type="button" class="btn-icon" id="dockTextureImageEditorBtn" title="恢复靠右吸附位置">⤺</button>
+                            <button type="button" class="btn-icon" id="collapseTextureImageEditorBtn" title="折叠/展开窗口">−</button>
+                            <button type="button" class="btn-icon" id="textureImageEditorCloseBtn" title="关闭 (Esc)">✕</button>
+                        </div>
+                    </div>
+
+                    <div class="texture-image-tabs">
+                        <div class="texture-image-tab-list" id="textureImageTabList" role="tablist" aria-label="贴图编辑标签"></div>
+                    </div>
+
+                    <div class="texture-image-body">
+                        <div class="texture-image-picker-view" id="textureImagePickerView">
+                            <div class="texture-image-picker-head">
+                                <div>
+                                    <div class="texture-image-picker-title">选择要编辑的贴图</div>
+                                </div>
+                                <span class="texture-image-picker-count" id="textureImagePickerCount">0 项</span>
+                            </div>
+                            <div class="texture-image-picker-grid" id="textureImagePickerGrid"></div>
+                        </div>
+
+                        <div class="texture-image-editor-view" id="textureImageEditorView" style="display: none;">
+                            <div class="texture-image-preview-panel">
+                                <div class="texture-image-preview-wrap">
+                                    <canvas id="textureImagePreviewCanvas" width="360" height="280"></canvas>
+                                </div>
+                                <div class="texture-image-preview-meta">
+                                    <div class="texture-image-preview-sizes">
+                                        <span id="textureImageSourceSize">-</span>
+                                        <span id="textureImageWorkingSize">-</span>
+                                    </div>
+                                    <div class="texture-image-preview-zoom" role="group" aria-label="预览缩放">
+                                        <button type="button" class="btn-icon texture-image-zoom-btn" id="textureImagePreviewZoomOut" title="缩小预览" aria-label="缩小预览">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14" aria-hidden="true">
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
+                                        </button>
+                                        <input type="range" id="textureImagePreviewZoom" min="0.1" max="4" step="0.1" value="1" aria-label="预览缩放">
+                                        <button type="button" class="btn-icon texture-image-zoom-btn" id="textureImagePreviewZoomIn" title="放大预览" aria-label="放大预览">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14" aria-hidden="true">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
+                                        </button>
+                                        <span class="texture-image-preview-zoom-value" id="textureImagePreviewZoomValue">100%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="texture-image-controls">
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">裁剪与扩边</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-number-grid">
+                                        <label>
+                                            <span>左边界</span>
+                                            <input type="number" id="textureImageCropX" min="-8192" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>上边界</span>
+                                            <input type="number" id="textureImageCropY" min="-8192" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>宽度变化</span>
+                                            <input type="number" id="textureImageCropWidth" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>高度变化</span>
+                                            <input type="number" id="textureImageCropHeight" step="1" value="0">
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section" id="textureImageLongBodySection" style="display: none;">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">一键投皮</div>
+                                        </div>
+                                        <label class="texture-image-switch">
+                                            <input type="checkbox" id="textureImageLongBodyEnable">
+                                            <span class="texture-image-switch-track"></span>
+                                        </label>
+                                    </div>
+                                    <div class="texture-image-long-body-status" id="textureImageLongBodyStatus"></div>
+                                    <div class="texture-image-long-body-controls" id="textureImageLongBodyControls" style="display: none;">
+                                        <div class="texture-image-number-grid">
+                                            <label>
+                                                <span>尾部顶端位置</span>
+                                                <input type="number" id="textureImageLongBodyCoverage" min="0" max="40000" step="1" value="0">
+                                            </label>
+                                            <label>
+                                                <span>生成高度</span>
+                                                <input type="number" id="textureImageLongBodyTargetHeight" min="1" max="50000" step="100" value="40000">
+                                            </label>
+                                        </div>
+                                        <label class="texture-image-long-body-fade">
+                                            <span>淡化范围</span>
+                                            <input type="range" id="textureImageLongBodyFade" min="0" max="100" step="1" value="0">
+                                            <span id="textureImageLongBodyFadeValue">0%</span>
+                                        </label>
+                                        <div class="texture-image-long-body-progress" id="textureImageLongBodyProgress" style="display: none;">
+                                            <div class="texture-image-long-body-progress-head">
+                                                <span id="textureImageLongBodyProgressLabel">正在生成完整长条...</span>
+                                                <span id="textureImageLongBodyProgressValue">0%</span>
+                                            </div>
+                                            <div class="texture-image-long-body-progress-track">
+                                                <div class="texture-image-long-body-progress-bar" id="textureImageLongBodyProgressBar"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">拉伸修复</div>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary texture-image-small-btn" id="textureImageStretchFixBtn" disabled>修复拉伸</button>
+                                    </div>
+                                    <div class="texture-image-stretch-target" id="textureImageStretchTarget"></div>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="texture-image-footer">
+                        <button type="button" class="btn btn-secondary" id="textureImageResetBtn" disabled>重置当前贴图</button>
+                        <div class="texture-image-footer-right">
+                            <button type="button" class="btn btn-secondary" id="textureImageCancelBtn">不保存</button>
+                            <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="texture-image-scope-modal" id="textureImageUnsavedModal" style="display: none;">
+                    <div class="texture-image-scope-backdrop" id="textureImageUnsavedBackdrop"></div>
+                    <div class="texture-image-scope-dialog" role="dialog" aria-modal="true" aria-labelledby="textureImageUnsavedTitle">
+                        <div class="texture-image-scope-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                                <path d="M12 9v4"></path>
+                                <path d="M12 17h.01"></path>
+                                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            </svg>
+                        </div>
+                        <h3 id="textureImageUnsavedTitle">保存未提交的编辑？</h3>
+                        <p id="textureImageUnsavedText">关闭前可以保存当前贴图编辑，也可以放弃修改。</p>
+                        <div class="texture-image-scope-actions">
+                            <button type="button" class="btn btn-secondary" id="textureImageUnsavedCancelBtn">取消</button>
+                            <button type="button" class="btn btn-secondary" id="textureImageUnsavedDiscardBtn">不保存</button>
+                            <button type="button" class="btn btn-primary" id="textureImageUnsavedSaveBtn">保存</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="texture-image-scope-modal" id="textureImageApplyScopeModal" style="display: none;">
+                    <div class="texture-image-scope-backdrop" id="textureImageApplyScopeBackdrop"></div>
+                    <div class="texture-image-scope-dialog" role="dialog" aria-modal="true" aria-labelledby="textureImageApplyScopeTitle">
+                        <div class="texture-image-scope-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                                <path d="M12 3v18"></path>
+                                <path d="M5 8h14"></path>
+                                <path d="M5 16h14"></path>
+                            </svg>
+                        </div>
+                        <h3 id="textureImageApplyScopeTitle">选择应用范围</h3>
+                        <p>完整长条身体要只替换当前轨道，还是同时应用到全部轨道？</p>
+                        <div class="texture-image-scope-actions">
+                            <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCancelBtn">取消</button>
+                            <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCurrentBtn">仅当前轨道</button>
+                            <button type="button" class="btn btn-primary" id="textureImageApplyScopeAllBtn">应用到全部轨道</button>
                         </div>
                     </div>
                 </div>
@@ -1275,7 +1523,7 @@
                 <section class="about-hero">
                     <div class="about-app-name">osu!mania Skin Editor</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.1.0</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.2.0</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>
@@ -1354,23 +1602,23 @@
     <script defer src="src/js/parser/beatmap-format.js?v=20261010_3"></script>
     <script defer src="src/js/parser/storyboard.js?v=20261010_2"></script>
     <script defer src="src/js/parser/zip-timing.js?v=20261010_4"></script>
-    <script defer src="src/js/parser/beatmap-load.js?v=20261010_5"></script>
-    <script defer src="src/js/parser/beatmap-import.js?v=20261010_3"></script>
-    <script defer src="src/js/parser/skin-assets.js?v=20261009_2"></script>
+    <script defer src="src/js/parser/beatmap-load.js?v=20261013_2"></script>
+    <script defer src="src/js/parser/beatmap-import.js?v=20261012_2"></script>
+    <script defer src="src/js/parser/skin-assets.js?v=20261012_2"></script>
     <script defer src="src/js/parser/tiff.js?v=20261009_2"></script>
-    <script defer src="src/js/parser/skin-import.js?v=20261009_6"></script>
+    <script defer src="src/js/parser/skin-import.js?v=20261012_2"></script>
     <!-- 3) Canvas 画布绘制核心 -->
     <script defer src="src/js/render/effects.js?v=20261009_2"></script>
     <script defer src="src/js/render/fonts.js?v=20261009_6"></script>
-    <script defer src="src/js/render/textures.js?v=20261009_3"></script>
+    <script defer src="src/js/render/textures.js?v=20261012_3"></script>
     <script defer src="src/js/render/combo.js?v=20261010_3"></script>
     <script defer src="src/js/render/video-transcoder.js?v=20261010_2"></script>
-    <script defer src="src/js/render/storyboard-assets.js?v=20261010_4"></script>
+    <script defer src="src/js/render/storyboard-assets.js?v=20261013_2"></script>
     <script defer src="src/js/render/storyboard.js?v=20261010_2"></script>
     <script defer src="src/js/render/storyboard-composite.js?v=20261010_1"></script>
-    <script defer src="src/js/render/frame.js?v=20261010_5"></script>
+    <script defer src="src/js/render/frame.js?v=20261013_3"></script>
     <script defer src="src/js/render/judgements.js?v=20261009_2"></script>
-    <script defer src="src/js/render/hud.js?v=20261009_6"></script>
+    <script defer src="src/js/render/hud.js?v=20261013_2"></script>
     <script defer src="src/js/render/diagnostics.js?v=20261009_2"></script>
     <!-- 在后续 UI 脚本解析时并行加载默认皮肤图片 -->
     <script defer src="src/js/core/bootstrap.js?v=20261010_2"></script>
@@ -1379,7 +1627,7 @@
     <!-- 5) 界面交互层与启动初始化（必须最后加载） -->
     <script defer src="src/js/ui/feedback.js?v=20261010_3"></script>
     <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
-    <script defer src="src/js/ui/transport.js?v=20261010_3"></script>
+    <script defer src="src/js/ui/transport.js?v=20261013_2"></script>
     <script defer src="src/js/ui/canvas-editor.js?v=20261010_1"></script>
     <script defer src="src/js/ui/ini-export.js?v=20261009_3"></script>
     <script defer src="src/js/ui/param-core.js?v=20261009_6"></script>
@@ -1388,12 +1636,13 @@
     <script defer src="src/js/ui/param-render.js?v=20261009_5"></script>
     <script defer src="src/js/ui/export.js?v=20261009_2"></script>
     <script defer src="src/js/ui/history.js?v=20261009_2"></script>
-    <script defer src="src/js/ui/editor-dialog.js?v=20261010_1"></script>
+    <script defer src="src/js/ui/editor-dialog.js?v=20261013_2"></script>
     <script defer src="src/js/ui/animation-editor.js?v=20261009_4"></script>
     <script defer src="src/js/ui/texture-upload.js?v=20261009_4"></script>
+    <script defer src="src/js/ui/texture-image-editor.js?v=20261013_9"></script>
     <script defer src="src/js/ui/canvas-interactions.js?v=20261009_6"></script>
-    <script defer src="src/js/ui/shortcuts.js?v=20261010_2"></script>
-    <script defer src="src/js/ui/app-shell.js?v=20261010_2"></script>
+    <script defer src="src/js/ui/shortcuts.js?v=20261012_1"></script>
+    <script defer src="src/js/ui/app-shell.js?v=20261012_2"></script>
 </body>
 
 </html>

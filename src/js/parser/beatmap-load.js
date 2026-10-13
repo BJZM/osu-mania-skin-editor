@@ -159,6 +159,7 @@
             }).sort((a, b) => a.startTime - b.startTime);
 
             audio.currentTime = 0;
+            clearResumePlaybackPosition();
             judgements = [];
             activeExplosions = [];
             cancelAnimationFrame(animationId);

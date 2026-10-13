@@ -3,6 +3,34 @@
 // 依赖：core/state.js
 // ============================================================================
 
+        // skin.ini NoteBodyStyle: 0=Stretch, 1=FromTail, 2=FromHead, 3=TopAndBottom。
+        // 同时兼容部分旧 skin 使用的 4=TopAndBottom。
+        // 内部统一使用 0=Stretch, 1=FromTail, 2=FromHead, 3=TopAndBottom。
+        function normalizeNoteBodyStyleValue(value) {
+            const text = String(value == null ? '' : value).trim();
+            const raw = parseInt(text, 10);
+            if (!isNaN(raw)) {
+                if (raw === 0) return NOTE_BODY_STYLE.Stretch;
+                if (raw === 1) return NOTE_BODY_STYLE.RepeatFromTail;
+                if (raw === 2) return NOTE_BODY_STYLE.RepeatFromHead;
+                if (raw === 3 || raw === 4) return NOTE_BODY_STYLE.RepeatTopAndBottom;
+                return null;
+            }
+
+            const low = text.toLowerCase();
+            if (low === 'stretch') return NOTE_BODY_STYLE.Stretch;
+            if (low.includes('topandbottom') || low.includes('topandb') || low.includes('both')) {
+                return NOTE_BODY_STYLE.RepeatTopAndBottom;
+            }
+            if (low === 'repeatfromtail' || low === 'repeattail' || low.includes('top')) {
+                return NOTE_BODY_STYLE.RepeatFromTail;
+            }
+            if (low === 'repeatfromhead' || low === 'repeathead' || low.includes('bottom')) {
+                return NOTE_BODY_STYLE.RepeatFromHead;
+            }
+            return null;
+        }
+
         // 连击数字 (Combo) 字体贴图前缀解析 —— 唯一真源，renderer.js 与 ui.js 必须共用。
         //  1. [Mania] FontCombo  : 键位区块内单独指定连击数字使用的贴图组 (优先级最高)
         //  2. [Fonts] Combo / ComboPrefix : 全局连击数字贴图前缀 (仅 ini 显式写了才算)
@@ -91,7 +119,7 @@
                     ShowJudgementLine: true,
                     KeysUnderNotes: globalKeysUnderNotes !== undefined ? globalKeysUnderNotes : 0,
                     LightFramePerSecond: 60,
-                    NoteBodyStyle: 1,
+                    NoteBodyStyle: null,
                     NoteBodyStyles: new Array(keys).fill(null),
                     ColumnStart: 136,
                     ColumnRight: 19,
@@ -401,15 +429,8 @@
                         case 'holdnotelightwidth':
                             parseArrayValue(V, currentConfig.HoldNoteLightWidth, false); break;
                         case 'notebodystyle': {
-                            const raw = parseInt(V, 10);
-                            if (!isNaN(raw) && raw >= 0 && raw <= 2) {
-                                currentConfig.NoteBodyStyle = raw;
-                            } else {
-                                const low = V.toLowerCase().trim();
-                                if (low === 'stretch') currentConfig.NoteBodyStyle = 0;
-                                else if (low === 'repeatfromtail' || low === 'repeattail' || low.includes('top')) currentConfig.NoteBodyStyle = 1;
-                                else if (low === 'repeatfromhead' || low === 'repeathead' || low.includes('bottom')) currentConfig.NoteBodyStyle = 2;
-                            }
+                            const style = normalizeNoteBodyStyleValue(V);
+                            if (style != null) currentConfig.NoteBodyStyle = style;
                             break;
                         }
                         case 'widthfornoteheightscale': {
@@ -508,15 +529,7 @@
                                 const m = imgKeyCi.match(/^notebodystyle(\d+)$/i);
                                 if (m) {
                                     const colIdx = parseInt(m[1], 10);
-                                    const raw = parseInt(V, 10);
-                                    let sVal = null;
-                                    if (!isNaN(raw) && raw >= 0 && raw <= 2) sVal = raw;
-                                    else {
-                                        const low = V.toLowerCase().trim();
-                                        if (low === 'stretch') sVal = 0;
-                                        else if (low === 'repeatfromtail' || low === 'repeattail' || low.includes('top')) sVal = 1;
-                                        else if (low === 'repeatfromhead' || low === 'repeathead' || low.includes('bottom')) sVal = 2;
-                                    }
+                                    const sVal = normalizeNoteBodyStyleValue(V);
                                     if (sVal !== null && colIdx >= 0 && colIdx < currentConfig.Keys) {
                                         if (!Array.isArray(currentConfig.NoteBodyStyles)) currentConfig.NoteBodyStyles = new Array(currentConfig.Keys).fill(null);
                                         currentConfig.NoteBodyStyles[colIdx] = sVal;

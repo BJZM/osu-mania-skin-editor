@@ -3,11 +3,12 @@
 // 依赖：core/state.js
 // ============================================================================
 
-        function processSkinImage(img, relativePath = '') {
+        function processSkinImage(img, relativePath = '', preserveBlack = false) {
             if (!img.width || !img.height) return img;
             // osu!mania 长条尾部贴图 (NoteImage*T / mania-note*T / tail / keyT) 依赖其黑色底色作为遮罩 (mask)
             // 覆盖在矩形身体上形成圆拱造型，绝不能将黑色抠成透明，否则会导致长条身体穿透暴露。
-            if (relativePath && /(tail|notet|keyt)/i.test(relativePath)) {
+            // preserveBlack 用于 skin.ini 把其它文件名别名到尾巴槽位的情况，例如 NoteImage0T: Arrows\noteH。
+            if (preserveBlack || (relativePath && /(tail|notet|keyt)/i.test(relativePath))) {
                 return img;
             }
             const c = document.createElement('canvas');

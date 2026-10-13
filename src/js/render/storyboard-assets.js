@@ -286,7 +286,7 @@
                 if (generation !== storyboardPlaybackGeneration || storyboardPlaybackState !== state) return;
                 state.video.duration = Number.isFinite(element.duration) ? element.duration : 0;
                 state.video.ready = true;
-                syncStoryboardVideoToTime(audio.currentTime * 1000, isPlaying);
+                syncStoryboardVideoToTime(getPlaybackTimeSeconds() * 1000, isPlaying);
                 requestStoryboardRedraw(state);
             });
             element.addEventListener('canplay', () => {
@@ -637,13 +637,13 @@
         function resumeStoryboardPlayback() {
             if (storyboardPlaybackState) {
                 ensureStoryboardVideoLoaded(storyboardPlaybackState, true);
-                syncStoryboardVideoToTime(audio.currentTime * 1000, true);
+                syncStoryboardVideoToTime(getPlaybackTimeSeconds() * 1000, true);
             }
         }
 
         function pauseStoryboardPlayback() {
             if (storyboardPlaybackState) {
-                syncStoryboardVideoToTime(audio.currentTime * 1000, false);
+                syncStoryboardVideoToTime(getPlaybackTimeSeconds() * 1000, false);
             }
         }
 

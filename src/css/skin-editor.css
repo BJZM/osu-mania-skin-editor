@@ -144,9 +144,25 @@
             background: rgba(224, 84, 139, 0.2);
         }
 
+        .dropdown-item:disabled,
+        .dropdown-item[disabled] {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .dropdown-item:disabled:hover,
+        .dropdown-item[disabled]:hover {
+            background: transparent;
+        }
+
         .dropdown-item .icon {
             font-size: 1.1rem;
             flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
         }
 
         .dropdown-item .item-text {
@@ -164,6 +180,12 @@
             font-size: 0.7rem;
             color: rgba(255, 255, 255, 0.6);
             margin-top: 1px;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            margin: 2px 6px;
+            background: rgba(255, 255, 255, 0.1);
         }
 
         /* 模式切换开关行 */

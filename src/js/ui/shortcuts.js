@@ -7,6 +7,28 @@
         document.addEventListener('keydown', (e) => {
             const isCtrlOrCmd = e.ctrlKey || e.metaKey;
             const keyLower = e.key ? e.key.toLowerCase() : '';
+            const imageEditorModal = document.getElementById('textureImageEditorModal');
+            const isTextureImageEditorOpen = !!(
+                imageEditorModal &&
+                imageEditorModal.style.display !== 'none' &&
+                typeof textureImageEditorUi !== 'undefined' &&
+                textureImageEditorUi
+            );
+
+            // 贴图编辑窗口激活时，Ctrl+Z / Ctrl+Y 只作用于窗口内部。
+            if (isTextureImageEditorOpen && isCtrlOrCmd && keyLower === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                textureImageEditorUi.undo();
+                return;
+            }
+            if (isTextureImageEditorOpen && (
+                (isCtrlOrCmd && keyLower === 'y') ||
+                (isCtrlOrCmd && keyLower === 'z' && e.shiftKey)
+            )) {
+                e.preventDefault();
+                textureImageEditorUi.redo();
+                return;
+            }
 
             // 快捷键: Ctrl+Z (撤销) 与 Ctrl+Y / Ctrl+Shift+Z (重做)
             if (isCtrlOrCmd && keyLower === 'z' && !e.shiftKey) {
@@ -70,6 +92,22 @@
                 return;
             }
 
+            // 简单贴图编辑弹窗：Esc 不保存并恢复进入编辑器前的画布状态
+            if (isTextureImageEditorOpen) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    if (textureImageEditorUi) textureImageEditorUi.close();
+                    return;
+                }
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    const applyBtn = document.getElementById('textureImageApplyBtn');
+                    if (applyBtn) applyBtn.click();
+                    return;
+                }
+                return;
+            }
+
             // 贴图规格弹窗快捷键处理
             const uploadModal = document.getElementById('textureUploadModal');
             if (uploadModal && uploadModal.style.display !== 'none') {
@@ -99,8 +137,25 @@
                 return;
             }
 
-            // 如果用户正在表单或输入控件中输入，不响应游戏内快捷键
+            // 空格键全局控制播放/暂停；仅文本输入控件保留空格本身的功能。
             const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+            const inputType = tag === 'input' && e.target.type ? e.target.type.toLowerCase() : '';
+            const isTextEditing = tag === 'textarea' || tag === 'select' || (
+                tag === 'input' &&
+                inputType !== 'range' &&
+                inputType !== 'checkbox' &&
+                inputType !== 'radio' &&
+                inputType !== 'button' &&
+                inputType !== 'submit'
+            );
+            if (e.code === 'Space' && !isTextEditing) {
+                e.preventDefault();
+                if (e.repeat) return;
+                togglePlayPause();
+                return;
+            }
+
+            // 如果用户正在表单或输入控件中输入，不响应其余游戏内快捷键
             if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
             // osu!stable 快捷键：F3 减小流速，F4 增大流速（只能整数步进）
@@ -122,10 +177,7 @@
                 return;
             }
 
-            if (e.code === 'Space') {
-                e.preventDefault();
-                togglePlayPause();
-            } else if (e.key === 'd' || e.key === 'D') {
+            if (e.key === 'd' || e.key === 'D') {
                 debugMode = !debugMode;
                 if (!isPlaying) drawFrame();
             } else if (e.key === 'f' || e.key === 'F') {

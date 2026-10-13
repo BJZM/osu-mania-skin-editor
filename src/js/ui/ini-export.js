@@ -190,7 +190,12 @@
                 // 3. 特效与渲染规则 (Effects & Render Options)
                 const effectLines = [];
                 if (cfg.KeysUnderNotes != null) effectLines.push(`KeysUnderNotes: ${cfg.KeysUnderNotes}`);
-                if (cfg.NoteBodyStyle != null) effectLines.push(`NoteBodyStyle: ${cfg.NoteBodyStyle}`);
+                if (cfg.NoteBodyStyle != null) {
+                    const stableNoteBodyStyle = cfg.NoteBodyStyle === NOTE_BODY_STYLE.RepeatFromTail ? 1
+                        : (cfg.NoteBodyStyle === NOTE_BODY_STYLE.RepeatFromHead ? 2
+                            : (cfg.NoteBodyStyle === NOTE_BODY_STYLE.RepeatTopAndBottom ? 3 : 0));
+                    effectLines.push(`NoteBodyStyle: ${stableNoteBodyStyle}`);
+                }
                 if (cfg.WidthForNoteHeightScale != null) effectLines.push(`WidthForNoteHeightScale: ${cfg.WidthForNoteHeightScale}`);
                 // 注：官方 skin.ini 的 [Mania] 只有 LightingNWidth / LightingLWidth 两个打击特效宽度参数。
                 // 「缩放倍率」是 lazer 内部由宽度派生出来的 lookup（宽度/30，缺省 列宽/30），**不是 ini 键**，
@@ -204,7 +209,7 @@
                     lines.push('// 3. 特效与渲染规则 (Effects & Render Options)');
                     lines.push('// ------------------------------------------');
                     lines.push('// KeysUnderNotes: 按键图层是否位于音符下方 (0:覆盖音符, 1:置于音符下)');
-                    lines.push('// NoteBodyStyle: 长条身体平铺样式 (0:拉伸Stretch, 1:尾部重复, 2:头部重复)');
+                    lines.push('// NoteBodyStyle: 长条身体平铺样式 (0:拉伸Stretch, 1:尾部重复, 2:头部重复, 3:两端重复)');
                     lines.push('// WidthForNoteHeightScale: 音符长宽比缩放基准宽度');
                     lines.push('// LightingNWidth / LightingLWidth: 打击光效与长条发光宽度 (像素数组，0 = 跟随列宽)');
                     lines.push('// LightFramePerSecond: 按键动画播放帧率');

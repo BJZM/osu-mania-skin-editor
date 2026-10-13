@@ -37,6 +37,7 @@
             if (Array.isArray(cfg.ColumnWidth)) cloned.ColumnWidth = [...cfg.ColumnWidth];
             if (Array.isArray(cfg.ExplosionWidth)) cloned.ExplosionWidth = [...cfg.ExplosionWidth];
             if (Array.isArray(cfg.HoldNoteLightWidth)) cloned.HoldNoteLightWidth = [...cfg.HoldNoteLightWidth];
+            if (Array.isArray(cfg.NoteBodyStyles)) cloned.NoteBodyStyles = [...cfg.NoteBodyStyles];
             if (Array.isArray(cfg.ColumnColour)) cloned.ColumnColour = cfg.ColumnColour.map(c => (c ? { ...c } : c));
             if (Array.isArray(cfg.ColourLight)) cloned.ColourLight = cfg.ColourLight.map(c => (c ? { ...c } : c));
             if (cfg.CustomColours) {
@@ -70,11 +71,22 @@
         let continuousActionTimer = null;
 
         function updateUndoButtonState() {
+            const redoBtn = document.getElementById('canvasRedoBtn');
             const undoBtn = document.getElementById('canvasUndoBtn');
             const modalUndoBtn = document.getElementById('modalUndoBtn');
             const count = undoStack.length;
+            const redoCount = redoStack.length;
+            const redoTitle = redoCount > 0
+                ? `重做: ${redoStack[redoStack.length - 1].desc || '已撤回的操作'} (Ctrl+Y / Ctrl+Shift+Z)`
+                : '暂无可重做的操作 (Ctrl+Y / Ctrl+Shift+Z)';
             const title = count > 0 ? `撤回: ${undoStack[undoStack.length - 1].desc || '上一步操作'} (Ctrl+Z)` : '暂无可撤回操作 (Ctrl+Z)';
 
+            if (redoBtn) {
+                redoBtn.disabled = (redoCount === 0);
+                redoBtn.style.opacity = (redoCount === 0) ? '0.45' : '1';
+                redoBtn.style.cursor = (redoCount === 0) ? 'not-allowed' : 'pointer';
+                redoBtn.title = redoTitle;
+            }
             if (undoBtn) {
                 undoBtn.disabled = (count === 0);
                 undoBtn.style.opacity = (count === 0) ? '0.45' : '1';
@@ -104,9 +116,12 @@
             };
         }
 
-        function recordSkinUndoBeforeChange(desc = '修改参数') {
+        function recordSkinUndoBeforeChange(desc = '修改参数', options = {}) {
             if (isPerformingUndoRedo) return;
-            if (!continuousActionActive) {
+            if (typeof invalidateKeyImageHeightPersistence === 'function') {
+                invalidateKeyImageHeightPersistence();
+            }
+            if (options.force || !continuousActionActive) {
                 const snap = createSkinSnapshot(desc);
                 undoStack.push(snap);
                 if (undoStack.length > MAX_UNDO_STACK) undoStack.shift();
@@ -122,6 +137,9 @@
 
         function applySkinSnapshot(snap) {
             if (!snap) return;
+            if (typeof invalidateKeyImageHeightPersistence === 'function') {
+                invalidateKeyImageHeightPersistence();
+            }
             isPerformingUndoRedo = true;
             try {
                 // 1. 还原 userReplacedTextures

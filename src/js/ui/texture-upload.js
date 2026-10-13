@@ -99,7 +99,10 @@
                 );
             }
 
-            async function applyUploadedTexture(file, arrayBuffer, img, is2x, targetFilename, targetKey, targetParamKey, targetColIndex) {
+            async function applyUploadedTexture(file, arrayBuffer, img, is2x, targetFilename, targetKey, targetParamKey, targetColIndex, options = {}) {
+                const shouldRecordUndo = options.recordUndo !== false;
+                const shouldNotify = options.notify !== false;
+                const shouldRefresh = options.refresh !== false;
                 try {
                     img._is2x = is2x;
 
@@ -122,7 +125,7 @@
                     if (schemaEntry && schemaEntry.type !== 'texture' && !isFontPrefixParam) {
                         console.warn(`[替换贴图] 参数 ${pKey} 不是贴图参数，已拒绝写入，避免污染 skin.ini`);
                         showToast('无法替换贴图', `「${schemaEntry.zhName || pKey}」是数值 / 位置参数，不能写入贴图名，请改用对应的贴图参数卡片。`);
-                        return;
+                        return false;
                     }
 
                     const mTrackNote = pKey.match(/^(NoteImage|HoldNoteHeadImage|HoldNoteBodyImage|HoldNoteTailImage|KeyImageDown|KeyImage)(\d+)([HLTD])?$/i);
@@ -221,8 +224,10 @@
                     const curExt = is2x ? '@2x.png' : '.png';
                     const oppExt = is2x ? '.png' : '@2x.png';
 
-                    recordSkinUndoBeforeChange(`替换贴图: ${exportFilename}`);
-                    continuousActionActive = false;
+                    if (shouldRecordUndo) {
+                        recordSkinUndoBeforeChange(`替换贴图: ${exportFilename}`);
+                        continuousActionActive = false;
+                    }
 
                     const keysToUpdate = new Set();
                     keysToUpdate.add(targetBase);
@@ -367,18 +372,24 @@
                         syncParamInputValue(pKey, targetBase);
                     }
 
-                    const toastMsg = (isTrackNote && trackCol != null)
-                        ? `第 ${trackCol + 1} 轨已单独更新为 ${is2x ? '@2x 高清' : '1x 普通'}贴图: ${exportFilename}`
-                        : `已更新为 ${is2x ? '@2x 高清' : '1x 普通'}贴图: ${exportFilename}`;
-                    showToast('替换贴图成功', toastMsg);
-                    drawFrame();
-                    renderSkinEditorParams();
-                    if (selectedCanvasElement) {
-                        syncCanvasSelectedCard(selectedCanvasElement);
+                    if (shouldNotify) {
+                        const toastMsg = (isTrackNote && trackCol != null)
+                            ? `第 ${trackCol + 1} 轨已单独更新为 ${is2x ? '@2x 高清' : '1x 普通'}贴图: ${exportFilename}`
+                            : `已更新为 ${is2x ? '@2x 高清' : '1x 普通'}贴图: ${exportFilename}`;
+                        showToast('替换贴图成功', toastMsg);
                     }
+                    if (shouldRefresh) {
+                        drawFrame();
+                        renderSkinEditorParams();
+                        if (selectedCanvasElement) {
+                            syncCanvasSelectedCard(selectedCanvasElement);
+                        }
+                    }
+                    return true;
                 } catch (err) {
                     console.error('替换贴图失败', err);
-                    showToast('替换失败', err.message || '未知错误');
+                    if (shouldNotify) showToast('替换失败', err.message || '未知错误');
+                    return false;
                 }
             }
 
@@ -462,16 +473,34 @@
                         }
                         const targetBase = cleanRawBase.toLowerCase();
 
-                        // 优先遵从用户点击的预选规格 (1x 普通贴图 vs @2x 高清图片)，未指定则按文件名智能识别
-                        if (preferredTextureUploadSpec === '2x') {
-                            selectedTextureSpec = '2x';
-                        } else if (preferredTextureUploadSpec === '1x') {
-                            selectedTextureSpec = '1x';
-                        } else {
+                        // 详细设置入口已明确选择 1x / @2x 时直接应用，不再二次询问；
+                        // 只有画布入口未指定规格时，才打开规格确认弹窗。
+                        const requestedSpec = preferredTextureUploadSpec;
+                        preferredTextureUploadSpec = null;
+
+                        if (requestedSpec === '1x' || requestedSpec === '2x') {
+                            try {
+                                URL.revokeObjectURL(blobUrl);
+                                await applyUploadedTexture(
+                                    file,
+                                    arrayBuffer,
+                                    img,
+                                    requestedSpec === '2x',
+                                    targetTextureUploadFilename,
+                                    targetTextureUploadKey,
+                                    targetTextureUploadParamKey,
+                                    targetTextureUploadColIndex
+                                );
+                            } finally {
+                                if (textureInput) textureInput.value = '';
+                            }
+                            return;
+                        }
+
+                        if (!requestedSpec) {
                             const autoIs2x = file.name.toLowerCase().includes('@2x');
                             selectedTextureSpec = autoIs2x ? '2x' : '1x';
                         }
-                        preferredTextureUploadSpec = null;
 
                         pendingTextureUpload = {
                             file,
@@ -497,6 +526,8 @@
             textureUploadUi = {
                 close: closeTextureUploadModal,
                 confirm: confirmTextureUpload,
+                applyEditedTexture: (file, arrayBuffer, img, is2x, targetFilename, targetKey, targetParamKey, targetColIndex, options) =>
+                    applyUploadedTexture(file, arrayBuffer, img, is2x, targetFilename, targetKey, targetParamKey, targetColIndex, options),
                 setSpec: (spec) => {
                     selectedTextureSpec = (spec === '2x') ? '2x' : '1x';
                     updateTextureUploadSpecCards();

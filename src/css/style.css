@@ -1598,7 +1598,7 @@
             transform: translateX(120%);
             opacity: 0;
             transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
-            pointer-events: auto;
+            pointer-events: none;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             border-right: 1px solid rgba(255, 255, 255, 0.08);
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -1646,6 +1646,7 @@
 
         .toast-close-btn {
             margin-left: auto;
+            pointer-events: auto;
             background: transparent;
             border: none;
             color: rgba(255, 255, 255, 0.5);
@@ -1695,6 +1696,7 @@
         }
 
         /* ==========================================================================
+
 
            osu!mania 可视化皮肤编辑器 & skin.ini 参数修改菜单样式
            ========================================================================== */
@@ -1837,9 +1839,25 @@
             background: rgba(224, 84, 139, 0.2);
         }
 
+        .dropdown-item:disabled,
+        .dropdown-item[disabled] {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .dropdown-item:disabled:hover,
+        .dropdown-item[disabled]:hover {
+            background: transparent;
+        }
+
         .dropdown-item .icon {
             font-size: 1.1rem;
             flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
         }
 
         .dropdown-item .item-text {
@@ -1857,6 +1875,12 @@
             font-size: 0.7rem;
             color: rgba(255, 255, 255, 0.6);
             margin-top: 1px;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            margin: 2px 6px;
+            background: rgba(255, 255, 255, 0.1);
         }
 
         /* 模式切换开关行 */
@@ -5036,6 +5060,861 @@
         }
 
         /* ==========================================================================
+           简单贴图编辑器 (裁剪与透明扩边)
+           ========================================================================== */
+
+        .texture-image-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2400;
+            display: none;
+            pointer-events: none;
+        }
+
+        .texture-image-modal.active {
+            display: block;
+        }
+
+        .texture-image-backdrop {
+            display: none;
+        }
+
+        .texture-image-dialog {
+            position: fixed;
+            right: 24px;
+            top: 48px;
+            z-index: 2401;
+            width: min(860px, calc(100vw - 32px));
+            max-width: calc(100vw - 32px);
+            height: 84vh;
+            min-width: min(460px, calc(100vw - 32px));
+            min-height: 380px;
+            max-height: calc(100vh - 56px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #14121a;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
+            pointer-events: auto;
+            resize: both;
+            animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.15s ease;
+        }
+
+        .texture-image-dialog.is-dragging {
+            user-select: none;
+            opacity: 0.88;
+            box-shadow: 0 20px 56px rgba(0, 0, 0, 0.8);
+            transition: none;
+        }
+
+        .texture-image-dialog.is-collapsed {
+            height: auto !important;
+            min-height: 0 !important;
+            resize: none !important;
+            border: none !important;
+        }
+
+        .texture-image-dialog.is-collapsed .texture-image-tabs,
+        .texture-image-dialog.is-collapsed .texture-image-body,
+        .texture-image-dialog.is-collapsed .texture-image-footer {
+            display: none !important;
+        }
+
+        .texture-image-scope-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .texture-image-scope-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.58);
+            backdrop-filter: blur(2px);
+        }
+
+        .texture-image-scope-dialog {
+            position: relative;
+            width: min(430px, calc(100vw - 40px));
+            padding: 22px;
+            border-radius: 10px;
+            color: #ffffff;
+            background: #181520;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.72);
+            box-sizing: border-box;
+        }
+
+        .texture-image-scope-icon {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            color: #ff8cba;
+            background: rgba(255, 102, 170, 0.12);
+        }
+
+        .texture-image-scope-dialog h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .texture-image-scope-dialog p {
+            margin: 8px 0 0;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.76rem;
+            line-height: 1.55;
+        }
+
+        .texture-image-scope-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .texture-image-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: #181520;
+            flex-shrink: 0;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .texture-image-header:active,
+        .texture-image-dialog.is-dragging .texture-image-header {
+            cursor: grabbing;
+        }
+
+        .texture-image-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .texture-image-header-actions .btn-icon:disabled {
+            opacity: 0.32;
+            cursor: not-allowed;
+        }
+
+        .texture-image-header .header-drag-handle {
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.35);
+            cursor: grab;
+            transition: color 0.15s ease;
+        }
+
+        .texture-image-header:hover .header-drag-handle {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .texture-image-title-group {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            min-width: 0;
+        }
+
+        .texture-image-title-icon {
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            color: #ff8cba;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .texture-image-title-group h3 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .texture-image-tabs {
+            min-height: 45px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.015);
+            box-sizing: border-box;
+        }
+
+        .texture-image-tab-list {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1 1 auto;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .texture-image-tab-list::-webkit-scrollbar {
+            display: none;
+        }
+
+        .texture-image-tab {
+            max-width: 220px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            flex: 0 0 auto;
+            padding: 0 9px 0 12px;
+            color: rgba(255, 255, 255, 0.54);
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-bottom: none;
+            border-radius: 7px 7px 0 0;
+            box-sizing: border-box;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .texture-image-tab:hover {
+            color: rgba(255, 255, 255, 0.82);
+            background: rgba(255, 255, 255, 0.065);
+        }
+
+        .texture-image-tab.is-active {
+            color: #ffffff;
+            background: #211d2a;
+            border-color: rgba(255, 102, 170, 0.28);
+            box-shadow: inset 0 2px 0 rgba(255, 102, 170, 0.72);
+        }
+
+        .texture-image-tab-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .texture-image-tab-dirty {
+            width: 6px;
+            height: 6px;
+            flex: 0 0 auto;
+            border-radius: 50%;
+            background: #ff66aa;
+        }
+
+        .texture-image-tab-close {
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            padding: 0;
+            color: rgba(255, 255, 255, 0.42);
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            font: inherit;
+            font-size: 0.72rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .texture-image-tab-close:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .texture-image-body {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .texture-image-picker-view {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 15px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-picker-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding-bottom: 11px;
+        }
+
+        .texture-image-picker-title {
+            color: #ffffff;
+            font-size: 0.86rem;
+            font-weight: 600;
+        }
+
+        .texture-image-picker-count {
+            flex-shrink: 0;
+            padding: 3px 8px;
+            border-radius: 10px;
+            color: rgba(255, 255, 255, 0.72);
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0.7rem;
+        }
+
+        .texture-image-picker-grid {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+            align-content: start;
+            gap: 9px;
+            padding-right: 4px;
+        }
+
+        .texture-image-picker-grid::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .texture-image-picker-grid::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 3px;
+        }
+
+        .texture-image-picker-item {
+            position: relative;
+            min-width: 0;
+            min-height: 72px;
+            display: grid;
+            grid-template-columns: 58px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 9px;
+            color: inherit;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.03);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-sizing: border-box;
+            transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .texture-image-picker-item:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .texture-image-picker-item.selected {
+            background: rgba(255, 102, 170, 0.06);
+            box-shadow: inset 2px 0 0 rgba(255, 102, 170, 0.7);
+        }
+
+        .texture-image-picker-item:disabled {
+            cursor: not-allowed;
+            opacity: 0.38;
+        }
+
+        .texture-image-picker-preview {
+            position: relative;
+            width: 56px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 6px;
+            border: none;
+            background:
+                linear-gradient(45deg, rgba(255,255,255,0.07) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255,255,255,0.07) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.07) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.07) 75%);
+            background-size: 10px 10px;
+            background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+        }
+
+        .texture-image-picker-preview canvas {
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .texture-image-picker-meta {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .texture-image-picker-name,
+        .texture-image-picker-file {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-image-picker-name {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.76rem;
+            font-weight: 600;
+        }
+
+        .texture-image-picker-file {
+            color: rgba(255, 255, 255, 0.44);
+            font-size: 0.67rem;
+            font-family: var(--font-clean);
+        }
+
+        .texture-image-picker-badge {
+            align-self: start;
+            padding: 2px 5px;
+            border-radius: 5px;
+            color: rgba(255, 255, 255, 0.62);
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0.64rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .texture-image-editor-view {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            gap: 16px;
+            padding: 16px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-preview-panel {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .texture-image-preview-wrap {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            background: #000000;
+        }
+
+        .texture-image-preview-wrap canvas {
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            flex-shrink: 0;
+            touch-action: none;
+            cursor: default;
+        }
+
+        .texture-image-preview-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 0.72rem;
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .texture-image-preview-sizes {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .texture-image-preview-zoom {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: auto;
+            padding: 3px 6px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.055);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .texture-image-preview-zoom .texture-image-zoom-btn {
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            min-height: 22px;
+            padding: 0;
+            color: rgba(255, 255, 255, 0.72);
+            background: transparent;
+            border: none;
+        }
+
+        .texture-image-preview-zoom .texture-image-zoom-btn:hover:not(:disabled) {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .texture-image-preview-zoom .texture-image-zoom-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .texture-image-preview-zoom input[type="range"] {
+            width: 82px;
+            height: 18px;
+            margin: 0;
+            accent-color: #ff66aa;
+            cursor: pointer;
+        }
+
+        .texture-image-preview-zoom-value {
+            width: 38px;
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 0.66rem;
+            text-align: right;
+        }
+
+        .texture-image-controls {
+            width: 355px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .texture-image-control-section {
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .texture-image-control-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 11px;
+        }
+
+        .texture-image-control-title {
+            color: #ffffff;
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .texture-image-small-btn {
+            flex-shrink: 0;
+            padding: 5px 9px !important;
+            font-size: 0.7rem !important;
+        }
+
+        .texture-image-number-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .texture-image-number-grid label {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-number-grid input {
+            width: 100%;
+            height: 30px;
+            padding: 0 8px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+            font-family: var(--font-clean);
+            font-size: 0.76rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .texture-image-number-grid input:focus {
+            border-color: rgba(255, 102, 170, 0.5);
+            box-shadow: 0 0 0 2px rgba(255, 102, 170, 0.08);
+        }
+
+        .texture-image-switch {
+            position: relative;
+            width: 38px;
+            height: 22px;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .texture-image-switch input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .texture-image-switch-track {
+            position: absolute;
+            inset: 0;
+            border-radius: 11px;
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            transition: background 0.18s ease, border-color 0.18s ease;
+        }
+
+        .texture-image-switch-track::after {
+            content: "";
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.82);
+            transition: transform 0.18s ease, background 0.18s ease;
+        }
+
+        .texture-image-switch input:checked + .texture-image-switch-track {
+            background: rgba(255, 102, 170, 0.58);
+            border-color: rgba(255, 102, 170, 0.7);
+        }
+
+        .texture-image-switch input:checked + .texture-image-switch-track::after {
+            transform: translateX(16px);
+            background: #ffffff;
+        }
+
+        .texture-image-switch input:disabled + .texture-image-switch-track {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+
+        .texture-image-long-body-status {
+            padding: 8px 9px;
+            color: rgba(255, 255, 255, 0.52);
+            background: rgba(0, 0, 0, 0.18);
+            border-left: 2px solid rgba(255, 255, 255, 0.14);
+            border-radius: 6px;
+            font-size: 0.69rem;
+            line-height: 1.45;
+        }
+
+        .texture-image-long-body-status.is-ready {
+            color: rgba(255, 255, 255, 0.74);
+            border-left-color: rgba(255, 102, 170, 0.55);
+        }
+
+        .texture-image-long-body-controls {
+            margin-top: 10px;
+        }
+
+        .texture-image-long-body-fade {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) 36px;
+            align-items: center;
+            gap: 8px;
+            margin-top: 9px;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-long-body-fade input[type="range"] {
+            width: 100%;
+            margin: 0;
+            accent-color: #ff66aa;
+            cursor: pointer;
+        }
+
+        .texture-image-long-body-fade span:last-child {
+            color: rgba(255, 255, 255, 0.62);
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            text-align: right;
+        }
+
+        .texture-image-long-body-progress {
+            margin-top: 11px;
+            padding: 8px 9px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .texture-image-long-body-progress-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 0.67rem;
+        }
+
+        .texture-image-long-body-progress-head span:last-child {
+            flex-shrink: 0;
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .texture-image-long-body-progress-track {
+            height: 5px;
+            margin-top: 7px;
+            overflow: hidden;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.09);
+        }
+
+        .texture-image-long-body-progress-bar {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #ff66aa, #ff9bc5);
+            transition: width 0.15s ease;
+        }
+
+        .texture-image-long-body-progress.is-indeterminate .texture-image-long-body-progress-bar {
+            width: 42% !important;
+            animation: textureLongBodyProgress 1.05s ease-in-out infinite;
+        }
+
+        @keyframes textureLongBodyProgress {
+            0% { margin-left: -42%; }
+            100% { margin-left: 100%; }
+        }
+
+        .texture-image-stretch-target {
+            padding: 8px 9px;
+            color: rgba(255, 255, 255, 0.52);
+            background: rgba(0, 0, 0, 0.18);
+            border-left: 2px solid rgba(255, 255, 255, 0.14);
+            border-radius: 6px;
+            font-size: 0.69rem;
+            line-height: 1.45;
+        }
+
+        .texture-image-stretch-target.is-ready {
+            color: rgba(255, 255, 255, 0.72);
+            border-left-color: rgba(255, 102, 170, 0.55);
+        }
+
+        .texture-image-stretch-target.is-idle {
+            color: rgba(255, 255, 255, 0.46);
+        }
+
+        .texture-image-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .texture-image-footer-right {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-left: auto;
+        }
+
+        .texture-image-dialog .btn-secondary {
+            color: rgba(255, 255, 255, 0.86);
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .texture-image-dialog .btn-secondary:hover:not(:disabled) {
+            color: #111118;
+            background: #ffffff;
+        }
+
+        .texture-image-dialog .texture-image-save-btn {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 102, 170, 0.32);
+            box-shadow: none;
+        }
+
+        .texture-image-dialog .texture-image-save-btn:hover:not(:disabled) {
+            color: #111118;
+            background: #ffffff;
+            border-color: #ffffff;
+        }
+
+        @media (max-width: 820px) {
+            .texture-image-dialog {
+                height: 90vh;
+                min-height: 560px;
+            }
+
+            .texture-image-editor-view {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            .texture-image-preview-panel {
+                min-height: 240px;
+                flex: 0 0 240px;
+            }
+
+            .texture-image-controls {
+                width: 100%;
+                overflow: visible;
+            }
+
+            .texture-image-picker-grid {
+                grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+            }
+        }
+
+        /* ==========================================================================
+
 
            皮肤各贴图拉伸与尺寸规则指南帮助弹窗 (Help Modal)
            ============================================================ */

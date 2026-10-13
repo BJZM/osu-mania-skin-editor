@@ -53,6 +53,7 @@
             Stretch: 0,
             RepeatFromTail: 1,
             RepeatFromHead: 2,
+            RepeatTopAndBottom: 3,
         });
 
         const DEFAULT_HIT_POSITION = 402;
@@ -182,7 +183,7 @@
 
         // 判定贴图参数键集合：画布上的「判定提示 / 判定结果评价」元素并非对应单张贴图，
         // 而是由这 6 张判定贴图共同决定 (彩300g / 黄300 / 绿200 / 蓝100 / 灰50 / Miss)。
-        // 选中判定提示后点击「定位判定贴图」按钮时，会一次性定位并高亮这些参数卡片。
+        // 选中判定提示后点击「替换贴图」按钮时，会一次性定位并高亮这些参数卡片。
         const JUDGEMENT_TEXTURE_PARAM_KEYS = ['Hit300g', 'Hit300', 'Hit200', 'Hit100', 'Hit50', 'Hit0'];
 
 

@@ -1,0 +1,207 @@
+            <!-- 简单贴图编辑器：裁剪与透明扩边 -->
+            <div class="texture-image-modal" id="textureImageEditorModal" style="display: none;">
+                <div class="texture-image-backdrop" id="textureImageEditorBackdrop"></div>
+                <div class="texture-image-dialog" id="textureImageEditorDialog" role="dialog" aria-labelledby="textureImageEditorTitle">
+                    <div class="texture-image-header" id="textureImageEditorHeader">
+                        <div class="texture-image-title-group">
+                            <span class="header-drag-handle" title="按住拖拽窗口移动位置">⠿</span>
+                            <div class="texture-image-title-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+                                    <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
+                                    <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 id="textureImageEditorTitle">贴图编辑</h3>
+                            </div>
+                        </div>
+                        <div class="texture-image-header-actions">
+                            <button type="button" class="btn-icon" id="textureImageUndoBtn" title="暂无可撤回的贴图编辑 (Ctrl+Z)" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                                    <path d="M9 14 4 9l5-5"></path>
+                                    <path d="M4 9h10a6 6 0 0 1 0 12h-3"></path>
+                                </svg>
+                            </button>
+                            <button type="button" class="btn-icon" id="textureImageRedoBtn" title="暂无可重做的贴图编辑 (Ctrl+Y / Ctrl+Shift+Z)" disabled>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true">
+                                    <path d="m15 14 5-5-5-5"></path>
+                                    <path d="M20 9H10a6 6 0 0 0 0 12h3"></path>
+                                </svg>
+                            </button>
+                            <button type="button" class="btn-icon" id="dockTextureImageEditorBtn" title="恢复靠右吸附位置">⤺</button>
+                            <button type="button" class="btn-icon" id="collapseTextureImageEditorBtn" title="折叠/展开窗口">−</button>
+                            <button type="button" class="btn-icon" id="textureImageEditorCloseBtn" title="关闭 (Esc)">✕</button>
+                        </div>
+                    </div>
+
+                    <div class="texture-image-tabs">
+                        <div class="texture-image-tab-list" id="textureImageTabList" role="tablist" aria-label="贴图编辑标签"></div>
+                    </div>
+
+                    <div class="texture-image-body">
+                        <div class="texture-image-picker-view" id="textureImagePickerView">
+                            <div class="texture-image-picker-head">
+                                <div>
+                                    <div class="texture-image-picker-title">选择要编辑的贴图</div>
+                                </div>
+                                <span class="texture-image-picker-count" id="textureImagePickerCount">0 项</span>
+                            </div>
+                            <div class="texture-image-picker-grid" id="textureImagePickerGrid"></div>
+                        </div>
+
+                        <div class="texture-image-editor-view" id="textureImageEditorView" style="display: none;">
+                            <div class="texture-image-preview-panel">
+                                <div class="texture-image-preview-wrap">
+                                    <canvas id="textureImagePreviewCanvas" width="360" height="280"></canvas>
+                                </div>
+                                <div class="texture-image-preview-meta">
+                                    <div class="texture-image-preview-sizes">
+                                        <span id="textureImageSourceSize">-</span>
+                                        <span id="textureImageWorkingSize">-</span>
+                                    </div>
+                                    <div class="texture-image-preview-zoom" role="group" aria-label="预览缩放">
+                                        <button type="button" class="btn-icon texture-image-zoom-btn" id="textureImagePreviewZoomOut" title="缩小预览" aria-label="缩小预览">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14" aria-hidden="true">
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
+                                        </button>
+                                        <input type="range" id="textureImagePreviewZoom" min="0.1" max="4" step="0.1" value="1" aria-label="预览缩放">
+                                        <button type="button" class="btn-icon texture-image-zoom-btn" id="textureImagePreviewZoomIn" title="放大预览" aria-label="放大预览">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14" aria-hidden="true">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
+                                        </button>
+                                        <span class="texture-image-preview-zoom-value" id="textureImagePreviewZoomValue">100%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="texture-image-controls">
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">裁剪与扩边</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-number-grid">
+                                        <label>
+                                            <span>左边界</span>
+                                            <input type="number" id="textureImageCropX" min="-8192" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>上边界</span>
+                                            <input type="number" id="textureImageCropY" min="-8192" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>宽度变化</span>
+                                            <input type="number" id="textureImageCropWidth" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>高度变化</span>
+                                            <input type="number" id="textureImageCropHeight" step="1" value="0">
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section" id="textureImageLongBodySection" style="display: none;">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">一键投皮</div>
+                                        </div>
+                                        <label class="texture-image-switch">
+                                            <input type="checkbox" id="textureImageLongBodyEnable">
+                                            <span class="texture-image-switch-track"></span>
+                                        </label>
+                                    </div>
+                                    <div class="texture-image-long-body-status" id="textureImageLongBodyStatus"></div>
+                                    <div class="texture-image-long-body-controls" id="textureImageLongBodyControls" style="display: none;">
+                                        <div class="texture-image-number-grid">
+                                            <label>
+                                                <span>尾部顶端位置</span>
+                                                <input type="number" id="textureImageLongBodyCoverage" min="0" max="40000" step="1" value="0">
+                                            </label>
+                                            <label>
+                                                <span>生成高度</span>
+                                                <input type="number" id="textureImageLongBodyTargetHeight" min="1" max="50000" step="100" value="40000">
+                                            </label>
+                                        </div>
+                                        <label class="texture-image-long-body-fade">
+                                            <span>淡化范围</span>
+                                            <input type="range" id="textureImageLongBodyFade" min="0" max="100" step="1" value="0">
+                                            <span id="textureImageLongBodyFadeValue">0%</span>
+                                        </label>
+                                        <div class="texture-image-long-body-progress" id="textureImageLongBodyProgress" style="display: none;">
+                                            <div class="texture-image-long-body-progress-head">
+                                                <span id="textureImageLongBodyProgressLabel">正在生成完整长条...</span>
+                                                <span id="textureImageLongBodyProgressValue">0%</span>
+                                            </div>
+                                            <div class="texture-image-long-body-progress-track">
+                                                <div class="texture-image-long-body-progress-bar" id="textureImageLongBodyProgressBar"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">拉伸修复</div>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary texture-image-small-btn" id="textureImageStretchFixBtn" disabled>修复拉伸</button>
+                                    </div>
+                                    <div class="texture-image-stretch-target" id="textureImageStretchTarget"></div>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="texture-image-footer">
+                        <button type="button" class="btn btn-secondary" id="textureImageResetBtn" disabled>重置当前贴图</button>
+                        <div class="texture-image-footer-right">
+                            <button type="button" class="btn btn-secondary" id="textureImageCancelBtn">不保存</button>
+                            <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="texture-image-scope-modal" id="textureImageUnsavedModal" style="display: none;">
+                    <div class="texture-image-scope-backdrop" id="textureImageUnsavedBackdrop"></div>
+                    <div class="texture-image-scope-dialog" role="dialog" aria-modal="true" aria-labelledby="textureImageUnsavedTitle">
+                        <div class="texture-image-scope-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                                <path d="M12 9v4"></path>
+                                <path d="M12 17h.01"></path>
+                                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                            </svg>
+                        </div>
+                        <h3 id="textureImageUnsavedTitle">保存未提交的编辑？</h3>
+                        <p id="textureImageUnsavedText">关闭前可以保存当前贴图编辑，也可以放弃修改。</p>
+                        <div class="texture-image-scope-actions">
+                            <button type="button" class="btn btn-secondary" id="textureImageUnsavedCancelBtn">取消</button>
+                            <button type="button" class="btn btn-secondary" id="textureImageUnsavedDiscardBtn">不保存</button>
+                            <button type="button" class="btn btn-primary" id="textureImageUnsavedSaveBtn">保存</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="texture-image-scope-modal" id="textureImageApplyScopeModal" style="display: none;">
+                    <div class="texture-image-scope-backdrop" id="textureImageApplyScopeBackdrop"></div>
+                    <div class="texture-image-scope-dialog" role="dialog" aria-modal="true" aria-labelledby="textureImageApplyScopeTitle">
+                        <div class="texture-image-scope-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                                <path d="M12 3v18"></path>
+                                <path d="M5 8h14"></path>
+                                <path d="M5 16h14"></path>
+                            </svg>
+                        </div>
+                        <h3 id="textureImageApplyScopeTitle">选择应用范围</h3>
+                        <p>完整长条身体要只替换当前轨道，还是同时应用到全部轨道？</p>
+                        <div class="texture-image-scope-actions">
+                            <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCancelBtn">取消</button>
+                            <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCurrentBtn">仅当前轨道</button>
+                            <button type="button" class="btn btn-primary" id="textureImageApplyScopeAllBtn">应用到全部轨道</button>
+                        </div>
+                    </div>
+                </div>
+            </div>

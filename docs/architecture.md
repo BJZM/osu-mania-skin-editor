@@ -59,6 +59,7 @@ load-time access remain ordered correctly.
 - `ui/editor-dialog.js`: editor shell and initialization coordinator.
 - `ui/texture-upload.js`: single texture upload and `1x` / `@2x` selection.
 - `ui/animation-editor.js`: multi-frame texture creation and application.
+- `ui/texture-image-editor.js`: live crop and transparent padding preview/save workflow.
 - `ui/canvas-interactions.js`: canvas hit testing and dragging.
 - `ui/app-shell.js`: final DOM wiring and application startup.
 

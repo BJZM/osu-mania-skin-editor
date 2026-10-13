@@ -308,6 +308,36 @@ test('D1 播放 / 暂停切换', async ({ page }) => {
   await page.click('#playPauseBtn');
   await page.waitForTimeout(400);
   expect(await page.evaluate(() => isPlaying)).toBe(false);
+
+  const resume = await page.evaluate(async () => {
+    const pausedAt = audio.currentTime;
+    const startedAt = performance.now();
+    const originalDrawFrame = drawFrame;
+    let earlyProgress = null;
+    drawFrame = function (...args) {
+      const result = originalDrawFrame.apply(this, args);
+      if (earlyProgress === null) earlyProgress = Number(ui.progressRange.value);
+      return result;
+    };
+
+    playAudioAndBeatmap();
+    queueMicrotask(() => drawFrame());
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    drawFrame = originalDrawFrame;
+    return {
+      pausedAt,
+      earlyProgress,
+      currentTime: audio.currentTime,
+      elapsed: (performance.now() - startedAt) / 1000
+    };
+  });
+  // Chromium 恢复播放时会把 currentTime 按输出延迟前移；恢复首帧不应额外前移。
+  expect(resume.earlyProgress).not.toBeNull();
+  expect(resume.earlyProgress - resume.pausedAt).toBeLessThan(0.025);
+  expect(resume.currentTime - resume.pausedAt).toBeLessThan(resume.elapsed + 0.025);
+  expect(await page.evaluate(() => isPlaying)).toBe(true);
+
+  await page.click('#playPauseBtn');
   expect(errors).toEqual([]);
 });
 
@@ -325,6 +355,26 @@ test('D2 进度条拖动 seek 会改变播放位置', async ({ page }) => {
   await page.waitForTimeout(400);
   const current = await page.evaluate(() => Number(document.getElementById('progressRange').value));
   expect(Math.abs(current - target)).toBeLessThan(2);
+
+  const seekAfterPause = await page.evaluate(async () => {
+    playAudioAndBeatmap();
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    pauseAudioAndBeatmap();
+
+    const range = document.getElementById('progressRange');
+    const secondTarget = Math.floor(Number(range.max) * 0.25);
+    range.value = String(secondTarget);
+    range.dispatchEvent(new Event('input', { bubbles: true }));
+    range.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    return {
+      secondTarget,
+      currentTime: audio.currentTime
+    };
+  });
+  // 暂停点的补正只能用于恢复播放，拖动进度条后不能被旧暂停位置拉回去。
+  expect(Math.abs(seekAfterPause.currentTime - seekAfterPause.secondTarget)).toBeLessThan(2);
   expect(errors).toEqual([]);
 });
 
@@ -353,7 +403,31 @@ test('D3 音量滑块与静音按钮生效', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('D4 流速与背景暗化滑块写入状态', async ({ page }) => {
+test('D4 空格键切换播放 / 暂停', async ({ page }) => {
+  const errors = await boot(page);
+  await importBeatmap(page);
+
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(350);
+  expect(await page.evaluate(() => isPlaying)).toBe(true);
+
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => isPlaying)).toBe(false);
+
+  // 操作进度条后焦点仍在其上，空格也应继续可用。
+  await page.focus('#progressRange');
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(350);
+  expect(await page.evaluate(() => isPlaying)).toBe(true);
+
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(150);
+  expect(await page.evaluate(() => isPlaying)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('D5 流速与背景暗化滑块写入状态', async ({ page }) => {
   const errors = await boot(page);
 
   await page.evaluate(() => {
@@ -876,7 +950,7 @@ test('G3 贴图替换上传后写入 userReplacedTextures', async ({ page }) => 
   );
 
   // 走与画布「替换贴图」按钮完全相同的入口
-  await page.evaluate(() => triggerTextureUpload('mania-note1', LML.NoteImage, 'NoteImage0', 0, '1x'));
+  await page.evaluate(() => triggerTextureUpload('mania-note1', LML.NoteImage, 'NoteImage0', 0));
   await page.setInputFiles('#textureReplaceInput', file);
   await page.waitForFunction(() => document.getElementById('textureUploadModal').style.display === 'flex', null, {
     timeout: 15000
@@ -891,6 +965,44 @@ test('G3 贴图替换上传后写入 userReplacedTextures', async ({ page }) => 
     count: userReplacedTextures.size
   }));
   expect(applied.count).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
+test('G3a 详细设置已选规格后直接导入，不再询问导入类型', async ({ page }) => {
+  const errors = await boot(page);
+  await importSkin(page);
+
+  const file = path.join(tmpDir, 'direct-import-2x.png');
+  fs.writeFileSync(
+    file,
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+  );
+
+  // 详细设置入口已明确选择 @2x，选完本地文件后应直接应用。
+  await page.evaluate(() => triggerTextureUpload('mania-stage-light', LML.LightImage, 'StageLight', null, '2x'));
+  await page.setInputFiles('#textureReplaceInput', file);
+  await page.waitForFunction(
+    () => userReplacedTextures.has('mania-stage-light@2x.png'),
+    null,
+    { timeout: 15000 }
+  );
+
+  const result = await page.evaluate(() => {
+    const frames = getSkinAnimationFramesFromStore(skinImageStore, 'mania-stage-light');
+    const image = frames ? frames[0] : null;
+    return {
+      modalDisplay: document.getElementById('textureUploadModal').style.display,
+      exportKeys: Array.from(userReplacedTextures.keys()),
+      is2x: !!(image && image._is2x)
+    };
+  });
+
+  expect(result.modalDisplay).toBe('none');
+  expect(result.exportKeys).toContain('mania-stage-light@2x.png');
+  expect(result.is2x).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -964,7 +1076,7 @@ test('G5 不支持帧序列的贴图不提供动态上传入口', async ({ page 
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
     'base64'
   );
-  await page.evaluate(() => triggerTextureUpload('mania-key1', LML.KeyImage, 'KeyImage0', 0, '1x'));
+  await page.evaluate(() => triggerTextureUpload('mania-key1', LML.KeyImage, 'KeyImage0', 0));
   await page.setInputFiles('#textureReplaceInput', {
     name: 'replacement.png',
     mimeType: 'image/png',

@@ -181,7 +181,8 @@
             // ---- C. 歌曲进度饼图 (Song Progress Pie: 纯代码几何图形对齐 lazer / stable 规范) ----
             let songProgressVal = 0.12; // 默认空闲预览对齐游戏内开局轻量进度（约 12%）
             if (audio && !isNaN(audio.duration) && audio.duration > 0 && !audio.paused) {
-                songProgressVal = Math.max(0, Math.min(1, audio.currentTime / audio.duration));
+                const playbackTime = getPlaybackTimeSeconds();
+                songProgressVal = Math.max(0, Math.min(1, playbackTime / audio.duration));
             } else if (ui.progressRange && !isNaN(ui.progressRange.max) && Number(ui.progressRange.max) > 0 && Number(ui.progressRange.value) > 0) {
                 songProgressVal = Math.max(0, Math.min(1, Number(ui.progressRange.value) / Number(ui.progressRange.max)));
             }
@@ -228,7 +229,7 @@
 
             hudInteractiveElements.push({
                 id: 'hud_progress_pie',
-                name: '歌曲进度饼图',
+                name: '调整acc水平位置',
                 paramKey: 'ScorePercentWidth',
                 category: 'Mania',
                 x: pieCenterX - pieRadius - 5,

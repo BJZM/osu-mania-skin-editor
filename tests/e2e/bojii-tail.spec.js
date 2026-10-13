@@ -5,7 +5,7 @@ const { test, expect } = require('@playwright/test');
 const ROOT = path.resolve(__dirname, '../..');
 const BOJII_ZIP = path.join(ROOT, 'samples', 'skins', 'bojii 3-3-22.zip');
 
-test('bojii skin hold note body extends smoothly to tailTopY without mid-tail cut seam', async ({ page }) => {
+test('bojii skin hold note body end aligns with tail top at its 2:1 head-to-tail ratio', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => console.log('BROWSER:', m.text()));
@@ -28,22 +28,27 @@ test('bojii skin hold note body extends smoothly to tailTopY without mid-tail cu
     currentManiaKeys = 4;
     drawFrame();
 
+    const headEl = canvasInteractiveElements.find(item => item.id === 'hold_head_1');
     const bodyEl = canvasInteractiveElements.find(item => item.id === 'hold_body_1');
     const tailEl = canvasInteractiveElements.find(item => item.id === 'hold_tail_1');
 
     return {
+      headEl,
       bodyEl,
       tailEl
     };
   });
 
+  expect(info.headEl).not.toBeNull();
   expect(info.bodyEl).not.toBeNull();
   expect(info.tailEl).not.toBeNull();
 
-  // bodyEl top (y) should match tailEl top (y) exactly!
-  // Before fix: bodyEl.y was tailCenterY, which was tailEl.y + tailEl.h / 2
-  // With fix: bodyEl.y is tailTopY, which matches tailEl.y!
+  // Bojii 的尾图高度是头图的一半，因此稳定的身体远端恰好与尾巴顶端重合。
   expect(info.bodyEl.y).toBeCloseTo(info.tailEl.y, 1);
+
+  const headBottom = info.headEl.y + info.headEl.h;
+  const tailBottom = info.tailEl.y + info.tailEl.h;
+  expect(info.bodyEl.h).toBeCloseTo(headBottom - tailBottom, 1);
 
   expect(errors).toEqual([]);
 });

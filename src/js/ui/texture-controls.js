@@ -612,7 +612,7 @@
                     <span>导入</span>
                 `;
                 uploadBtn.onclick = () => {
-                    triggerTextureUpload(g.tex, null, uploadParamKey);
+                    triggerTextureUpload(g.tex, null, uploadParamKey, null, '1x');
                 };
 
                 const locateBtn = document.createElement('button');

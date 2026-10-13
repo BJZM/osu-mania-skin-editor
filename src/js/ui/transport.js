@@ -3,6 +3,38 @@
 // 依赖：core/state.js、render/diagnostics.js
 // ============================================================================
 
+        // Chromium 在暂停后恢复播放时，会按音频输出管线延迟把 audio.currentTime
+        // 向前对齐一小段。记录暂停时的位置，并在 play 事件中抵消这一次前跳。
+        let resumePlaybackPosition = null;
+
+        function rememberResumePlaybackPosition() {
+            const position = audio.currentTime;
+            resumePlaybackPosition = Number.isFinite(position) && position >= 0 ? position : null;
+        }
+
+        function clearResumePlaybackPosition() {
+            resumePlaybackPosition = null;
+        }
+
+        function getPlaybackTimeSeconds() {
+            if (isPlaying && resumePlaybackPosition !== null) {
+                return resumePlaybackPosition;
+            }
+            return audio.currentTime;
+        }
+
+        audio.addEventListener('play', () => {
+            if (resumePlaybackPosition === null || !Number.isFinite(audio.currentTime)) return;
+
+            const position = resumePlaybackPosition;
+            resumePlaybackPosition = null;
+            if (audio.currentTime > position + 0.005) {
+                try {
+                    audio.currentTime = position;
+                } catch (_) {}
+            }
+        });
+
         function playAudioAndBeatmap() {
             if (!currentBeatmap) return;
             cancelAnimationFrame(animationId);
@@ -44,6 +76,7 @@
 
         function pauseAudioAndBeatmap() {
             try { audio.pause(); } catch (_) {}
+            rememberResumePlaybackPosition();
             isPlaying = false;
             pauseStoryboardPlayback();
             playbackBreakResumeTime = 0;
@@ -83,11 +116,13 @@
 
         function startSeeking() {
             if (!currentBeatmap) return;
+            clearResumePlaybackPosition();
             isSeeking = true;
         }
 
         function stopSeeking() {
             if (!isSeeking) return;
+            clearResumePlaybackPosition();
             isSeeking = false;
             if (seekRafId) {
                 cancelAnimationFrame(seekRafId);
@@ -112,6 +147,7 @@
 
             ui.progressRange.addEventListener('input', () => {
                 if (!currentBeatmap) return;
+                clearResumePlaybackPosition();
                 isSeeking = true;
                 const targetTime = parseFloat(ui.progressRange.value);
                 const targetTimeMs = targetTime * 1000;
@@ -193,6 +229,7 @@
         };
 
         audio.onended = () => {
+            clearResumePlaybackPosition();
             isPlaying = false;
             resetStoryboardPlayback();
             setPlayPauseUi(false);

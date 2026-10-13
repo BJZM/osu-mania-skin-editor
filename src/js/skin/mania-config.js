@@ -57,7 +57,7 @@
                 ShowJudgementLine: true,
                 KeysUnderNotes: 0,
                 LightFramePerSecond: 60,
-                NoteBodyStyle: 1,
+                NoteBodyStyle: null,
                 NoteBodyStyles: new Array(k).fill(null),
                 ColumnStart: 136,
                 ColumnRight: 19,
@@ -155,7 +155,10 @@
             if (!cfg) {
                 if (lookup === LML.KeysUnderNotes) return { ok: true, value: 0 };
                 if (lookup === LML.ColumnBackgroundColour) return { ok: true, value: { r: 0, g: 0, b: 0, a: 255 } };
-                if (lookup === LML.NoteBodyStyle) return { ok: true, value: 1 };
+                if (lookup === LML.NoteBodyStyle) {
+                    const version = (typeof globalSkinVersion === 'number') ? globalSkinVersion : 2.7;
+                    return { ok: true, value: version < 2.5 ? NOTE_BODY_STYLE.Stretch : NOTE_BODY_STYLE.RepeatFromTail };
+                }
                 return null;
             }
 
@@ -295,7 +298,8 @@
                     if (cfg.NoteBodyStyle != null) {
                         return { ok: true, value: cfg.NoteBodyStyle };
                     }
-                    return { ok: true, value: 1 };
+                    const version = (cfg.SkinVersion != null) ? cfg.SkinVersion : globalSkinVersion;
+                    return { ok: true, value: version < 2.5 ? NOTE_BODY_STYLE.Stretch : NOTE_BODY_STYLE.RepeatFromTail };
                 }
                 default:
                     return null;

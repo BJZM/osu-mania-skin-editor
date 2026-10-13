@@ -16,7 +16,10 @@
             lines.push(`ScorePosition: ${d.scorePosFromSkin !== null ? (d.scorePosFromSkin / d.scale48).toFixed(1) + ' → ' + d.scorePosFromSkin.toFixed(1) + 'px' : '(默认)'}`);
             lines.push(`ComboPosition: ${(d.comboPosY / d.scale48).toFixed(1)} → ${d.comboPosY.toFixed(1)}px`);
             lines.push(`JudgementLine: ${d.showLine ? '1 (显示)' : '0 (隐藏)'}`);
-            lines.push(`NoteBodyStyle: ${d.noteBodyStyleCfg} (${d.noteBodyStyleCfg === 0 ? 'Stretch' : d.noteBodyStyleCfg === 1 ? 'RepeatFromTail' : 'RepeatFromHead'})`);
+            const noteBodyStyleLabel = d.noteBodyStyleCfg === NOTE_BODY_STYLE.Stretch ? 'Stretch'
+                : (d.noteBodyStyleCfg === NOTE_BODY_STYLE.RepeatFromTail ? 'RepeatFromTail'
+                    : (d.noteBodyStyleCfg === NOTE_BODY_STYLE.RepeatFromHead ? 'RepeatFromHead' : 'RepeatTopAndBottom'));
+            lines.push(`NoteBodyStyle: ${d.noteBodyStyleCfg} (${noteBodyStyleLabel})`);
             lines.push('');
             lines.push('--- 列宽 (raw → scaled) ---');
             for (let i = 0; i < d.keys; i++) {
@@ -228,6 +231,31 @@
                     ctx.roundRect(rightX - 2.5, handleY, 5, handleH, 2.5);
                 } else {
                     ctx.rect(rightX - 2.5, handleY, 5, handleH);
+                }
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // KeyImage 上边框拉伸手柄：向上拖补底部透明像素，向下拖裁短 PNG，从而改变有效高度。
+            if (elem.id.startsWith('key_') && elem.keyImageHeightAdjustable && progress >= 0.7) {
+                const edgeY = Math.max(2, Math.min(canvas.height - 2,
+                    elem.keyImageResizeEdgeY != null ? elem.keyImageResizeEdgeY : elem.y));
+                const handleW = Math.max(28, Math.min(68, curW * 0.72));
+                const handleH = 5;
+                const handleX = elem.x + (elem.w - handleW) / 2;
+                const isDraggingHeight = (isDraggingCanvasElement && canvasDragState &&
+                    canvasDragState.element && canvasDragState.element.id === elem.id &&
+                    canvasDragState.dragType === 'key_image_height');
+
+                ctx.save();
+                ctx.fillStyle = isDraggingHeight ? '#ffffff' : 'rgba(255, 255, 255, 0.95)';
+                ctx.shadowColor = isDraggingHeight ? 'rgba(255, 102, 170, 0.95)' : 'rgba(255, 255, 255, 0.75)';
+                ctx.shadowBlur = isDraggingHeight ? 12 : 8;
+                ctx.beginPath();
+                if (ctx.roundRect) {
+                    ctx.roundRect(handleX, edgeY - handleH / 2, handleW, handleH, handleH / 2);
+                } else {
+                    ctx.rect(handleX, edgeY - handleH / 2, handleW, handleH);
                 }
                 ctx.fill();
                 ctx.restore();

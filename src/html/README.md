@@ -10,6 +10,7 @@
 - `partials/canvas-stage.html`: canvas stage, selection toolbar and nested texture modals.
 - `partials/texture-upload-modal.html`: single texture specification dialog.
 - `partials/animation-editor-modal.html`: multi-frame texture sequence editor.
+- `partials/texture-image-editor-modal.html`: single/multi-frame crop and transparent padding editor.
 - `partials/player-controls.html`: timeline, playback, volume and preview controls.
 - `partials/skin-editor-modal.html`: skin.ini visual parameter editor shell.
 - `partials/help-modal.html`: stable-compatible texture sizing reference.

@@ -16,6 +16,68 @@
             return transparent1x1Canvas;
         }
 
+        // 未显式配置贴图名时的官方默认文件名候选序列。
+        // getManiaSkinImage（静态/首帧）与 getManiaSkinAnimationFrames（完整序列帧）
+        // 必须共用同一份顺序，否则会出现「参数面板能读出动画帧、画布却找不到贴图」的割裂。
+        function getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, info) {
+            const fc = computeFallbackColumnIndex(keyCount, columnIndex | 0);
+            const candidates = [];
+            const defaultName = defaultFilenameForLookup(lookup, fc);
+            if (defaultName) candidates.push(defaultName);
+            if (!info || info.isGlobal) return candidates;
+
+            if (lookup === LML.NoteImage) {
+                const headFallback = defaultFilenameForLookup(LML.HoldNoteHeadImage, fc);
+                if (headFallback && !candidates.includes(headFallback)) candidates.push(headFallback);
+            } else if (lookup === LML.HoldNoteHeadImage) {
+                const noteFallback = defaultFilenameForLookup(LML.NoteImage, fc);
+                if (noteFallback && !candidates.includes(noteFallback)) candidates.push(noteFallback);
+            } else if (lookup === LML.HoldNoteTailImage) {
+                // osu! stable 规范: 尾部优先使用 mania-noteXh (反向缩放绘制) 或单键 noteX
+                const headFallback = defaultFilenameForLookup(LML.HoldNoteHeadImage, fc);
+                if (headFallback && !candidates.includes(headFallback)) candidates.push(headFallback);
+                const noteFallback = defaultFilenameForLookup(LML.NoteImage, fc);
+                if (noteFallback && !candidates.includes(noteFallback)) candidates.push(noteFallback);
+            }
+            if (fc === '2') {
+                const extra = defaultFilenameForLookup(lookup, '1');
+                if (extra && !candidates.includes(extra)) candidates.push(extra);
+            }
+            return candidates;
+        }
+
+        // [General] AnimationFramerate：全局序列帧播放速度（osu!stable 默认 60 FPS）。
+        // 个别贴图（如按键发光）另有专属 ini 帧率时由调用方单独传入，不经过本函数。
+        function getSkinAnimationFramerate() {
+            const general = (typeof currentSkinMetadata !== 'undefined' && currentSkinMetadata && currentSkinMetadata.general)
+                ? currentSkinMetadata.general
+                : null;
+            const parsed = general ? parseFloat(general.AnimationFramerate) : NaN;
+            return (Number.isFinite(parsed) && parsed > 0) ? parsed : 60;
+        }
+
+        // osu!lazer DrawableHitObject 默认 InitialLifetimeOffset = 10000ms。
+        // LegacyNotePiece 的 SkinnableTextureAnimation 绑定到物件时间轴，播放位置为：
+        // currentTime - (HitObject.StartTime - InitialLifetimeOffset)
+        const LEGACY_NOTE_ANIMATION_INITIAL_LIFETIME_OFFSET_MS = 10000;
+
+        function getLegacyNoteAnimationClockMs(songTimeMs, hitObjectStartTimeMs) {
+            const songTime = Number(songTimeMs);
+            const hitObjectStartTime = Number(hitObjectStartTimeMs);
+            if (!Number.isFinite(songTime) || !Number.isFinite(hitObjectStartTime)) return songTime;
+            return songTime - (hitObjectStartTime - LEGACY_NOTE_ANIMATION_INITIAL_LIFETIME_OFFSET_MS);
+        }
+
+        // 按指定时钟从序列帧中取当前应绘制的一帧。单帧序列直接返回首帧。
+        function selectSkinAnimationFrame(frames, clockMs, fps) {
+            if (!frames || frames.length === 0) return null;
+            if (frames.length === 1) return frames[0];
+            const rate = (Number.isFinite(fps) && fps > 0) ? fps : 60;
+            const clock = Number.isFinite(clockMs) ? clockMs : 0;
+            const idx = Math.floor((clock / 1000) * rate) % frames.length;
+            return frames[idx] || frames[0];
+        }
+
         function getManiaSkinImage(keyCount, lookup, columnIndex) {
             const info = imageLookupToIniPrefixSuffix(lookup);
             if (!info) return null;
@@ -146,31 +208,8 @@
                 return null;
             }
 
-            const fc = computeFallbackColumnIndex(keyCount, columnIndex | 0);
-            const defaultName = defaultFilenameForLookup(lookup, fc);
-
             let result = null;
-            const candidates = [];
-            if (defaultName) candidates.push(defaultName);
-            if (!info.isGlobal) {
-                if (lookup === LML.NoteImage) {
-                    const headFallback = defaultFilenameForLookup(LML.HoldNoteHeadImage, fc);
-                    if (headFallback && !candidates.includes(headFallback)) candidates.push(headFallback);
-                } else if (lookup === LML.HoldNoteHeadImage) {
-                    const noteFallback = defaultFilenameForLookup(LML.NoteImage, fc);
-                    if (noteFallback && !candidates.includes(noteFallback)) candidates.push(noteFallback);
-                } else if (lookup === LML.HoldNoteTailImage) {
-                    // osu! stable 规范: 尾部优先使用 mania-noteXh (反向缩放绘制) 或单键 noteX
-                    const headFallback = defaultFilenameForLookup(LML.HoldNoteHeadImage, fc);
-                    if (headFallback && !candidates.includes(headFallback)) candidates.push(headFallback);
-                    const noteFallback = defaultFilenameForLookup(LML.NoteImage, fc);
-                    if (noteFallback && !candidates.includes(noteFallback)) candidates.push(noteFallback);
-                }
-                if (fc === '2') {
-                    const extra = defaultFilenameForLookup(lookup, '1');
-                    if (extra && !candidates.includes(extra)) candidates.push(extra);
-                }
-            }
+            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, info);
             if (info.isGlobal && (lookup === LML.Hit300g || lookup === LML.Hit300 || lookup === LML.Hit200 ||
                 lookup === LML.Hit100 || lookup === LML.Hit50 || lookup === LML.Hit0)) {
                 const defNames = [];
@@ -274,9 +313,7 @@
                 return null;
             }
 
-            const defaultName = defaultFilenameForLookup(lookup, '1');
-            const candidates = [];
-            if (defaultName) candidates.push(defaultName);
+            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, info);
 
             for (const cand of candidates) {
                 const frames = getSkinAnimationFrames(cand);

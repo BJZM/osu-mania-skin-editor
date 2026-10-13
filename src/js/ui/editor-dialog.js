@@ -11,7 +11,11 @@
             const modal = document.getElementById('skinEditorModal');
 
             if (openBtn && modal) {
-                openBtn.onclick = () => {
+                openBtn.onclick = async () => {
+                    if (textureImageEditorUi) {
+                        const closed = await textureImageEditorUi.close();
+                        if (closed === false) return;
+                    }
                     modal.classList.add('active');
                     updateSkinEditorKeyPills();
                     renderSkinEditorParams();
@@ -169,14 +173,16 @@
                             try { storyboardPlaybackState.video.element.pause(); } catch (_) {}
                         } else if (enableVideo) {
                             ensureStoryboardVideoLoaded(storyboardPlaybackState, true);
-                            syncStoryboardVideoToTime(audio.currentTime * 1000, isPlaying);
+                            syncStoryboardVideoToTime(getPlaybackTimeSeconds() * 1000, isPlaying);
                         }
                     }
                     drawFrame();
                 };
             }
 
-            // 导出与难度选择下拉菜单与按钮
+            // 编辑、导出与难度选择下拉菜单与按钮
+            const editDropdown = document.getElementById('editDropdownWrapper');
+            const editMenuBtn = document.getElementById('editMenuBtn');
             const exportDropdown = document.getElementById('exportDropdownWrapper');
             const exportSkinBtn = document.getElementById('exportSkinBtn');
             const exportOskBtn = document.getElementById('exportOskBtn');
@@ -188,8 +194,18 @@
             if (ui.diffBtn && ui.diffDropdown) {
                 ui.diffBtn.onclick = (e) => {
                     e.stopPropagation();
+                    if (editDropdown) editDropdown.classList.remove('open');
                     if (exportDropdown) exportDropdown.classList.remove('open');
                     ui.diffDropdown.classList.toggle('open');
+                };
+            }
+
+            if (editMenuBtn && editDropdown) {
+                editMenuBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (ui.diffDropdown) ui.diffDropdown.classList.remove('open');
+                    if (exportDropdown) exportDropdown.classList.remove('open');
+                    editDropdown.classList.toggle('open');
                 };
             }
 
@@ -197,11 +213,13 @@
                 exportSkinBtn.onclick = (e) => {
                     e.stopPropagation();
                     if (ui.diffDropdown) ui.diffDropdown.classList.remove('open');
+                    if (editDropdown) editDropdown.classList.remove('open');
                     exportDropdown.classList.toggle('open');
                 };
             }
 
             window.addEventListener('click', () => {
+                if (editDropdown) editDropdown.classList.remove('open');
                 if (exportDropdown) exportDropdown.classList.remove('open');
                 if (ui.diffDropdown) ui.diffDropdown.classList.remove('open');
             });
@@ -242,9 +260,11 @@
             // 动态初始化键数切换按钮 (仅展示实际从 skin.ini 中读取到的键位配置)
             updateSkinEditorKeyPills();
 
-            // 撤回与复原初始皮肤按钮 (顶部工具栏与编辑菜单弹窗底部)
+            // 重做、撤回与恢复初始皮肤按钮 (顶部编辑菜单与详细设置弹窗底部)
+            const canvasRedoBtn = document.getElementById('canvasRedoBtn');
             const canvasUndoBtn = document.getElementById('canvasUndoBtn');
             const modalUndoBtn = document.getElementById('modalUndoBtn');
+            if (canvasRedoBtn) canvasRedoBtn.onclick = () => performSkinRedo();
             if (canvasUndoBtn) canvasUndoBtn.onclick = () => performSkinUndo();
             if (modalUndoBtn) modalUndoBtn.onclick = () => performSkinUndo();
             updateUndoButtonState();
@@ -799,6 +819,19 @@
                         );
                         return;
                     }
+                    // 按键贴图的「替换贴图」改为定位到详细设置中的逐轨贴图选项，
+                    // 同时高亮当前轨的 KeyImage 与 KeyImageD，便于连续替换这两种状态。
+                    if (selectedCanvasElement.id.startsWith('key_') && selectedCanvasElement.colIndex != null) {
+                        const col = selectedCanvasElement.colIndex;
+                        const keyImageParam = `KeyImage${col}`;
+                        const keyImageDownParam = `KeyImage${col}D`;
+                        focusParameter([keyImageParam, keyImageDownParam]);
+                        showToast(
+                            '已定位按键贴图',
+                            `参数面板已高亮 ${keyImageParam} 与 ${keyImageDownParam}`
+                        );
+                        return;
+                    }
                     // 打击特效 (LightingN / LightingL) 本质是多帧动态贴图序列：
                     // 点击「替换贴图」不再弹「单张图片」选择框，而是直接打开动态贴图序列管理器。
                     if (selectedCanvasElement.openAnimOnReplace && typeof openAnimTextureEditor === 'function') {
@@ -839,6 +872,7 @@
             initSkinEditorDialogUI();
             initAnimationTextureEditorUI();
             initTextureUploadUI();
+            initTextureImageEditorUI();
             initCanvasEditorUI();
             initSkinEditorShortcutsUI();
         }

@@ -341,8 +341,8 @@
                 key: 'NoteBodyStyle',
                 zhName: '长条身体拉伸/平铺模式',
                 enName: 'NoteBodyStyle',
-                comment: '0: 拉伸, 1: 从尾平铺, 2: 从头平铺',
-                desc: '决定长条 (LN) 身体贴图 noteL 的渲染方式。0: 整张纵向拉伸 (Stretch)；1: 从尾部向下平铺循环 (RepeatFromTail，Percy LN 专属)；2: 从头部向上平铺循环 (RepeatFromHead)。',
+                comment: '0: 拉伸, 1: 从尾平铺, 2: 从头平铺, 3: 两端平铺',
+                desc: '决定长条 (LN) 身体贴图 noteL 的渲染方式。0: 整张纵向拉伸 (Stretch)；1: 从尾部向下平铺循环 (RepeatFromTail)；2: 从头部向上平铺循环 (RepeatFromHead)；3: 两端向中间平铺 (RepeatTopAndBottom)。',
                 category: '其他不常用选项',
                 tab: 'mania',
                 type: 'select',
@@ -350,6 +350,7 @@
                     { value: 1, label: '1 - 从尾部平铺 (RepeatFromTail, 推荐 / Percy LN)' },
                     { value: 0, label: '0 - 整段拉伸 (Stretch)' },
                     { value: 2, label: '2 - 从头部平铺 (RepeatFromHead)' },
+                    { value: 3, label: '3 - 两端向中间平铺 (RepeatTopAndBottom)' },
                 ],
                 default: 1,
                 elementId: 'track'

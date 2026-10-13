@@ -4,6 +4,19 @@
 // ============================================================================
 
         // 初始化加载 osu! stable 官方默认贴图与字体库
+
+        function configureAppleTouchFileInputs() {
+            const isAppleTouchDevice = /iPad|iPhone|iPod/.test(navigator.userAgent)
+                || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            if (!isAppleTouchDevice) return;
+
+            // iPadOS maps filename extensions to UTIs and filters out unknown
+            // types such as .osz/.osk. Allow all files here, then validate the
+            // extension in the import handlers.
+            for (const input of [ui.osz, ui.osk]) {
+                if (input) input.setAttribute('accept', '*/*');
+            }
+        }
         
         function updateSkinInfoDisplay() {
             const skinNameEl = document.getElementById('infoSkinName');
@@ -289,6 +302,7 @@
             }, 260);
         }
 
+        configureAppleTouchFileInputs();
         initLeftPanelUI();
         updateSkinInfoDisplay();
         loadDefaultSkin();

@@ -58,6 +58,7 @@ ordered according to the groups below.
 - `ui/editor-dialog.js`: editor shell and initialization coordinator.
 - `ui/animation-editor.js`: multi-frame texture editor.
 - `ui/texture-upload.js`: single texture upload flow.
+- `ui/texture-image-editor.js`: live texture crop and transparent padding editor.
 - `ui/canvas-interactions.js`: canvas selection and drag behavior.
 - `ui/shortcuts.js`: keyboard shortcuts.
 - `ui/app-shell.js`: final startup wiring.

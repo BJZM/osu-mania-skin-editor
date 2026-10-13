@@ -12,6 +12,11 @@
             }
             const file = e.target.files[0];
             if (!file) return;
+            if (!/\.(osz|zip|osu)$/i.test(file.name)) {
+                showToast('文件类型不支持', '请选择 .osz、.zip 或 .osu 文件。');
+                e.target.value = '';
+                return;
+            }
 
             ui.oszFileName.textContent = file.name;
             ui.oszFileName.classList.add('loaded');

@@ -8,6 +8,11 @@
         ui.osk.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
+            if (!/\.(osk|zip)$/i.test(file.name)) {
+                showToast('文件类型不支持', '请选择 .osk 或 .zip 文件。');
+                e.target.value = '';
+                return;
+            }
 
             // 互斥锁定：开始加载皮肤时禁止操作谱面与进度条，并直接暂停播放
             isSkinLoading = true;
@@ -38,6 +43,9 @@
                 skinFallbackImageStore.clear();
                 maniaSkinConfigurations.clear();
                 globalSkinImageLookups.clear();
+                if (typeof keyImageHeightBaselineState !== 'undefined') {
+                    keyImageHeightBaselineState.clear();
+                }
                 let iniText = "";
                 const failedFiles = [];
 
@@ -70,27 +78,32 @@
 
                 // 2. 收集 skin.ini 中引用的贴图标识
                 const iniReferencedKeys = new Set();
+                const tailMaskImageKeys = new Set();
+                const addImageKeyWithBasename = (targetSet, value) => {
+                    if (typeof value !== 'string' || !value.trim()) return;
+                    const clean = normalizeSkinKey(value);
+                    targetSet.add(clean);
+                    const base = clean.split('/').pop();
+                    if (base) targetSet.add(base);
+                };
                 if (maniaSkinConfigurations.size > 0) {
                     for (const config of maniaSkinConfigurations.values()) {
                         if (config.ImageLookups) {
-                            for (const val of config.ImageLookups.values()) {
-                                if (typeof val === 'string' && val.trim()) {
-                                    const clean = normalizeSkinKey(val);
-                                    iniReferencedKeys.add(clean);
-                                    const base = clean.split('/').pop();
-                                    if (base) iniReferencedKeys.add(base);
+                            for (const [key, val] of config.ImageLookups.entries()) {
+                                addImageKeyWithBasename(iniReferencedKeys, val);
+                                // NoteImage*T 指向的文件名不一定包含 T/tail，必须按实际槽位保护其黑色遮罩。
+                                if (/^(?:noteimage\d*t|holdnotetailimage\d*)$/i.test(key)) {
+                                    addImageKeyWithBasename(tailMaskImageKeys, val);
                                 }
                             }
                         }
                     }
                 }
                 if (globalSkinImageLookups.size > 0) {
-                    for (const val of globalSkinImageLookups.values()) {
-                        if (typeof val === 'string' && val.trim()) {
-                            const clean = normalizeSkinKey(val);
-                            iniReferencedKeys.add(clean);
-                            const base = clean.split('/').pop();
-                            if (base) iniReferencedKeys.add(base);
+                    for (const [key, val] of globalSkinImageLookups.entries()) {
+                        addImageKeyWithBasename(iniReferencedKeys, val);
+                        if (/^(?:noteimage\d*t|holdnotetailimage\d*)$/i.test(key)) {
+                            addImageKeyWithBasename(tailMaskImageKeys, val);
                         }
                     }
                 }
@@ -201,7 +214,11 @@
                         let finalImg = img;
                         try {
                             if (img.width > 0 && img.height > 0 && img.width <= 4096 && img.height <= 4096) {
-                                const processedImg = processSkinImage(img, relativePath);
+                                const imageKey = normalizeSkinKey(relativePath).replace(/@2x/g, '');
+                                const imageBase = imageKey.split('/').pop();
+                                const preserveBlack = tailMaskImageKeys.has(imageKey) ||
+                                    (imageBase && tailMaskImageKeys.has(imageBase));
+                                const processedImg = processSkinImage(img, relativePath, preserveBlack);
                                 if (processedImg !== img) {
                                     await new Promise((resolve) => {
                                         processedImg.onload = resolve;

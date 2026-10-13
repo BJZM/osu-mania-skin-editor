@@ -63,7 +63,7 @@ npm install
 npm run dist:win
 ```
 
-生成的便携版程序位于 `dist/osu-mania-skin-editor-0.1.0-x64.exe`，无需安装，双击即可运行。
+生成的便携版程序位于 `dist/osu-mania-skin-editor-0.2.0-x64.exe`，无需安装，双击即可运行。
 
 ## 部署到 Cloudflare Pages
 

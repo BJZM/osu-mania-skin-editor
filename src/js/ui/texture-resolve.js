@@ -161,9 +161,9 @@
 
         // 把「逐轨道贴图」参数展开为每个轨道一张独立卡片 (与其他贴图参数卡片样式完全一致)
         // 返回 null 表示该参数不是逐轨道贴图参数，应原样保留
-        function expandPerTrackTextureParams(p, keys) {
+        function expandPerTrackTextureParams(p, keys, ignoreTab = false) {
             // 「贴图」标签页里同样需要按轨道展开 (仅音符 / 按键这类真正逐轨的贴图)
-            if (activeEditorTab !== 'mania' && activeEditorTab !== 'textures') return null;
+            if (!ignoreTab && activeEditorTab !== 'mania' && activeEditorTab !== 'textures') return null;
             const meta = PER_TRACK_TEXTURE_PARAMS[p.key];
             if (!meta) return null;
             const n = Math.max(1, Math.min(18, keys || 4));

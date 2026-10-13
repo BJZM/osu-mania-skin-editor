@@ -3,7 +3,89 @@
 // 依赖：render/textures.js、render/combo.js、core/state.js
 // ============================================================================
 
+        // osu!stable 长条时间锚点：
+        // - 头部贴图下端在 startTime 对应位置；按住后固定在判定线。
+        // - 尾部贴图下端在 endTime 对应位置。
+        function getStableHoldHeadAnchorY(note, currentScrollPosition, currentTime, hitPos, speedFactor) {
+            if (currentTime < note.startTime) {
+                return hitPos - (note.scrollPositionStart - currentScrollPosition) * speedFactor;
+            }
+            return hitPos;
+        }
+
+        function getStableHoldTailAnchorY(note, currentScrollPosition, hitPos, speedFactor) {
+            return hitPos - (note.scrollPositionEnd - currentScrollPosition) * speedFactor;
+        }
+
+        // 身体长度只等于头尾两个下端锚点之间的距离，不包含头部半高，也不受尾巴顶端影响。
+        // 身体近端位于头部贴图中心，因此远端自然为“尾端锚点 - 头部半高”。
+        function getStableHoldNoteGeometry(note, currentScrollPosition, currentTime, hitPos, speedFactor, headHeight, tailHeight) {
+            const headAnchorY = getStableHoldHeadAnchorY(
+                note, currentScrollPosition, currentTime, hitPos, speedFactor
+            );
+            const tailAnchorY = getStableHoldTailAnchorY(
+                note, currentScrollPosition, hitPos, speedFactor
+            );
+            const headTopY = headAnchorY - headHeight;
+            const headCenterY = headAnchorY - headHeight / 2;
+            const tailTopY = tailAnchorY - tailHeight;
+            const bodyBottomY = headCenterY;
+            const bodyLength = Math.max(0, headAnchorY - tailAnchorY);
+            const bodyTopY = bodyBottomY - bodyLength;
+
+            return {
+                headAnchorY,
+                headTopY,
+                headCenterY,
+                tailAnchorY,
+                tailTopY,
+                bodyTopY,
+                bodyBottomY,
+                bodyLength,
+                bodyHeight: Math.max(0, bodyBottomY - bodyTopY),
+                headFrozen: currentTime >= note.startTime
+            };
+        }
+
+        // NoteBodyStyle 只负责身体矩形内部的贴图取样方式，不改变身体矩形本身。
+        function drawStableHoldBodyTexture(targetCtx, image, style, x, width, bodyTopY, bodyHeight) {
+            if (!image || width <= 0 || bodyHeight <= 0.5) return;
+
+            const nativeW = image.width || 1;
+            const nativeH = image.height || 1;
+            const scaledNativeH = Math.max(1, nativeH * (width / nativeW));
+            const bodyBottomY = bodyTopY + bodyHeight;
+
+            targetCtx.save();
+            targetCtx.beginPath();
+            targetCtx.rect(x, bodyTopY, width, bodyHeight);
+            targetCtx.clip();
+
+            if (style === NOTE_BODY_STYLE.Stretch) {
+                targetCtx.drawImage(image, x, bodyTopY, width, bodyHeight);
+            } else if (style === NOTE_BODY_STYLE.RepeatTopAndBottom) {
+                for (let y = bodyTopY; y < bodyBottomY; y += scaledNativeH) {
+                    targetCtx.drawImage(image, x, y, width, scaledNativeH);
+                }
+                for (let y = bodyBottomY; y > bodyTopY; y -= scaledNativeH) {
+                    targetCtx.drawImage(image, x, y - scaledNativeH, width, scaledNativeH);
+                }
+            } else if (style === NOTE_BODY_STYLE.RepeatFromHead) {
+                for (let y = bodyBottomY; y > bodyTopY; y -= scaledNativeH) {
+                    targetCtx.drawImage(image, x, y - scaledNativeH, width, scaledNativeH);
+                }
+            } else {
+                for (let y = bodyTopY; y < bodyBottomY; y += scaledNativeH) {
+                    targetCtx.drawImage(image, x, y, width, scaledNativeH);
+                }
+            }
+
+            targetCtx.restore();
+        }
+
         function drawFrame() {
+            // 纯皮肤预览（无谱面）时若渲染了多帧贴图，需要在函数末尾保持 rAF 循环，动画才会真正播放。
+            let skinFrameAnimationActive = false;
             try {
                 // 特效动画时钟：播放时前进、暂停时冻结（见 config.js updateEffectAnimClock）
                 updateEffectAnimClock();
@@ -19,17 +101,18 @@
 
                 let currentTime = 0;
                 if (currentBeatmap) {
-                    currentTime = (isSeeking && ui.progressRange)
-                        ? (parseFloat(ui.progressRange.value) * 1000)
-                        : (audio.currentTime * 1000);
+                    const playbackTime = (isSeeking && ui.progressRange)
+                        ? parseFloat(ui.progressRange.value)
+                        : getPlaybackTimeSeconds();
+                    currentTime = playbackTime * 1000;
                     syncStoryboardVideoToTime(currentTime, isPlaying);
                     if (!isSeeking && isPlaying && ui.progressRange) {
-                        ui.progressRange.value = audio.currentTime;
+                        ui.progressRange.value = playbackTime;
                         const totalDuration = (audio.duration && isFinite(audio.duration) && audio.duration > 0)
                             ? audio.duration
                             : parseFloat(ui.progressRange.max) || 0;
-                        updateTimeLabels(audio.currentTime, totalDuration);
-                        updateProgressFill(audio.currentTime, totalDuration);
+                        updateTimeLabels(playbackTime, totalDuration);
+                        updateProgressFill(playbackTime, totalDuration);
                     }
                 }
 
@@ -105,6 +188,29 @@
                 // skin.ini 坐标体系基于 480 虚拟网格 (HitPosition, ColumnWidth 等)，而贴图资源原生基于 768p (1x) / 1536p (2x) 分辨率
                 const scale48 = canvas.height / 480;
                 const scale768 = canvas.height / 768;
+
+                // LegacyNotePiece 序列帧使用 [General] AnimationFramerate，并以所属 HitObject 的
+                // AnimationStartTime (StartTime - 10000ms) 为相位原点。
+                // 纯皮肤预览同样走这条时间轴；虚拟时钟只负责在无谱面时持续前进。
+                const skinAnimationFps = getSkinAnimationFramerate();
+                const skinAnimationClockMs = currentBeatmap ? currentTime : effectAnimClockMs;
+                const noteFrameCache = new Map();
+                const resolveNoteFrames = (lookup, col) => {
+                    const cacheKey = `${lookup}|${col}`;
+                    if (noteFrameCache.has(cacheKey)) return noteFrameCache.get(cacheKey);
+                    const frames = getManiaSkinAnimationFrames(keys, lookup, col) || null;
+                    noteFrameCache.set(cacheKey, frames);
+                    return frames;
+                };
+                const resolveAnimatedNoteImage = (lookup, col, animationStartTimeMs = null) => {
+                    const frames = resolveNoteFrames(lookup, col);
+                    if (frames && frames.length > 1) skinFrameAnimationActive = true;
+                    const animationClockMs = Number.isFinite(animationStartTimeMs)
+                        ? getLegacyNoteAnimationClockMs(skinAnimationClockMs, animationStartTimeMs)
+                        : skinAnimationClockMs;
+                    return selectSkinAnimationFrame(frames, animationClockMs, skinAnimationFps)
+                        || getManiaSkinImage(keys, lookup, col);
+                };
 
                 const udRes = getManiaSkinConfig(keys, LML.UpsideDown);
                 const isUpsideDown = (udRes && (udRes.value === true || udRes.value === 1 || udRes.value === '1'));
@@ -838,39 +944,35 @@
                     let w = colWidths[note.column];
                     let colX = colXCache[note.column];
 
-                    const holdHeadImg = getManiaSkinImage(keys, LML.HoldNoteHeadImage, note.column);
-                    const holdTailImg = getManiaSkinImage(keys, LML.HoldNoteTailImage, note.column);
-                    const holdBodyImg = getManiaSkinImage(keys, LML.HoldNoteBodyImage, note.column);
+                    const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, note.column, note.startTime);
+                    const holdTailImg = resolveAnimatedNoteImage(LML.HoldNoteTailImage, note.column, note.endTime);
+                    const holdBodyImg = resolveAnimatedNoteImage(LML.HoldNoteBodyImage, note.column);
 
                     const headDrawHeight = holdHeadImg ? getManiaNoteDrawHeight(keys, note.column, holdHeadImg, w, scale48) : Math.round(20 * scale48);
                     const tailDrawHeight = holdTailImg ? getManiaNoteDrawHeight(keys, note.column, holdTailImg, w, scale48) : Math.round(20 * scale48);
 
-                    // 用户指出及对齐 osu!stable 规范:
-                    // 长条头部实际上到达贴图中间才判定/消失，长条身体与尾巴的判定基准比长条头底部高半个长条头高度 (headDrawHeight / 2)。
-                    // 因此长条的身体和尾巴基准线向上抬高半个长条头贴图高度，长条头不同高度会使长条与尾巴位置产生相应偏移。
-                    const headOffset = headDrawHeight / 2;
-                    let tailY = (hitPos - headOffset) - (note.scrollPositionEnd - currentScrollPosition) * speedFactor;
-                    let headBottomY;
-                    if (currentTime < note.startTime) {
-                        headBottomY = (hitPos - headOffset) - (note.scrollPositionStart - currentScrollPosition) * speedFactor;
-                        note.holdHeadFrozen = false;
-                    } else {
-                        headBottomY = hitPos - headOffset;
-                        note.holdHeadFrozen = true;
-                    }
+                    const holdGeometry = getStableHoldNoteGeometry(
+                        note, currentScrollPosition, currentTime, hitPos, speedFactor,
+                        headDrawHeight, tailDrawHeight
+                    );
+                    note.holdHeadFrozen = holdGeometry.headFrozen;
 
-                    const wholeTop = Math.min(tailY - tailDrawHeight, headBottomY - headDrawHeight);
-                    const wholeBottom = Math.max(tailY, headBottomY + headOffset);
+                    const {
+                        headAnchorY,
+                        headTopY,
+                        headCenterY,
+                        tailAnchorY: tailBottomY,
+                        tailTopY,
+                        bodyTopY: bodyTop,
+                        bodyBottomY: bodyBottom,
+                        bodyHeight
+                    } = holdGeometry;
+
+                    const wholeTop = Math.min(headTopY, tailTopY, bodyTop);
+                    const wholeBottom = Math.max(headAnchorY, tailBottomY, bodyBottom);
                     if (wholeBottom < -100 || wholeTop > canvas.height + 100) continue;
 
-                    const headCenterY = headBottomY;
-                    const tailBottomY = tailY;
-                    const tailTopY = tailBottomY - tailDrawHeight;
-                    const bodyBottom = headBottomY;
-                    const bodyTop = Math.min(bodyBottom, tailTopY);
-                    const bodyHeight = Math.max(0, bodyBottom - bodyTop);
-
-                    // 5a. 身体 (到达头部判定线 headBottomY 截断)
+                    // 5a. 身体 (近端位于头部中心，长度只由头尾下端锚点决定)
                     if (bodyHeight > 0.5) {
                         if (canvasEditMode && bodyHeight > 4 && bodyTop < canvas.height && bodyBottom > 0 && bodyTop <= hitPos + 25) {
                             activeNoteElements.push({
@@ -896,36 +998,7 @@
                         if (holdBodyImg) {
                             const nbsRes = getManiaSkinConfig(keys, LML.NoteBodyStyle, note.column);
                             const style = (nbsRes && nbsRes.value != null) ? nbsRes.value : NOTE_BODY_STYLE.RepeatFromTail;
-
-                            const nativeW = holdBodyImg.width || 1;
-                            const nativeH = holdBodyImg.height || 1;
-                            // osu!stable 规范: 长条身体贴图在垂直方向按轨道列宽 w 保持原生等比缩放 (w / nativeW)，
-                            // 贴图宽高比与游戏内保持 1:1，使 Percy LN 超长贴图的淡化过渡区与标准平铺贴图与 stable 物理长度严格一致
-                            const scaledNativeH = Math.max(1, nativeH * (w / nativeW));
-
-                            if (style === NOTE_BODY_STYLE.Stretch) {
-                                // 0: Stretch (整段拉伸)
-                                ctx.drawImage(holdBodyImg, colX, bodyTop, w, bodyHeight);
-                            } else {
-                                // 1: RepeatFromTail (Cascade from top) / 2: RepeatFromHead (Cascade from bottom)
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.rect(colX, bodyTop, w, bodyHeight);
-                                ctx.clip();
-
-                                if (style === NOTE_BODY_STYLE.RepeatFromTail) {
-                                    // 1: Cascade from top - 贴图以 1:1 原生垂直比例从 bodyTop 向下平铺级联，超出 bodyBottom 被 clip 裁切
-                                    for (let y = bodyTop; y < bodyBottom; y += scaledNativeH) {
-                                        ctx.drawImage(holdBodyImg, colX, y, w, scaledNativeH);
-                                    }
-                                } else {
-                                    // 2: Cascade from bottom - 贴图以 1:1 原生垂直比例从 bodyBottom 向上平铺级联，超出 bodyTop 被 clip 裁切
-                                    for (let y = bodyBottom; y > bodyTop; y -= scaledNativeH) {
-                                        ctx.drawImage(holdBodyImg, colX, y - scaledNativeH, w, scaledNativeH);
-                                    }
-                                }
-                                ctx.restore();
-                            }
+                            drawStableHoldBodyTexture(ctx, holdBodyImg, style, colX, w, bodyTop, bodyHeight);
                         } else {
                             const inset = 5;
                             const bx = colX + inset;
@@ -1070,7 +1143,7 @@
                             let bottomY = hitPos - (note.scrollPositionStart - currentScrollPosition) * speedFactor;
                             if (bottomY > canvas.height + 80 || bottomY < -80) continue;
 
-                            let noteImg = getManiaSkinImage(keys, LML.NoteImage, note.column);
+                            let noteImg = resolveAnimatedNoteImage(LML.NoteImage, note.column, note.startTime);
                             const drawHeight = noteImg ? getManiaNoteDrawHeight(keys, note.column, noteImg, w, scale48) : Math.round(20 * scale48);
 
                             if (canvasEditMode && bottomY <= hitPos + 25) {
@@ -1106,19 +1179,17 @@
                         } else {
                             if (currentTime >= note.endTime) continue;
 
-                            const holdHeadImg = getManiaSkinImage(keys, LML.HoldNoteHeadImage, note.column);
+                            const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, note.column, note.startTime);
                             const headDrawHeight = holdHeadImg ? getManiaNoteDrawHeight(keys, note.column, holdHeadImg, w, scale48) : Math.round(22 * scale48 / 1.5);
 
-                            let headBottomY;
-                            if (currentTime < note.startTime) {
-                                headBottomY = hitPos - (note.scrollPositionStart - currentScrollPosition) * speedFactor;
-                            } else {
-                                headBottomY = hitPos;
-                            }
+                            const headAnchorY = getStableHoldHeadAnchorY(
+                                note, currentScrollPosition, currentTime, hitPos, speedFactor
+                            );
+                            const headTopY = headAnchorY - headDrawHeight;
 
-                            if (headBottomY > canvas.height + 80 || headBottomY < -80) continue;
+                            if (headAnchorY > canvas.height + 80 || headTopY < -80) continue;
 
-                            if (canvasEditMode && headBottomY <= hitPos + 25) {
+                            if (canvasEditMode && headAnchorY <= hitPos + 25) {
                                 activeNoteElements.push({
                                     id: `hold_head_${note.column}`,
                                     noteInstanceKey: `hold_head_${note.column}_${note.startTime}`,
@@ -1127,7 +1198,7 @@
                                     fallbackParamKey: 'HoldNoteHeadImage',
                                     category: 'Mania',
                                     x: colX,
-                                    y: rectTop(headBottomY - headDrawHeight, headDrawHeight),
+                                    y: rectTop(headTopY, headDrawHeight),
                                     w: w,
                                     h: headDrawHeight,
                                     isTexture: true,
@@ -1140,15 +1211,15 @@
                             }
 
                             if (holdHeadImg) {
-                                ctx.drawImage(holdHeadImg, colX, headBottomY - headDrawHeight, w, headDrawHeight);
+                                ctx.drawImage(holdHeadImg, colX, headTopY, w, headDrawHeight);
                             } else {
                                 const r = 4;
                                 ctx.fillStyle = '#ffffff';
-                                roundRect(ctx, colX + 2, headBottomY - headDrawHeight, w - 4, headDrawHeight, r);
+                                roundRect(ctx, colX + 2, headTopY, w - 4, headDrawHeight, r);
                                 ctx.fill();
                                 if (note.holdHeadFrozen) {
                                     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                                    ctx.fillRect(colX + 2, headBottomY - 3, w - 4, 3);
+                                    ctx.fillRect(colX + 2, headAnchorY - 3, w - 4, 3);
                                 }
                             }
                         }
@@ -1398,6 +1469,11 @@
                     : defaultScorePosRaw * scale48;
                 let scorePosX = startX + totalTrackWidth / 2;
 
+                // 血条先绘制，保证与判定提示重叠时位于其下层。
+                // 对齐 osu!lazer / stable 规范：位于轨道右侧，逆时针旋转 90 度，底部对齐，满血常驻展示。
+                drawHealthDisplay(startX, totalTrackWidth, trailingSpacing, scale768);
+
+                // 判定提示后绘制，与血条重叠时优先显示在上层。
                 if (isPlaying || (isPreviewJudgementActive && judgements.length > 0)) {
                     drawJudgements(scale768, scorePosX, scorePosY);
                 } else {
@@ -1409,9 +1485,6 @@
                         drawStaticJudgementPreview(keys, scorePosX, scorePosY, scale768);
                     }
                 }
-
-                // 渲染血条（对齐 osu!lazer / stable 规范：位于轨道右侧，逆时针旋转 90 度，底部对齐，满血常驻展示）
-                drawHealthDisplay(startX, totalTrackWidth, trailingSpacing, scale768);
 
                 // 渲染右上角分数、准度与歌曲进度饼图（对齐 osu!lazer LegacySkin 规范）
                 const hudInteractiveElements = drawTopRightHUD(keys, scale768);
@@ -1453,6 +1526,7 @@
                 // 注意：暂停时特效时钟冻结，爆炸不会变化 —— 此时不应再靠它维持 rAF 循环，
                 // 否则会空转（预览模式没有音频，仍需靠它驱动，故用 isPlaying || isPreviewMode 门控）。
                 const hasRunningAnims = ((isPlaying || isPreviewMode) && activeExplosions.length > 0) || (isPlaying && judgements.length > 0) ||
+                    (isPreviewMode && skinFrameAnimationActive) ||
                     (performance.now() - comboAnimState.breakStartTime < 400) ||
                     (performance.now() - comboAnimState.incStartTime < 300) ||
                     (performance.now() < testComboBreakUntil) ||

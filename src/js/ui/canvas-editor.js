@@ -69,6 +69,9 @@
                 let keyX = kx;
                 let keyW = kw;
                 let keyY, keyH;
+                let keyImageResizeEdgeY = null;
+                let keyImageStableRefWidth = null;
+                let keyImageIs2x = false;
 
                 if (keyImg && keyImg.width > 0 && keyImg.height > 0) {
                     const rawColWRes = getManiaSkinConfig(keys, LML.ColumnWidth, col);
@@ -76,6 +79,8 @@
                     const is2x = !!keyImg._is2x;
                     const scaleFactor = is2x ? 3.2 : 1.6;
                     const stableRefW = rawColW * scaleFactor;
+                    keyImageStableRefWidth = stableRefW;
+                    keyImageIs2x = is2x;
 
                     let drawHeight;
                     if (Math.abs(keyImg.width - stableRefW) < 1) {
@@ -83,6 +88,7 @@
                     } else {
                         drawHeight = kw * keyImg.height / stableRefW;
                     }
+                    keyImageResizeEdgeY = isUpsideDown ? 0 : Math.max(0, Math.min(canvas.height, canvas.height - drawHeight));
                     if (isUpsideDown) {
                         // 镜像后按键位于判定线上方：真实屏幕 y 覆盖 [0, hitLineY]
                         keyY = 0;
@@ -134,6 +140,10 @@
                     textureKey: LML.KeyImage,
                     colIndex: col,
                     dragAxis: null,
+                    keyImageHeightAdjustable: keyImageResizeEdgeY != null,
+                    keyImageResizeEdgeY: keyImageResizeEdgeY,
+                    keyImageStableRefWidth: keyImageStableRefWidth,
+                    keyImageIs2x: keyImageIs2x,
                     valFormatter: () => currentTexName
                 });
             }
@@ -196,7 +206,7 @@
                 h: 70,
                 isTexture: true,
                 // 判定提示由 6 张贴图共同决定，此处的 textureParamKey 仅作记录；
-                // 「替换贴图」按钮会被特判为「定位判定贴图」，不会走单张上传。
+                // 「替换贴图」按钮会被特判为定位全部判定贴图，不会走单张上传。
                 textureParamKey: 'Hit300g',
                 textureName: 'Hit300g',
                 textureKey: LML.Hit300g,
@@ -492,6 +502,9 @@
                     }
                     return e.id === selectedCanvasElement.id;
                 }) || selectedCanvasElement;
+                if (liveElem.id.startsWith('key_') && selectedCanvasElement.id === liveElem.id) {
+                    selectedCanvasElement = liveElem;
+                }
                 drawCanvasSelectionHighlight(ctx, liveElem, scale48);
                 syncCanvasSelectedCard(liveElem);
             }
@@ -556,11 +569,14 @@
                 if (replaceScorebarColourBtn) replaceScorebarColourBtn.style.display = 'none';
                 if (replaceBtn) {
                     replaceBtn.style.display = (elem.isTexture && elem.id !== 'combo') ? 'inline-flex' : 'none';
-                    // 判定提示没有单张对应贴图：按钮语义改为「定位判定贴图」，
+                    // 判定提示没有单张对应贴图：按钮仍显示「替换贴图」，
                     // 点击后跳转参数面板并高亮全部判定贴图，而不是直接弹选取文件窗口。
                     const isJudgementElem = (elem.id === 'judgement');
+                    const isKeyImageElem = elem.id.startsWith('key_') && elem.colIndex != null;
                     if (isJudgementElem) {
                         replaceBtn.title = '定位到 skin.ini 贴图区域并高亮全部判定贴图 (彩300g / 黄300 / 绿200 / 蓝100 / 灰50 / Miss)';
+                    } else if (isKeyImageElem) {
+                        replaceBtn.title = `定位到详细设置并高亮第 ${elem.colIndex + 1} 轨的 KeyImage 与 KeyImageD`;
                     } else if (elem.openAnimOnReplace) {
                         replaceBtn.title = '导入动态贴图序列 (多帧动画)：按键发光 StageLight / 打击特效 LightingN / LightingL 都是逐帧播放的动态贴图';
                     } else {
@@ -568,7 +584,9 @@
                     }
                     const replaceBtnSpan = replaceBtn.querySelector('span');
                     if (replaceBtnSpan) {
-                        replaceBtnSpan.textContent = isJudgementElem ? '定位判定贴图' : '替换贴图';
+                        replaceBtnSpan.textContent = isJudgementElem
+                            ? '替换贴图'
+                            : (isKeyImageElem ? '定位按键贴图' : '替换贴图');
                     }
                 }
             }
