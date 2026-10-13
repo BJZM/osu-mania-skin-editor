@@ -18,21 +18,7 @@
 
 ### skin.ini 可视化参数
 
-按 `[Mania]` 键位读取配置，滑块与分键位输入改动后即时反映到画布。
-
-![skin.ini 可视化参数](docs/images/skin-settings.png)
-
-### 贴图替换与规格选择
-
-支持 1x / @2x / 动态贴图序列三种导入方式，并提示导出文件名。
-
-![贴图替换与规格选择](docs/images/texture-upload.png)
-
-### 贴图拉伸与尺寸规则速查
-
-内置 stable 兼容的贴图尺寸与拉伸规则说明，可按名称或规则搜索。
-
-![贴图拉伸与尺寸规则速查](docs/images/texture-rules.png)
+按 `[Mania]` 键位读取配置
 
 ## 启动
 
