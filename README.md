@@ -6,20 +6,6 @@
 
 本项目完全通过 vibe coding 制作：代码、文档与资源均由 AI 辅助生成并持续迭代，甚至连上传GitHub也是通过agent完成的，作者本人完全业余。
 
-## 效果图
-
-> 截图使用内置默认皮肤，未包含第三方皮肤贴图或谱面曲绘。
-
-### 编辑器主界面
-
-导入谱面后即可实时预览 osu!stable 风格的 mania 轨道、音符、长条与判定 HUD。
-
-![编辑器主界面](docs/images/editor-main.png)
-
-### skin.ini 可视化参数
-
-按 `[Mania]` 键位读取配置
-
 ## 启动
 
 需要 Node.js；浏览器建议使用本机 Chrome。
