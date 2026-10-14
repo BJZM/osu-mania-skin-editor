@@ -17,6 +17,7 @@ const BEATMAP = path.join(ROOT, 'samples', 'beatmaps', '1790742 MIMI - Kuu ni Na
 let tmpDir;
 let skinWithoutIni;
 let singleOsu;
+let unsafeSkinArchive;
 
 test.beforeAll(async () => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mania-skin-test-'));
@@ -38,6 +39,29 @@ test.beforeAll(async () => {
   const entry = Object.keys(osz.files).find((p) => p.toLowerCase().endsWith('.osu'));
   singleOsu = path.join(tmpDir, 'single.osu');
   fs.writeFileSync(singleOsu, await osz.files[entry].async('nodebuffer'));
+
+  // 3) 含可执行文件和损坏条目名的皮肤包：导入与再次导出都应自动清理
+  const unsafeZip = new JSZip();
+  unsafeZip.file('skin.ini', [
+    '[General]',
+    'Name: Unsafe Archive Test',
+    'Version: latest',
+    '',
+    '[Mania]',
+    'Keys: 4',
+    'ColumnWidth: 65,65,65,65',
+    '',
+    'NoteImage0: mania-note1',
+    'NoteImage1: mania-note1',
+    'NoteImage2: mania-note1',
+    'NoteImage3: mania-note1'
+  ].join('\r\n'));
+  unsafeZip.file('mania-note1.png', png);
+  unsafeZip.file('mania-key1.png', png);
+  unsafeZip.file('remove-me.exe', Buffer.from('MZ'));
+  unsafeZip.file('broken\u0006name.png', png);
+  unsafeSkinArchive = path.join(tmpDir, 'unsafe-archive.osk');
+  fs.writeFileSync(unsafeSkinArchive, await unsafeZip.generateAsync({ type: 'nodebuffer' }));
 });
 
 test.afterAll(() => {
@@ -807,6 +831,30 @@ test('F6 导出 .osk / .zip 触发下载', async ({ page }) => {
     ]);
     expect(download.suggestedFilename().toLowerCase().endsWith('.' + format)).toBe(true);
   }
+  expect(errors).toEqual([]);
+});
+
+test('F7 导入和导出会移除不兼容的皮肤包条目', async ({ page }) => {
+  const errors = await boot(page);
+  await importSkin(page, unsafeSkinArchive);
+
+  const importedKeys = await page.evaluate(() => Object.keys(currentSkinZip.files));
+  expect(importedKeys).not.toContain('remove-me.exe');
+  expect(importedKeys).not.toContain('broken\u0006name.png');
+  expect(importedKeys).toContain('mania-note1.png');
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download', { timeout: 30000 }),
+    page.evaluate(() => exportSkin('osk'))
+  ]);
+  const downloadPath = await download.path();
+  expect(downloadPath).toBeTruthy();
+
+  const exported = await JSZip.loadAsync(fs.readFileSync(downloadPath));
+  const exportedKeys = Object.keys(exported.files);
+  expect(exportedKeys).not.toContain('remove-me.exe');
+  expect(exportedKeys).not.toContain('broken\u0006name.png');
+  expect(exportedKeys).toContain('mania-note1.png');
   expect(errors).toEqual([]);
 });
 

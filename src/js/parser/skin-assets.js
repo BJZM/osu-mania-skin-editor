@@ -3,6 +3,29 @@
 // 依赖：core/state.js
 // ============================================================================
 
+        const SKIN_ARCHIVE_UNSAFE_EXTENSION_RE = /\.(?:exe|dll|bat|cmd|com|scr|msi|ps1|vbs|vbe|js|jse|wsf|wsh|hta|cpl|jar|lnk|url)$/i;
+        const SKIN_ARCHIVE_INVALID_NAME_RE = /[\u0000-\u001F\u007F-\u009F\uFFFD]/;
+
+        function isUnsafeSkinArchiveEntryName(name) {
+            if (typeof name !== 'string' || name.length === 0) return true;
+            const baseName = name.replace(/\\/g, '/').split('/').pop() || '';
+            return SKIN_ARCHIVE_INVALID_NAME_RE.test(name) || SKIN_ARCHIVE_UNSAFE_EXTENSION_RE.test(baseName);
+        }
+
+        function stripUnsafeSkinArchiveEntries(zip) {
+            if (!zip || !zip.files) return [];
+            const removed = [];
+            for (const name of Object.keys(zip.files)) {
+                if (!isUnsafeSkinArchiveEntryName(name)) continue;
+                removed.push(name);
+                zip.remove(name);
+            }
+            if (removed.length > 0) {
+                console.warn('[皮肤包兼容性] 已移除不兼容的压缩包条目:', removed);
+            }
+            return removed;
+        }
+
         function processSkinImage(img, relativePath = '', preserveBlack = false) {
             if (!img.width || !img.height) return img;
             // osu!mania 长条尾部贴图 (NoteImage*T / mania-note*T / tail / keyT) 依赖其黑色底色作为遮罩 (mask)

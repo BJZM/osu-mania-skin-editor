@@ -30,6 +30,7 @@
 
             try {
                 const oskZip = await JSZip.loadAsync(file);
+                stripUnsafeSkinArchiveEntries(oskZip);
                 currentSkinZip = oskZip;
                 currentSkinFileName = file.name;
                 userReplacedTextures.clear();

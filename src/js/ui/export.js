@@ -26,6 +26,7 @@
             showProgress(`正在打包生成 ${format.toUpperCase()} 皮肤文件...`);
             try {
                 let zip = currentSkinZip ? currentSkinZip : new JSZip();
+                stripUnsafeSkinArchiveEntries(zip);
 
                 // 1. 生成最新完整 skin.ini 文本并覆盖写入
                 const newIniText = generateSkinIniText();
