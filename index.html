@@ -748,6 +748,28 @@
                                     </div>
                                 </section>
 
+                                <section class="texture-image-control-section" id="textureImageTransformSection">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">拉伸与缩放</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-number-grid">
+                                        <label>
+                                            <span>放大百分比</span>
+                                            <input type="number" id="textureImageScalePercent" min="1" max="1000" step="1" value="100">
+                                        </label>
+                                        <label>
+                                            <span>横向拉伸 (px)</span>
+                                            <input type="number" id="textureImageStretchX" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>纵向拉伸 (px)</span>
+                                            <input type="number" id="textureImageStretchY" step="1" value="0">
+                                        </label>
+                                    </div>
+                                </section>
+
                                 <section class="texture-image-control-section" id="textureImageLongBodySection" style="display: none;">
                                     <div class="texture-image-control-head">
                                         <div>
@@ -802,6 +824,7 @@
 
                     <div class="texture-image-footer">
                         <button type="button" class="btn btn-secondary" id="textureImageResetBtn" disabled>重置当前贴图</button>
+                        <button type="button" class="btn btn-secondary" id="textureImageBlankBtn" title="将当前贴图直接替换为 1×1 全透明 PNG" disabled>设为空白</button>
                         <div class="texture-image-footer-right">
                             <button type="button" class="btn btn-secondary" id="textureImageCancelBtn">不保存</button>
                             <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
@@ -840,7 +863,7 @@
                             </svg>
                         </div>
                         <h3 id="textureImageApplyScopeTitle">选择应用范围</h3>
-                        <p>完整长条身体要只替换当前轨道，还是同时应用到全部轨道？</p>
+                        <p id="textureImageApplyScopeText">完整长条身体要只替换当前轨道，还是同时应用到全部轨道？</p>
                         <div class="texture-image-scope-actions">
                             <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCancelBtn">取消</button>
                             <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCurrentBtn">仅当前轨道</button>
@@ -1213,7 +1236,7 @@
                     <div class="help-card-head">
                         <div class="help-card-title-group">
                             <span class="help-card-title">舞台底栏</span>
-                            <span class="help-card-file">StageBottom.png / mania-stage-bottom</span>
+                            <span class="help-card-file">stagebottom.png（仅皮肤根目录）</span>
                         </div>
                         <div class="help-badges-group">
                             <span class="help-badge badge-original">等比缩放不拉伸</span>
@@ -1523,7 +1546,7 @@
                 <section class="about-hero">
                     <div class="about-app-name">osu!mania Skin Editor</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.2.1</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.2.2</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>
@@ -1596,7 +1619,11 @@
     <script defer src="src/js/core/state.js?v=20261010_7"></script>
     <script defer src="src/js/skin/skin-ini.js?v=20261009_2"></script>
     <script defer src="src/js/skin/mania-config.js?v=20261009_2"></script>
-    <script defer src="src/js/skin/parameter-schema.js?v=20261009_6"></script>
+    <script defer src="src/js/skin/parameter-schema-mania.js?v=20261016_1"></script>
+    <script defer src="src/js/skin/parameter-schema-textures.js?v=20261016_1"></script>
+    <script defer src="src/js/skin/parameter-schema-fonts.js?v=20261016_1"></script>
+    <script defer src="src/js/skin/parameter-schema-general.js?v=20261016_1"></script>
+    <script defer src="src/js/skin/parameter-schema.js?v=20261016_1"></script>
     <script defer src="src/js/skin/texture-lookup-map.js?v=20261009_4"></script>
     <!-- 2) 谱面解析、zip / 皮肤资源处理 -->
     <script defer src="src/js/parser/beatmap-format.js?v=20261010_3"></script>
@@ -1616,7 +1643,14 @@
     <script defer src="src/js/render/storyboard-assets.js?v=20261013_2"></script>
     <script defer src="src/js/render/storyboard.js?v=20261010_2"></script>
     <script defer src="src/js/render/storyboard-composite.js?v=20261010_1"></script>
-    <script defer src="src/js/render/frame.js?v=20261013_3"></script>
+    <script defer src="src/js/render/hold-note-geometry.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-judgement.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-key-images.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-notes.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-stage-light.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-lighting.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-playfield.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame.js?v=20261016_1"></script>
     <script defer src="src/js/render/judgements.js?v=20261009_2"></script>
     <script defer src="src/js/render/hud.js?v=20261013_2"></script>
     <script defer src="src/js/render/diagnostics.js?v=20261009_2"></script>
@@ -1628,19 +1662,45 @@
     <script defer src="src/js/ui/feedback.js?v=20261010_3"></script>
     <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
     <script defer src="src/js/ui/transport.js?v=20261013_2"></script>
-    <script defer src="src/js/ui/canvas-editor.js?v=20261010_1"></script>
+    <script defer src="src/js/ui/canvas-element-index.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/canvas-editor.js?v=20261016_1"></script>
     <script defer src="src/js/ui/ini-export.js?v=20261009_3"></script>
     <script defer src="src/js/ui/param-core.js?v=20261009_6"></script>
     <script defer src="src/js/ui/texture-resolve.js?v=20261009_2"></script>
-    <script defer src="src/js/ui/texture-controls.js?v=20261009_6"></script>
+    <script defer src="src/js/ui/texture-control-thumbnails.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-score-percent.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-param.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-track-group.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-font-glyph.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-colours.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-controls.js?v=20261016_1"></script>
     <script defer src="src/js/ui/param-render.js?v=20261009_5"></script>
     <script defer src="src/js/ui/export.js?v=20261013_3"></script>
     <script defer src="src/js/ui/history.js?v=20261009_2"></script>
-    <script defer src="src/js/ui/editor-dialog.js?v=20261013_2"></script>
+    <script defer src="src/js/ui/editor-card-controls.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/editor-dialog.js?v=20261016_1"></script>
     <script defer src="src/js/ui/animation-editor.js?v=20261009_4"></script>
     <script defer src="src/js/ui/texture-upload.js?v=20261009_4"></script>
-    <script defer src="src/js/ui/texture-image-editor.js?v=20261013_9"></script>
-    <script defer src="src/js/ui/canvas-interactions.js?v=20261009_6"></script>
+    <script defer src="src/js/ui/texture-image-editor-state.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-tabs.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-recipes.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-preview-zoom.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-longbody-compose.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-longbody-apply.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-history.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-targets.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-preview-render.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-target-init.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-crop-math.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-crop-pointers.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-crop-interactions.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-frame-edit.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-keyimage-groups.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-store-serialize.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-save-close.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/canvas-key-image-height.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/canvas-interactions.js?v=20261016_1"></script>
     <script defer src="src/js/ui/shortcuts.js?v=20261012_1"></script>
     <script defer src="src/js/ui/app-shell.js?v=20261012_2"></script>
 </body>

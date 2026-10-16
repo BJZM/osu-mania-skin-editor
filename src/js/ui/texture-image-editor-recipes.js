@@ -1,0 +1,323 @@
+// ============================================================================
+// texture-image-editor-recipes.js - 贴图编辑配方与外部帧同步
+// 由 texture-image-editor.js 按职责拆分；所有脚本共享既有经典脚本作用域。
+// ============================================================================
+
+        function cloneKeyImageEditSources(sources) {
+            const cloned = {};
+            for (const [key, source] of Object.entries(sources || {})) {
+                cloned[key] = {
+                    reference: source && source.reference,
+                    frames: ((source && source.frames) || []).map(cloneFrame)
+                };
+            }
+            return cloned;
+        }
+
+        function getTextureEditRecipeKey(target) {
+            if (!target || !target.p || !target.p.key) return null;
+            return `${getActiveKeyCount()}|${target.p.key}`;
+        }
+
+        function removeTextureEditRecipe(targetOrTab) {
+            const target = targetOrTab && targetOrTab.kind === 'texture'
+                ? targetOrTab.target
+                : targetOrTab;
+            const key = getTextureEditRecipeKey(target);
+            if (!key) return false;
+            return textureEditRecipes.delete(key);
+        }
+
+        function textureEditRecipeOutputMatches(recipe, target) {
+            if (!recipe || !target || !Array.isArray(recipe.outputFrames)) return false;
+            const currentFrames = target.frames || [];
+            if (recipe.outputFrames.length !== currentFrames.length) return false;
+            return recipe.outputFrames.every((frame, index) => frame === currentFrames[index]);
+        }
+
+        function getStoredTextureEditRecipe(target) {
+            const key = getTextureEditRecipeKey(target);
+            if (!key) return null;
+            const recipe = textureEditRecipes.get(key);
+            if (!recipe) return null;
+            if (!textureEditRecipeOutputMatches(recipe, target)) {
+                textureEditRecipes.delete(key);
+                return null;
+            }
+            return recipe;
+        }
+
+        function captureTextureEditRecipe(editorState, outputTarget) {
+            if (!editorState || !editorState.selected ||
+                editorState.longBodyComposer.active ||
+                editorState.originalFrames.length === 0 ||
+                !editorState.cropRect ||
+                !outputTarget || !outputTarget.frames || outputTarget.frames.length === 0) {
+                return null;
+            }
+            const baseFrame = editorState.originalFrames[0];
+            if (!baseFrame || baseFrame._isBlankPlaceholder) return null;
+            const cropRect = editorState.cropRect;
+            return {
+                sourceFrames: editorState.originalFrames.map(cloneFrame),
+                originalReference: editorState.originalReference,
+                keyImageOriginalSources: cloneKeyImageEditSources(
+                    editorState.keyImageOriginalSources
+                ),
+                params: {
+                    cropX: -Number(cropRect.x || 0),
+                    cropY: -Number(cropRect.y || 0),
+                    widthDelta: Number(cropRect.width || 0) - Number(baseFrame.width || 0),
+                    heightDelta: Number(cropRect.height || 0) - Number(baseFrame.height || 0),
+                    imageTransform: cloneImageTransform(editorState.imageTransform)
+                },
+                outputFrames: outputTarget.frames.slice()
+            };
+        }
+
+        function rememberTextureEditRecipe(tab) {
+            if (!tab || tab.kind !== 'texture') return false;
+            const recipe = captureTextureEditRecipe(tab.state, tab.target);
+            if (!recipe) {
+                removeTextureEditRecipe(tab);
+                return false;
+            }
+            textureEditRecipes.set(getTextureEditRecipeKey(tab.target), recipe);
+            return true;
+        }
+
+        function rememberPreparedKeyImageEditRecipes(prepared, params) {
+            if (!prepared || prepared.length === 0 || !params) return false;
+            const originalSources = cloneKeyImageEditSources(state.keyImageOriginalSources);
+            for (const item of prepared) {
+                if (!item || !item.group || !item.group.entries) continue;
+                for (const entry of item.group.entries) {
+                    originalSources[entry.p.key] = {
+                        reference: item.group.reference,
+                        frames: item.group.sourceFrames.map(cloneFrame)
+                    };
+                }
+            }
+
+            for (const item of prepared) {
+                if (!item || !item.group || !item.group.entries) continue;
+                for (const entry of item.group.entries) {
+                    const target = buildEditorTarget(entry.p);
+                    if (!target || !target.frames || target.frames.length === 0) continue;
+                    textureEditRecipes.set(getTextureEditRecipeKey(target), {
+                        sourceFrames: item.group.sourceFrames.map(cloneFrame),
+                        originalReference: item.group.reference,
+                        keyImageOriginalSources: cloneKeyImageEditSources(originalSources),
+                        params: {
+                            ...params,
+                            imageTransform: cloneImageTransform(params.imageTransform)
+                        },
+                        outputFrames: target.frames.slice()
+                    });
+                }
+            }
+            return true;
+        }
+
+        function applyStoredTextureEditRecipe(editorState, recipe) {
+            if (!editorState || !recipe || !recipe.params ||
+                editorState.workingFrames.length === 0) {
+                return false;
+            }
+            try {
+                const result = buildEditedFrames(editorState.workingFrames, recipe.params);
+                if (!result || result.frames.length === 0) return false;
+                editorState.cropRect = { ...result.cropRect };
+                editorState.imageTransform = cloneImageTransform(
+                    recipe.params.imageTransform
+                );
+                editorState.previewFrames = result.frames;
+                updateCropInputs(editorState.cropRect);
+                updateImageTransformInputs();
+                return true;
+            } catch (err) {
+                console.warn('恢复贴图编辑参数失败:', err);
+                return false;
+            }
+        }
+
+        function invalidateKeyImageEditRecipe() {
+            if (state.keyImageEditRecipe) state.keyImageEditRecipe = null;
+        }
+
+        function applyExternalFramesToTab(tab, frames) {
+            if (!tab || tab.kind !== 'texture' || !frames || frames.length === 0) return false;
+            const keyImageEditRecipe = tab.state.keyImageEditRecipe ||
+                captureTextureEditRecipe(tab.state, tab.target);
+            const copied = frames.map(cloneFrame);
+            removeTextureEditRecipe(tab);
+            tab.target = {
+                ...tab.target,
+                frames: copied,
+                selectable: true,
+                state: 'set'
+            };
+            clearEditorStateTimers(tab.state);
+            tab.state.selected = tab.target;
+            tab.state.originalReference = normalizeSkinKey(
+                (tab.target.resolved && tab.target.resolved.name) ||
+                tab.target.base ||
+                tab.target.p.key
+            );
+            tab.state.keyImageOriginalSources = cloneKeyImageEditSources(
+                keyImageEditRecipe && keyImageEditRecipe.keyImageOriginalSources
+            );
+            tab.state.originalFrames = copied.map(cloneFrame);
+            tab.state.workingFrames = copied.map(cloneFrame);
+            tab.state.previewFrames = copied.map(cloneFrame);
+            tab.state.cropRect = {
+                x: 0,
+                y: 0,
+                width: copied[0].width,
+                height: copied[0].height
+            };
+            tab.state.imageTransform = createDefaultImageTransform();
+            tab.state.previewBaseViewport = null;
+            tab.state.previewViewport = null;
+            tab.state.snapGuides = null;
+            tab.state.contentBoundsCache = null;
+            tab.state.editorUndoStack = [];
+            tab.state.editorRedoStack = [];
+            tab.state.editorHistoryTransaction = null;
+            tab.state.keyImageEditRecipe = keyImageEditRecipe;
+            return true;
+        }
+
+        function syncExternalFrames(target, frames) {
+            const modal = byId('textureImageEditorModal');
+            if (!modal || !modal.classList.contains('active') || !target || !frames || frames.length === 0) {
+                return false;
+            }
+            const copiedFrames = frames.map(cloneFrame);
+            const update = {
+                target: {
+                    ...target,
+                    paramKeys: (target.paramKeys || []).slice(),
+                    frames: copiedFrames
+                },
+                frames: copiedFrames
+            };
+            for (const paramKey of update.target.paramKeys) {
+                externalFrameUpdates.set(paramKey, update);
+            }
+            externalChangesPending = true;
+
+            for (const tab of getTextureTabs()) {
+                if (!update.target.paramKeys.includes(tab.target.p.key)) continue;
+                applyExternalFramesToTab(tab, copiedFrames);
+                if (tab.id === activeTabId) {
+                    syncActiveTabView({ installPreview: false });
+                }
+            }
+            const pickerView = byId('textureImagePickerView');
+            if (pickerView && getComputedStyle(pickerView).display !== 'none') {
+                renderPicker();
+            }
+            return true;
+        }
+
+        function installExternalUpdateFrames(update) {
+            if (!update || !update.target || !update.frames || update.frames.length === 0) return false;
+            const primaryKey = update.target.paramKeys[0];
+            const p = getTextureTabParams().find((item) => item.key === primaryKey);
+            if (!p) return false;
+            const selected = buildEditorTarget(p);
+            if (!selected) return false;
+            installFramesToStores(update.frames, selected, {
+                persist: false,
+                draw: false
+            });
+            return true;
+        }
+
+        function absorbExternalChanges() {
+            if (!externalChangesPending || !editorBaseSnapshot) return false;
+            const activeTab = getActiveTab();
+            if (activeTab && activeTab.kind === 'texture' && activeTab.state.previewSnapshot) {
+                applySkinSnapshot(activeTab.state.previewSnapshot);
+            }
+
+            const persistedTextures = new Map(userReplacedTextures);
+            const appliedUpdates = new Set();
+            for (const update of externalFrameUpdates.values()) {
+                const identity = update.target.storeKey || update.target.base || update.target.paramKeys.join('|');
+                if (appliedUpdates.has(identity)) continue;
+                appliedUpdates.add(identity);
+                installExternalUpdateFrames(update);
+            }
+            for (const [name, buffer] of persistedTextures.entries()) {
+                const normalized = normalizeSkinKey(name);
+                if (Array.from(appliedUpdates).some((identity) => normalized.startsWith(identity))) {
+                    userReplacedTextures.set(name, buffer);
+                }
+            }
+
+            editorBaseSnapshot = createSkinSnapshot('贴图编辑外部变更');
+            for (const tab of getTextureTabs()) {
+                tab.state.previewSnapshot = editorBaseSnapshot;
+            }
+            drawFrame();
+            externalFrameUpdates.clear();
+            externalChangesPending = false;
+            return true;
+        }
+
+        function removeTab(tabId, options = {}) {
+            const index = tabs.findIndex((tab) => tab.id === tabId);
+            if (index < 0) return false;
+            const tab = tabs[index];
+            if (tab.kind === 'menu') return false;
+
+            absorbExternalChanges();
+            const wasActive = tab.id === activeTabId;
+            clearEditorStateTimers(tab.state);
+            if (wasActive && options.restorePreview !== false && tab.state.previewSnapshot) {
+                applySkinSnapshot(tab.state.previewSnapshot);
+            }
+
+            tabs.splice(index, 1);
+            if (!wasActive) {
+                renderTabs();
+                return true;
+            }
+
+            const nextIndex = Math.min(index, tabs.length - 1);
+            const nextTab = tabs[Math.max(0, nextIndex)] || menuTab;
+            activeTabId = '';
+            return activateTab(nextTab.id, { force: true });
+        }
+
+        function finalizeEditorClose() {
+            for (const tab of tabs) {
+                if (tab.kind === 'texture') clearEditorStateTimers(tab.state);
+            }
+            absorbExternalChanges();
+            if (editorBaseSnapshot) {
+                applySkinSnapshot(editorBaseSnapshot);
+            }
+
+            Object.assign(menuState, createEditorState());
+            menuState.previewSnapshot = null;
+            state = menuState;
+            tabs = [menuTab];
+            activeTabId = menuTab.id;
+            editorBaseSnapshot = null;
+            externalFrameUpdates.clear();
+            externalChangesPending = false;
+
+            const modal = byId('textureImageEditorModal');
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+            }
+            renderTabs();
+            setViews(true);
+            updateSelectionSummary();
+            updateEditorHistoryButtons();
+            updateStretchFixUI();
+        }

@@ -1,0 +1,183 @@
+// ============================================================================
+// texture-image-editor-targets.js - 贴图编辑目标、尺寸与拉伸修复解析
+// 由 texture-image-editor.js 按职责拆分；所有脚本共享既有经典脚本作用域。
+// ============================================================================
+
+        function cloneFrame(source) {
+            const width = source.naturalWidth || source.videoWidth || source.width || 0;
+            const height = source.naturalHeight || source.videoHeight || source.height || 0;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(source, 0, 0);
+            canvas._is2x = !!source._is2x;
+            canvas._keyImageHeightOffset1x = Number(source._keyImageHeightOffset1x) || 0;
+            canvas._keyImageHeightPadding1x = Number(source._keyImageHeightPadding1x) || 0;
+            return canvas;
+        }
+
+        function stripTextureName(value) {
+            return String(value || '')
+                .trim()
+                .replace(/\.(png|jpg|jpeg)$/i, '')
+                .replace(/@2x$/i, '')
+                .replace(/-\d+$/, '');
+        }
+
+        function getTargetBaseName(p, resolvedName) {
+            let base = stripTextureName(resolvedName || p.default || p.key || 'texture');
+            if (!base || isDummyBlankName(base)) base = stripTextureName(p.key || 'texture');
+
+            if (p._trackCol == null) return base;
+
+            const col = p._trackCol;
+            const colRegex = new RegExp(`(?:col|track|轨)[-_]?${col + 1}\\b`, 'i');
+            if (colRegex.test(base)) return base;
+
+            const lookup = p._trackLookup;
+            const suffix = (lookup === LML.HoldNoteHeadImage) ? 'H'
+                : (lookup === LML.HoldNoteBodyImage) ? 'L'
+                : (lookup === LML.HoldNoteTailImage) ? 'T'
+                : (lookup === LML.KeyImageDown) ? 'D'
+                : '';
+
+            if (suffix && !base.toLowerCase().endsWith(suffix.toLowerCase())) {
+                return `${base}_col${col + 1}${suffix}`;
+            }
+            return `${base}_col${col + 1}`;
+        }
+
+        function getTextureTabParams() {
+            const keys = getActiveKeyCount();
+            const items = [];
+            for (const schemaItem of SKIN_INI_PARAM_SCHEMA) {
+                if (schemaItem.tab !== 'textures' || schemaItem.type !== 'texture' || schemaItem.virtual) continue;
+                const expanded = expandPerTrackTextureParams(schemaItem, keys, true);
+                if (expanded && expanded.length > 0) items.push(...expanded);
+                else items.push(schemaItem);
+            }
+            return items;
+        }
+
+        function buildEditorTarget(p) {
+            const keys = getActiveKeyCount();
+            const resolved = resolveTextureParam(keys, p);
+            let frames = resolveTextureParamFrames(keys, p);
+            if ((!frames || frames.length === 0) && resolved && resolved.img) {
+                frames = [resolved.img];
+            }
+            const usableFrames = (frames || []).filter((frame) => {
+                const w = frame.naturalWidth || frame.videoWidth || frame.width || 0;
+                const h = frame.naturalHeight || frame.videoHeight || frame.height || 0;
+                return w > 1 && h > 1 && !frame._isBlankPlaceholder;
+            });
+
+            return {
+                p,
+                keys,
+                resolved,
+                frames: usableFrames,
+                selectable: usableFrames.length > 0,
+                base: getTargetBaseName(p, resolved && resolved.name),
+                state: resolved ? resolved.state : 'unset'
+            };
+        }
+
+        function getParamTrackIndex(p) {
+            if (p && p._trackCol != null) return Number(p._trackCol);
+            const match = String((p && p.key) || '').match(
+                /(?:NoteImage|HoldNoteHeadImage|HoldNoteBodyImage|HoldNoteTailImage|KeyImageDown|KeyImage|StageHint|HitTarget)(\d+)/i
+            );
+            return match ? Number(match[1]) : null;
+        }
+
+        function getConfiguredColumnWidth(keys, columnIndex) {
+            const res = getManiaSkinConfig(keys, LML.ColumnWidth, columnIndex);
+            return (res && Number(res.value) > 0) ? Number(res.value) : 30;
+        }
+
+        function getUniformResizeResult(frame, target) {
+            if (!frame || !target || (target.axis !== 'width' && target.axis !== 'height')) return null;
+            const current = target.axis === 'width' ? frame.width : frame.height;
+            if (!(current > 0) || !(target.size > 0)) return null;
+            const scale = target.size / current;
+            return {
+                width: Math.max(1, Math.round(frame.width * scale)),
+                height: Math.max(1, Math.round(frame.height * scale))
+            };
+        }
+
+        function getStretchFixTarget(selected, frame) {
+            if (!selected || !frame) return null;
+            const p = selected.p;
+            const rawKey = String(p.key || '');
+            const key = rawKey.toLowerCase();
+            const keys = selected.keys || getActiveKeyCount();
+            const dpr = frame._is2x ? 2 : 1;
+            const trackIndex = getParamTrackIndex(p);
+            const columnIndex = trackIndex != null ? trackIndex : 0;
+            const rawColW = getConfiguredColumnWidth(keys, columnIndex);
+
+            if (key.startsWith('keyimage')) {
+                const multiplier = dpr === 2 ? 3.2 : 1.6;
+                return {
+                    axis: 'width',
+                    size: Math.round(rawColW * multiplier),
+                    label: '固定宽度',
+                    detail: `按键横向拉满 ${rawColW}px 轨道，源图宽度需匹配 stable 的 ${multiplier} 倍列宽。`
+                };
+            }
+
+            if (key === 'stageleft' || key === 'stageright') {
+                const size = 768 * dpr;
+                return {
+                    axis: 'height',
+                    size,
+                    label: '固定高度',
+                    detail: `舞台边框横向保持原宽、纵向拉满画面；${dpr === 2 ? '@2x' : '1x'} 目标高度为 ${size}px。`
+                };
+            }
+
+            if (key === 'stagelight') {
+                const multiplier = dpr === 2 ? 3.2 : 1.6;
+                return {
+                    axis: 'width',
+                    size: Math.round(rawColW * multiplier),
+                    label: '固定宽度',
+                    detail: `按键光柱横向拉满第 ${columnIndex + 1} 轨（${rawColW}px）。各轨列宽不一致时需分别使用对应宽度的贴图。`
+                };
+            }
+
+            if (key === 'stagehint' || key === 'hittarget') {
+                const cfg = getManiaConfigForKeys(keys);
+                const stageWidth = Math.max(1, computeTrackBlockWidth480(cfg, keys));
+                return {
+                    axis: 'width',
+                    size: Math.round(stageWidth * dpr),
+                    label: '固定宽度',
+                    detail: `判定线光条横向覆盖 ${stageWidth}px 舞台宽度；开启双舞台且两侧宽度不一致时无法用单张贴图同时完全修复。`
+                };
+            }
+
+            if (/^(noteimage|holdnoteheadimage|holdnotetailimage)/i.test(rawKey)) {
+                return {
+                    axis: null,
+                    size: 0,
+                    reason: '该贴图在 stable 中按原图宽高比计算高度，不需要通过改贴图尺寸修复单向拉伸。'
+                };
+            }
+
+            if (/^holdnotebodyimage/i.test(rawKey) || /^noteimage\d*l$/i.test(rawKey)) {
+                return {
+                    axis: null,
+                    size: 0,
+                    reason: '长条身体在平铺模式下由 stable 等比计算；整段拉伸模式的高度由长条长度决定，需在画布中观察实际效果。'
+                };
+            }
+
+            return {
+                axis: null,
+                size: 0,
+                reason: '该贴图没有可自动计算的单轴拉伸规则。'
+            };
+        }

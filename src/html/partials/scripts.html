@@ -20,7 +20,11 @@
     <script defer src="src/js/core/state.js?v=20261010_7"></script>
     <script defer src="src/js/skin/skin-ini.js?v=20261009_2"></script>
     <script defer src="src/js/skin/mania-config.js?v=20261009_2"></script>
-    <script defer src="src/js/skin/parameter-schema.js?v=20261009_6"></script>
+    <script defer src="src/js/skin/parameter-schema-mania.js?v=20261016_1"></script>
+    <script defer src="src/js/skin/parameter-schema-textures.js?v=20261016_1"></script>
+    <script defer src="src/js/skin/parameter-schema-fonts.js?v=20261016_1"></script>
+    <script defer src="src/js/skin/parameter-schema-general.js?v=20261016_1"></script>
+    <script defer src="src/js/skin/parameter-schema.js?v=20261016_1"></script>
     <script defer src="src/js/skin/texture-lookup-map.js?v=20261009_4"></script>
     <!-- 2) 谱面解析、zip / 皮肤资源处理 -->
     <script defer src="src/js/parser/beatmap-format.js?v=20261010_3"></script>
@@ -40,7 +44,14 @@
     <script defer src="src/js/render/storyboard-assets.js?v=20261013_2"></script>
     <script defer src="src/js/render/storyboard.js?v=20261010_2"></script>
     <script defer src="src/js/render/storyboard-composite.js?v=20261010_1"></script>
-    <script defer src="src/js/render/frame.js?v=20261013_3"></script>
+    <script defer src="src/js/render/hold-note-geometry.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-judgement.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-key-images.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-notes.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-stage-light.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-lighting.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame-playfield.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame.js?v=20261016_1"></script>
     <script defer src="src/js/render/judgements.js?v=20261009_2"></script>
     <script defer src="src/js/render/hud.js?v=20261013_2"></script>
     <script defer src="src/js/render/diagnostics.js?v=20261009_2"></script>
@@ -52,18 +63,44 @@
     <script defer src="src/js/ui/feedback.js?v=20261010_3"></script>
     <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
     <script defer src="src/js/ui/transport.js?v=20261013_2"></script>
-    <script defer src="src/js/ui/canvas-editor.js?v=20261010_1"></script>
+    <script defer src="src/js/ui/canvas-element-index.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/canvas-editor.js?v=20261016_1"></script>
     <script defer src="src/js/ui/ini-export.js?v=20261009_3"></script>
     <script defer src="src/js/ui/param-core.js?v=20261009_6"></script>
     <script defer src="src/js/ui/texture-resolve.js?v=20261009_2"></script>
-    <script defer src="src/js/ui/texture-controls.js?v=20261009_6"></script>
+    <script defer src="src/js/ui/texture-control-thumbnails.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-score-percent.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-param.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-track-group.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-font-glyph.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-colours.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-controls.js?v=20261016_1"></script>
     <script defer src="src/js/ui/param-render.js?v=20261009_5"></script>
     <script defer src="src/js/ui/export.js?v=20261013_3"></script>
     <script defer src="src/js/ui/history.js?v=20261009_2"></script>
-    <script defer src="src/js/ui/editor-dialog.js?v=20261013_2"></script>
+    <script defer src="src/js/ui/editor-card-controls.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/editor-dialog.js?v=20261016_1"></script>
     <script defer src="src/js/ui/animation-editor.js?v=20261009_4"></script>
     <script defer src="src/js/ui/texture-upload.js?v=20261009_4"></script>
-    <script defer src="src/js/ui/texture-image-editor.js?v=20261013_9"></script>
-    <script defer src="src/js/ui/canvas-interactions.js?v=20261009_6"></script>
+    <script defer src="src/js/ui/texture-image-editor-state.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-tabs.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-recipes.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-preview-zoom.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-longbody-compose.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-longbody-apply.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-history.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-targets.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-preview-render.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-target-init.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-crop-math.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-crop-pointers.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-crop-interactions.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-frame-edit.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-keyimage-groups.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-store-serialize.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-save-close.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/canvas-key-image-height.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/canvas-interactions.js?v=20261016_1"></script>
     <script defer src="src/js/ui/shortcuts.js?v=20261012_1"></script>
     <script defer src="src/js/ui/app-shell.js?v=20261012_2"></script>

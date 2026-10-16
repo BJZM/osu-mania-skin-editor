@@ -1,5 +1,5 @@
 // Skin cursor renderer.
-// Uses cursor.png / cursor@2x.png and cursortrail.png from the imported skin,
+// Uses cursor.png / cursormiddle.png / cursortrail.png from the imported skin,
 // while keeping the rest of the editor interactive.
 (function () {
     const TRAIL_LIFETIME_MS = 220;
@@ -209,8 +209,9 @@
         const dt = lastFrameTime > 0 ? Math.min(0.05, (now - lastFrameTime) / 1000) : 0.016;
         lastFrameTime = now;
 
-        const cursorFrame = getFrame(pressed && middleFrames.length > 0 ? middleFrames : cursorFrames, now);
-        if (!cursorFrame) return;
+        const cursorFrame = getFrame(cursorFrames, now);
+        const middleFrame = getFrame(middleFrames, now);
+        if (!cursorFrame && !middleFrame) return;
 
         if (settings.rotate) {
             currentAngle = easeAngle(currentAngle, targetAngle, Math.min(1, dt * ROTATION_EASE));
@@ -222,11 +223,14 @@
         targetScale = desiredScale;
         currentScale += (targetScale - currentScale) * Math.min(1, dt * SCALE_EASE);
 
-        const cursorSize = getDisplaySize(cursorFrame);
-        const cursorW = cursorSize.width * currentScale;
-        const cursorH = cursorSize.height * currentScale;
+        const cursorSize = cursorFrame ? getDisplaySize(cursorFrame) : null;
+        const cursorW = cursorSize ? cursorSize.width * currentScale : 0;
+        const cursorH = cursorSize ? cursorSize.height * currentScale : 0;
         const cursorHotX = settings.centre ? -cursorW / 2 : 0;
         const cursorHotY = settings.centre ? -cursorH / 2 : 0;
+        const middleSize = middleFrame ? getDisplaySize(middleFrame) : null;
+        const middleHotX = middleSize && settings.centre ? -middleSize.width / 2 : 0;
+        const middleHotY = middleSize && settings.centre ? -middleSize.height / 2 : 0;
 
         clearLayer();
 
@@ -256,8 +260,15 @@
 
         layerCtx.save();
         layerCtx.translate(pointerX, pointerY);
-        layerCtx.rotate(currentAngle);
-        layerCtx.drawImage(cursorFrame, cursorHotX, cursorHotY, cursorW, cursorH);
+        if (cursorFrame) {
+            layerCtx.save();
+            layerCtx.rotate(currentAngle);
+            layerCtx.drawImage(cursorFrame, cursorHotX, cursorHotY, cursorW, cursorH);
+            layerCtx.restore();
+        }
+        if (middleFrame) {
+            layerCtx.drawImage(middleFrame, middleHotX, middleHotY, middleSize.width, middleSize.height);
+        }
         layerCtx.restore();
 
         const hasTrail = trail.some(function (point) { return now - point.time <= TRAIL_LIFETIME_MS; });
@@ -348,11 +359,7 @@
         middleFrames = loadSkinFrames(['cursormiddle', 'cursor-middle'], true);
         trailFrames = loadSkinFrames(['cursortrail', 'cursor-trail'], true);
 
-        if (cursorFrames.length === 0 && middleFrames.length > 0) {
-            cursorFrames = middleFrames;
-        }
-
-        if (cursorFrames.length === 0) {
+        if (cursorFrames.length === 0 && middleFrames.length === 0) {
             setActive(false);
             return;
         }

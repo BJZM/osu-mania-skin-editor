@@ -43,6 +43,16 @@ async function selectLongBodyImage(page) {
   await selectPickerParam(page, 'NoteImage0L');
 }
 
+async function saveTextureEditor(page, scope = 'current') {
+  await page.click('#textureImageApplyBtn');
+  await expect(page.locator('#textureImageApplyScopeModal')).toBeVisible();
+  if (scope === 'all') {
+    await page.click('#textureImageApplyScopeAllBtn');
+  } else {
+    await page.click('#textureImageApplyScopeCurrentBtn');
+  }
+}
+
 async function setEdits(page, sourceWidth, sourceHeight) {
   await page.fill('#textureImageCropX', '-1');
   await page.fill('#textureImageCropY', '-1');
@@ -68,11 +78,52 @@ function getKeyImageSize(page) {
   });
 }
 
+function getKeyImageAlphaBounds(page) {
+  return page.evaluate(() => {
+    const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+    if (!img) return null;
+    const probe = document.createElement('canvas');
+    probe.width = img.width;
+    probe.height = img.height;
+    const ctx = probe.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, probe.width, probe.height).data;
+    let top = Infinity;
+    let bottom = -1;
+    for (let y = 0; y < probe.height; y++) {
+      for (let x = 0; x < probe.width; x++) {
+        if (data[(y * probe.width + x) * 4 + 3] === 0) continue;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+    }
+    return bottom >= 0 ? { top, bottom } : null;
+  });
+}
+
+function getKeyImageAlphaCount(page) {
+  return page.evaluate(() => {
+    const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+    if (!img) return 0;
+    const probe = document.createElement('canvas');
+    probe.width = img.width;
+    probe.height = img.height;
+    const ctx = probe.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, probe.width, probe.height).data;
+    let count = 0;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 0) count++;
+    }
+    return count;
+  });
+}
+
 async function getCropHandlePoint(page, handle) {
   const data = await page.evaluate((handleName) => {
     const canvas = document.getElementById('textureImagePreviewCanvas');
     const state = textureImageEditorUi.getState();
-    const rect = state.cropRect;
+    const rect = state.transformRect;
     const viewport = state.previewViewport;
     if (!canvas || !rect || !viewport) return null;
     const left = viewport.offsetX + rect.x * viewport.scale;
@@ -87,8 +138,42 @@ async function getCropHandlePoint(page, handle) {
       se: [right, bottom],
       s: [(left + right) / 2, bottom],
       sw: [left, bottom],
-      w: [left, (top + bottom) / 2],
-      move: [(left + right) / 2, (top + bottom) / 2]
+      w: [left, (top + bottom) / 2]
+    };
+    return {
+      point: points[handleName],
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height
+    };
+  }, handle);
+  if (!data || !data.point) return null;
+  const box = await page.locator('#textureImagePreviewCanvas').boundingBox();
+  return {
+    x: box.x + data.point[0] * box.width / data.canvasWidth,
+    y: box.y + data.point[1] * box.height / data.canvasHeight
+  };
+}
+
+async function getTransformHandlePoint(page, handle) {
+  const data = await page.evaluate((handleName) => {
+    const canvas = document.getElementById('textureImagePreviewCanvas');
+    const state = textureImageEditorUi.getState();
+    const rect = state.transformRect;
+    const viewport = state.previewViewport;
+    if (!canvas || !rect || !viewport) return null;
+    const left = viewport.offsetX + rect.x * viewport.scale;
+    const top = viewport.offsetY + rect.y * viewport.scale;
+    const right = left + rect.width * viewport.scale;
+    const bottom = top + rect.height * viewport.scale;
+    const points = {
+      nw: [left, top],
+      n: [(left + right) / 2, top],
+      ne: [right, top],
+      e: [right, (top + bottom) / 2],
+      se: [right, bottom],
+      s: [(left + right) / 2, bottom],
+      sw: [left, bottom],
+      w: [left, (top + bottom) / 2]
     };
     return {
       point: points[handleName],
@@ -250,7 +335,7 @@ test('预览中贴图范围为透明棋盘格，范围外为纯黑', async ({ pa
   expect(errors).toEqual([]);
 });
 
-test('可直接拖动选框进行裁剪、扩大和移动，右侧数值同步', async ({ page }) => {
+test('拖动裁剪手柄可裁剪和扩大，画布内部拖动不再移动裁剪框', async ({ page }) => {
   const errors = await boot(page);
   await selectKeyImage(page);
 
@@ -268,18 +353,521 @@ test('可直接拖动选框进行裁剪、扩大和移动，右侧数值同步',
   expect(Number(await page.inputValue('#textureImageCropWidth'))).toBe(expanded.cropRect.width - before.cropRect.width);
   expect(Number(await page.inputValue('#textureImageCropHeight'))).toBe(expanded.cropRect.height - before.cropRect.height);
 
-  const center = await getCropHandlePoint(page, 'move');
+  const center = await getPreviewPoint(
+    page,
+    expanded.cropRect.x + expanded.cropRect.width / 2,
+    expanded.cropRect.y + expanded.cropRect.height / 2
+  );
   await page.mouse.move(center.x, center.y);
   await page.mouse.down();
   await page.mouse.move(center.x - 18, center.y - 14, { steps: 4 });
   await page.mouse.up();
   await page.waitForTimeout(200);
 
-  const moved = await page.evaluate(() => textureImageEditorUi.getState());
-  expect(moved.cropRect.x).toBeLessThan(expanded.cropRect.x);
-  expect(moved.cropRect.y).toBeLessThan(expanded.cropRect.y);
-  expect(Number(await page.inputValue('#textureImageCropX'))).toBe(-moved.cropRect.x);
-  expect(Number(await page.inputValue('#textureImageCropY'))).toBe(-moved.cropRect.y);
+  const unchanged = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(unchanged.cropRect).toEqual(expanded.cropRect);
+  expect(Number(await page.inputValue('#textureImageCropX'))).toBe(-expanded.cropRect.x || 0);
+  expect(Number(await page.inputValue('#textureImageCropY'))).toBe(-expanded.cropRect.y || 0);
+  expect(errors).toEqual([]);
+});
+
+test('向上拖动 KeyImage 顶部裁剪柄会在顶部扩边并立即预览', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const before = await page.evaluate(() => ({
+    state: textureImageEditorUi.getState(),
+    exportedCount: userReplacedTextures.size
+  }));
+  const beforeBounds = await getKeyImageAlphaBounds(page);
+  expect(beforeBounds).not.toBeNull();
+
+  const top = await getCropHandlePoint(page, 'n');
+  await page.mouse.move(top.x, top.y);
+  await page.mouse.down();
+  await page.mouse.move(top.x, top.y - 24, { steps: 5 });
+  await page.mouse.up();
+  await page.waitForTimeout(220);
+
+  const after = await page.evaluate(() => ({
+    state: textureImageEditorUi.getState(),
+    exportedCount: userReplacedTextures.size,
+    imageSize: (() => {
+      const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+      return img ? { width: img.width, height: img.height } : null;
+    })()
+  }));
+  const afterBounds = await getKeyImageAlphaBounds(page);
+  const addedHeight = after.state.previewSize.height - before.state.previewSize.height;
+
+  expect(addedHeight).toBeGreaterThan(0);
+  expect(after.imageSize).toEqual(after.state.previewSize);
+  expect(after.exportedCount).toBe(before.exportedCount);
+  expect(afterBounds.top).toBe(beforeBounds.top + addedHeight);
+  expect(afterBounds.bottom).toBe(beforeBounds.bottom + addedHeight);
+  expect(errors).toEqual([]);
+});
+
+test('普通裁剪不会改变原图像素比例，反向拖动后恢复原尺寸', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const before = await page.evaluate(() => textureImageEditorUi.getState());
+  const beforeBounds = await getKeyImageAlphaBounds(page);
+  const right = await getCropHandlePoint(page, 'e');
+  await page.mouse.move(right.x, right.y);
+  await page.mouse.down();
+  await page.mouse.move(right.x + 36, right.y, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(220);
+
+  const expanded = await page.evaluate(() => textureImageEditorUi.getState());
+  const expandedBounds = await getKeyImageAlphaBounds(page);
+  expect(expanded.imageTransform.scalePercent).toBe(100);
+  expect(expanded.imageTransform.stretchX).toBe(0);
+  expect(expanded.previewSize.width).toBeGreaterThan(before.previewSize.width);
+  expect(expandedBounds).toEqual(beforeBounds);
+
+  const expandedRight = await getCropHandlePoint(page, 'e');
+  await page.mouse.move(expandedRight.x, expandedRight.y);
+  await page.mouse.down();
+  await page.mouse.move(expandedRight.x - 36, expandedRight.y, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(220);
+
+  const restored = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(restored.previewSize).toEqual(before.previewSize);
+  expect(await getKeyImageAlphaBounds(page)).toEqual(beforeBounds);
+  expect(errors).toEqual([]);
+});
+
+test('纵向裁切保持原图逐行像素映射，不产生额外重采样', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const source = await page.evaluate(() => {
+    const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    window.__verticalCropSource = canvas;
+    return { width: img.width, height: img.height };
+  });
+
+  await page.fill('#textureImageCropY', '-20');
+  await page.fill('#textureImageCropHeight', '-20');
+  await page.waitForFunction(
+    (height) => textureImageEditorUi.getState().previewSize.height === height,
+    source.height - 20
+  );
+  await page.waitForTimeout(150);
+
+  const diff = await page.evaluate(() => {
+    const source = window.__verticalCropSource;
+    const target = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+    const canvas = document.createElement('canvas');
+    canvas.width = target.width;
+    canvas.height = target.height;
+    canvas.getContext('2d').drawImage(target, 0, 0);
+    const sourceData = source.getContext('2d').getImageData(0, 0, source.width, source.height).data;
+    const targetData = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    let different = 0;
+    for (let y = 0; y < canvas.height; y++) {
+      for (let x = 0; x < canvas.width; x++) {
+        const sourceIndex = ((y + 20) * source.width + x) * 4;
+        const targetIndex = (y * canvas.width + x) * 4;
+        for (let channel = 0; channel < 4; channel++) {
+          if (sourceData[sourceIndex + channel] !== targetData[targetIndex + channel]) {
+            different++;
+          }
+        }
+      }
+    }
+    return different;
+  });
+
+  expect(diff).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('右侧数值可控制等比缩放、横向与纵向拉伸压缩', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const before = await page.evaluate(() => textureImageEditorUi.getState());
+  const scaledWidth = Math.round(before.cropRect.width * 1.5);
+  const scaledHeight = Math.round(before.cropRect.height * 1.5);
+  await page.fill('#textureImageScalePercent', '150');
+  await page.waitForFunction((size) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.width === size.width && preview.height === size.height;
+  }, { width: scaledWidth, height: scaledHeight });
+
+  const expectedWidth = Math.round(before.cropRect.width * 1.5 + 20);
+  await page.fill('#textureImageStretchX', '20');
+  await page.waitForFunction((width) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.width === width;
+  }, expectedWidth);
+
+  const expectedHeight = Math.round(before.cropRect.height * 1.5 - 5);
+  await page.fill('#textureImageStretchY', '-5');
+  await page.waitForFunction((height) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.height === height;
+  }, expectedHeight);
+
+  const transformed = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(transformed.imageTransform.scalePercent).toBe(150);
+  expect(transformed.imageTransform.stretchX).toBe(20);
+  expect(transformed.imageTransform.stretchY).toBe(-5);
+  expect(transformed.transformInputValues).toEqual({
+    scalePercent: 150,
+    stretchX: 20,
+    stretchY: -5
+  });
+  expect(transformed.previewSize).toEqual({
+    width: expectedWidth,
+    height: expectedHeight
+  });
+  expect(await getKeyImageSize(page)).toEqual({
+    width: expectedWidth,
+    height: expectedHeight
+  });
+  expect(await page.evaluate(() => userReplacedTextures.size)).toBe(0);
+
+  await saveTextureEditor(page, 'current');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+  expect(await getKeyImageSize(page)).toEqual({
+    width: expectedWidth,
+    height: expectedHeight
+  });
+  expect(errors).toEqual([]);
+});
+
+test('先拉伸再调整缩放不会造成非等比例变形', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  await page.fill('#textureImageStretchX', '20');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.previewSize &&
+      state.previewSize.width === Math.round(state.cropRect.width + 20) &&
+      state.previewSize.height === state.cropRect.height;
+  });
+  const stretched = await page.evaluate(() => textureImageEditorUi.getState());
+
+  await page.fill('#textureImageScalePercent', '150');
+  await page.waitForFunction(({ width, height }) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.width === width && preview.height === height;
+  }, {
+    width: Math.round(stretched.previewSize.width * 1.5),
+    height: Math.round(stretched.previewSize.height * 1.5)
+  });
+
+  const scaled = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(scaled.imageTransform.scaleAfterStretch).toBe(true);
+  expect(scaled.previewSize.width / stretched.previewSize.width)
+    .toBeCloseTo(1.5, 2);
+  expect(scaled.previewSize.height / stretched.previewSize.height)
+    .toBeCloseTo(1.5, 2);
+  expect(errors).toEqual([]);
+});
+
+test('裁剪偏移后等比缩放以编辑后图像中心为锚点', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  await page.fill('#textureImageCropX', '15');
+  await page.fill('#textureImageCropY', '20');
+  await page.waitForFunction(() => {
+    const crop = textureImageEditorUi.getState().cropRect;
+    return crop && crop.x === -15 && crop.y === -20;
+  });
+  const before = await page.evaluate(() => textureImageEditorUi.getState());
+  const expectedWidth = Math.round(before.cropRect.width * 1.5);
+  const expectedHeight = Math.round(before.cropRect.height * 1.5);
+
+  await page.fill('#textureImageScalePercent', '150');
+  await page.waitForFunction(({ width, height }) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.width === width && preview.height === height;
+  }, { width: expectedWidth, height: expectedHeight });
+
+  const after = await page.evaluate(() => textureImageEditorUi.getState());
+  const cropCenterX = after.cropRect.x + after.cropRect.width / 2;
+  const cropCenterY = after.cropRect.y + after.cropRect.height / 2;
+  expect(Math.abs(
+    after.transformRect.x + after.transformRect.width / 2 - cropCenterX
+  )).toBeLessThanOrEqual(1);
+  expect(Math.abs(
+    after.transformRect.y + after.transformRect.height / 2 - cropCenterY
+  )).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
+
+test('先拉伸再裁剪不会再次改变已设置的拉伸倍率', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  await page.fill('#textureImageScalePercent', '150');
+  await page.fill('#textureImageStretchX', '20');
+  await page.fill('#textureImageStretchY', '-5');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    const transform = state.imageTransform;
+    if (transform.scalePercent !== 150 ||
+      transform.stretchX !== 20 ||
+      transform.stretchY !== -5) {
+      return false;
+    }
+    const referenceWidth = transform.referenceWidth || state.cropRect.width;
+    const referenceHeight = transform.referenceHeight || state.cropRect.height;
+    const expectedWidth = Math.round(
+      state.cropRect.width * (transform.scalePercent / 100 + transform.stretchX / referenceWidth)
+    );
+    const expectedHeight = Math.round(
+      state.cropRect.height * (transform.scalePercent / 100 + transform.stretchY / referenceHeight)
+    );
+    return state.previewSize &&
+      state.previewSize.width === expectedWidth &&
+      state.previewSize.height === expectedHeight;
+  });
+
+  const stretched = await page.evaluate(() => textureImageEditorUi.getState());
+  const nextWidth = stretched.cropRect.width - 24;
+  const nextHeight = stretched.cropRect.height - 16;
+  const expectedWidth = Math.round(stretched.previewSize.width * nextWidth / stretched.cropRect.width);
+  const expectedHeight = Math.round(stretched.previewSize.height * nextHeight / stretched.cropRect.height);
+
+  await page.fill('#textureImageCropWidth', String(-24));
+  await page.fill('#textureImageCropHeight', String(-16));
+  await page.waitForFunction(({ width, height }) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.width === width && preview.height === height;
+  }, { width: expectedWidth, height: expectedHeight });
+
+  const cropped = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(cropped.cropRect.width).toBe(nextWidth);
+  expect(cropped.cropRect.height).toBe(nextHeight);
+  expect(cropped.previewSize).toEqual({
+    width: expectedWidth,
+    height: expectedHeight
+  });
+  expect(cropped.previewSize.width / cropped.cropRect.width)
+    .toBeCloseTo(stretched.previewSize.width / stretched.cropRect.width, 2);
+  expect(cropped.previewSize.height / cropped.cropRect.height)
+    .toBeCloseTo(stretched.previewSize.height / stretched.cropRect.height, 2);
+  expect(errors).toEqual([]);
+});
+
+test('先拉伸再拖动裁剪柄不会再次改变已设置的拉伸倍率', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  await page.fill('#textureImageScalePercent', '150');
+  await page.fill('#textureImageStretchX', '20');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.imageTransform.scalePercent === 150 &&
+      state.imageTransform.stretchX === 20 &&
+      state.previewSize &&
+      state.previewSize.width === Math.round(state.cropRect.width * 1.7);
+  });
+
+  const before = await page.evaluate(() => textureImageEditorUi.getState());
+  const east = await getCropHandlePoint(page, 'e');
+  await page.mouse.move(east.x, east.y);
+  await page.mouse.down();
+  await page.mouse.move(east.x - 28, east.y, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForFunction(
+    (width) => textureImageEditorUi.getState().cropRect.width < width,
+    before.cropRect.width
+  );
+
+  const after = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(after.previewSize.width / after.cropRect.width)
+    .toBeCloseTo(before.previewSize.width / before.cropRect.width, 2);
+  expect(after.previewSize.height / after.cropRect.height)
+    .toBeCloseTo(before.previewSize.height / before.cropRect.height, 2);
+  expect(errors).toEqual([]);
+});
+
+test('Shift 拖边框拉伸图片，拖四角等比例缩放图片', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const beforeCorner = await page.evaluate(() => textureImageEditorUi.getState());
+  const corner = await getTransformHandlePoint(page, 'se');
+  await page.keyboard.down('Shift');
+  await page.mouse.move(corner.x, corner.y);
+  await page.mouse.down();
+  await page.mouse.move(corner.x + 30, corner.y + 30, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await page.waitForFunction(() => textureImageEditorUi.getState().imageTransform.scalePercent > 100);
+
+  const scaled = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(scaled.imageTransform.stretchX).toBe(0);
+  expect(scaled.imageTransform.stretchY).toBe(0);
+  expect(scaled.previewSize.width).toBeGreaterThan(beforeCorner.previewSize.width);
+  expect(scaled.previewSize.height).toBeGreaterThan(beforeCorner.previewSize.height);
+  expect(Math.abs(
+    scaled.previewSize.width / scaled.previewSize.height -
+    beforeCorner.previewSize.width / beforeCorner.previewSize.height
+  )).toBeLessThan(0.02);
+
+  await page.fill('#textureImageScalePercent', '100');
+  await page.waitForFunction((size) => {
+    const state = textureImageEditorUi.getState();
+    return state.imageTransform.scalePercent === 100 &&
+      state.previewSize &&
+      state.previewSize.width === size.width &&
+      state.previewSize.height === size.height;
+  }, beforeCorner.previewSize);
+  const beforeEdge = await page.evaluate(() => textureImageEditorUi.getState());
+  const edge = await getTransformHandlePoint(page, 'e');
+  await page.keyboard.down('Shift');
+  await page.mouse.move(edge.x, edge.y);
+  await page.mouse.down();
+  await page.mouse.move(edge.x + 32, edge.y, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await page.waitForFunction(() => textureImageEditorUi.getState().imageTransform.stretchX > 0);
+
+  const stretched = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(stretched.imageTransform.scalePercent).toBe(100);
+  expect(stretched.imageTransform.stretchX).toBeGreaterThan(0);
+  expect(stretched.imageTransform.stretchY).toBe(0);
+  expect(stretched.previewSize.width).toBeGreaterThan(beforeEdge.previewSize.width);
+  expect(stretched.previewSize.height).toBe(beforeEdge.previewSize.height);
+  expect(errors).toEqual([]);
+});
+
+test('Shift 拉伸固定以原贴图中心为锚点并向两侧同时变化', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const before = await page.evaluate(() => textureImageEditorUi.getState().transformRect);
+  const edge = await getTransformHandlePoint(page, 'e');
+  await page.keyboard.down('Shift');
+  await page.mouse.move(edge.x, edge.y);
+  await page.mouse.down();
+  await page.mouse.move(edge.x + 40, edge.y, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await page.waitForFunction(() => textureImageEditorUi.getState().imageTransform.stretchX > 0);
+
+  const after = await page.evaluate(() => textureImageEditorUi.getState().transformRect);
+  expect(after.width).toBeGreaterThan(before.width);
+  expect(after.x).toBeLessThan(before.x);
+  expect(after.x + after.width).toBeGreaterThan(before.x + before.width);
+  expect(Math.abs(
+    (after.x + after.width / 2) - (before.x + before.width / 2)
+  )).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
+
+test('Shift 先向上再向下拉伸不会因锚点切换而跳变', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const before = await page.evaluate(() => textureImageEditorUi.getState().transformRect);
+  const top = await getTransformHandlePoint(page, 'n');
+  await page.keyboard.down('Shift');
+  await page.mouse.move(top.x, top.y);
+  await page.mouse.down();
+  await page.mouse.move(top.x, top.y - 40, { steps: 4 });
+  const expanded = await page.evaluate(() => textureImageEditorUi.getState().transformRect);
+  await page.mouse.move(top.x, top.y, { steps: 6 });
+  const returned = await page.evaluate(() => textureImageEditorUi.getState().transformRect);
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+
+  expect(expanded.height).toBeGreaterThan(before.height);
+  expect(expanded.y).toBeLessThan(before.y);
+  expect(returned).toEqual(before);
+  expect(errors).toEqual([]);
+});
+
+test('裁剪偏移后上下拉伸仍固定未编辑原图中心', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  await page.fill('#textureImageCropY', '20');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.cropRect.y === -20;
+  });
+  const before = await page.evaluate(() => ({
+    state: textureImageEditorUi.getState(),
+    sourceCenterY: textureImageEditorUi.getState().workingSize.height / 2
+  }));
+  const top = await getTransformHandlePoint(page, 'n');
+  await page.keyboard.down('Shift');
+  await page.mouse.move(top.x, top.y);
+  await page.mouse.down();
+  await page.mouse.move(top.x, top.y - 30, { steps: 5 });
+  const expanded = await page.evaluate(() => textureImageEditorUi.getState().transformRect);
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+
+  expect(expanded.height).toBeGreaterThan(before.state.transformRect.height);
+  const scaleY = expanded.height / before.state.cropRect.height;
+  const sourceCenterInOutput = (before.sourceCenterY - before.state.cropRect.y) * scaleY;
+  expect(Math.abs(expanded.y + sourceCenterInOutput - before.sourceCenterY)).toBeLessThanOrEqual(1);
+  expect(errors).toEqual([]);
+});
+
+test('Shift 向左拉伸时不会把原图边缘像素裁掉', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const beforeCount = await getKeyImageAlphaCount(page);
+  expect(beforeCount).toBeGreaterThan(0);
+  const west = await getTransformHandlePoint(page, 'w');
+
+  await page.keyboard.down('Shift');
+  await page.mouse.move(west.x, west.y);
+  await page.mouse.down();
+  await page.mouse.move(west.x - 64, west.y, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await page.waitForFunction(() => textureImageEditorUi.getState().imageTransform.stretchX > 0);
+
+  const stretched = await page.evaluate(() => textureImageEditorUi.getState());
+  const afterCount = await getKeyImageAlphaCount(page);
+  expect(stretched.previewSize.width).toBeGreaterThan(stretched.cropRect.width);
+  expect(afterCount).toBeGreaterThan(beforeCount * 1.2);
+  expect(errors).toEqual([]);
+});
+
+test('Shift 从下方压缩时顶部像素保持完整映射', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const before = await page.evaluate(() => textureImageEditorUi.getState());
+  const beforeBounds = await getKeyImageAlphaBounds(page);
+  const south = await getTransformHandlePoint(page, 's');
+
+  await page.keyboard.down('Shift');
+  await page.mouse.move(south.x, south.y);
+  await page.mouse.down();
+  await page.mouse.move(south.x, south.y - 64, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await page.waitForFunction(() => textureImageEditorUi.getState().imageTransform.stretchY < 0);
+
+  const after = await page.evaluate(() => textureImageEditorUi.getState());
+  const afterBounds = await getKeyImageAlphaBounds(page);
+  const scaleY = after.previewSize.height / before.cropRect.height;
+  expect(after.imageTransform.stretchY).toBeLessThan(0);
+  expect(Math.abs(afterBounds.top - beforeBounds.top * scaleY)).toBeLessThanOrEqual(2);
+  expect(Math.abs(afterBounds.bottom - beforeBounds.bottom * scaleY)).toBeLessThanOrEqual(2);
   expect(errors).toEqual([]);
 });
 
@@ -289,9 +877,15 @@ test('保存贴图编辑结果后写入替换资源并保留透明扩边', async
 
   const source = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
   const expected = await setEdits(page, source.width, source.height);
-  await page.click('#textureImageApplyBtn');
-  await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none');
+  await saveTextureEditor(page, 'current');
   await page.waitForFunction(() => userReplacedTextures.size > 0);
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab[data-param-key="KeyImage0"]')).toHaveClass(/is-active/);
+  await expect(page.locator('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-dirty')).toHaveCount(0);
+  await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
 
   expect(await getKeyImageSize(page)).toEqual(expected);
   const applied = await page.evaluate(() => ({
@@ -307,6 +901,139 @@ test('保存贴图编辑结果后写入替换资源并保留透明扩边', async
   }));
   expect(applied.exportKeys.some((key) => /\.png$/i.test(key))).toBe(true);
   expect(applied.rightAlpha).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('设为空白会将当前贴图直接替换为 1×1 全透明 PNG', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const selectedBase = await page.evaluate(() => textureImageEditorUi.getState().selectedBase);
+  const expectedNamePart = selectedBase
+    .split('/')
+    .pop()
+    .replace(/\.[^.]+$/, '')
+    .replace(/@2x$/i, '')
+    .toLowerCase();
+
+  await page.click('#textureImageBlankBtn');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.dirtyTabCount === 0 &&
+      state.sourceSize && state.sourceSize.width === 1 && state.sourceSize.height === 1 &&
+      state.workingSize && state.workingSize.width === 1 && state.workingSize.height === 1 &&
+      state.previewSize && state.previewSize.width === 1 && state.previewSize.height === 1;
+  });
+
+  expect(await getKeyImageSize(page)).toEqual({ width: 1, height: 1 });
+  await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
+
+  const applied = await page.evaluate(async (namePart) => {
+    const match = Array.from(userReplacedTextures.entries())
+      .find(([name]) => name.toLowerCase().includes(namePart));
+    if (!match) return null;
+
+    const [name, buffer] = match;
+    const bitmap = await createImageBitmap(new Blob([buffer], { type: 'image/png' }));
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0);
+    const alpha = ctx.getImageData(0, 0, bitmap.width, bitmap.height).data[3];
+    const image = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+
+    return {
+      name,
+      width: bitmap.width,
+      height: bitmap.height,
+      alpha,
+      isBlankPlaceholder: !!image._isBlankPlaceholder,
+      isTransparent1x1: !!image._isTransparent1x1
+    };
+  }, expectedNamePart);
+
+  expect(applied).not.toBeNull();
+  expect(applied.width).toBe(1);
+  expect(applied.height).toBe(1);
+  expect(applied.alpha).toBe(0);
+  expect(applied.isBlankPlaceholder).toBe(true);
+  expect(applied.isTransparent1x1).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('普通贴图保存后仍可继续修改并再次保存', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const source = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
+  const firstSave = await setEdits(page, source.width, source.height);
+  await saveTextureEditor(page, 'current');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  await page.fill('#textureImageCropWidth', '4');
+  await page.waitForFunction((width) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.width === width;
+  }, firstSave.width + 1);
+
+  await expect(page.locator('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-dirty')).toHaveCount(1);
+  await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
+  await saveTextureEditor(page, 'current');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab[data-param-key="KeyImage0"]')).toHaveClass(/is-active/);
+  await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
+  expect(await getKeyImageSize(page)).toEqual({
+    width: firstSave.width + 1,
+    height: firstSave.height
+  });
+  expect(errors).toEqual([]);
+});
+
+test('KeyImage 保存后关闭再选会恢复裁剪与缩放参数继续编辑', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const source = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
+  const savedHeight = source.height - 24;
+  await page.fill('#textureImageCropHeight', '-24');
+  await page.fill('#textureImageScalePercent', '150');
+  await page.waitForFunction(
+    (height) => textureImageEditorUi.getState().previewSize.height === height,
+    Math.round(savedHeight * 1.5)
+  );
+  await saveTextureEditor(page, 'current');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  await page.click('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-close');
+  await page.waitForFunction(() => !document.querySelector('.texture-image-tab[data-param-key="KeyImage0"]'));
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+
+  const reopened = await page.evaluate(() => textureImageEditorUi.getState());
+  expect(reopened.sourceSize.height).toBe(source.height);
+  expect(reopened.inputValues.height).toBe(-24);
+  expect(reopened.imageTransform.scalePercent).toBe(150);
+  expect(reopened.previewSize).toEqual({
+    width: Math.round(source.width * 1.5),
+    height: Math.round(savedHeight * 1.5)
+  });
+
+  await page.fill('#textureImageCropHeight', '-6');
+  await page.waitForFunction(
+    (height) => textureImageEditorUi.getState().previewSize.height === height,
+    Math.round((source.height - 6) * 1.5)
+  );
+  await saveTextureEditor(page, 'current');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  expect(await getKeyImageSize(page)).toEqual({
+    width: Math.round(source.width * 1.5),
+    height: Math.round((source.height - 6) * 1.5)
+  });
   expect(errors).toEqual([]);
 });
 
@@ -588,7 +1315,10 @@ test('长条身体一键投皮生成 40000px 合成图并可继续调整', async
   await page.click('#textureImageApplyBtn');
   await page.waitForFunction(() => document.getElementById('textureImageApplyScopeModal').style.display === 'flex');
   await page.click('#textureImageApplyScopeAllBtn');
-  await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none', null, { timeout: 60000 });
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, { timeout: 60000 });
+  await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
   const saved = await readLongBodyState();
   expect(saved.every((item) => item.width > 0 && item.height === 40000)).toBe(true);
   expect(saved.every((item) => item.tailAlpha === 0)).toBe(true);
@@ -607,8 +1337,6 @@ test('长条身体一键投皮生成 40000px 合成图并可继续调整', async
   await page.evaluate(() => performSkinRedo());
   expect(await readLongBodyState()).toEqual(saved);
 
-  await page.click('#openTextureImageEditorBtn');
-  await page.waitForFunction(() => document.getElementById('textureImageEditorModal').classList.contains('active'));
   await page.evaluate(() => textureImageEditorUi.selectByParamKey('NoteImage0L'));
   await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
   const restored = await page.evaluate(() => textureImageEditorUi.getState());
@@ -670,11 +1398,10 @@ test('一键投皮同源轨道共享产物，异源轨道分别生成', async ({
   await page.click('#textureImageApplyBtn');
   await page.waitForFunction(() => document.getElementById('textureImageApplyScopeModal').style.display === 'flex');
   await page.click('#textureImageApplyScopeAllBtn');
-  await page.waitForFunction(
-    () => document.getElementById('textureImageEditorModal').style.display === 'none',
-    null,
-    { timeout: 60000 }
-  );
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, { timeout: 60000 });
+  await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
 
   const applied = await page.evaluate(() => {
     const keys = getActiveKeyCount();
@@ -723,7 +1450,10 @@ test('一键投皮保存时可以选择仅应用到当前轨道', async ({ page 
   await page.click('#textureImageApplyBtn');
   await page.waitForFunction(() => document.getElementById('textureImageApplyScopeModal').style.display === 'flex');
   await page.click('#textureImageApplyScopeCurrentBtn');
-  await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none', null, { timeout: 60000 });
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, { timeout: 60000 });
+  await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
 
   const applied = await page.evaluate(() => {
     const keys = getActiveKeyCount();
@@ -895,6 +1625,48 @@ test('贴图编辑以不可关闭的菜单标签为起点，并可切换多个�
   expect(errors).toEqual([]);
 });
 
+test('保存当前贴图后保留标签、清除红点并保持其他标签可保存', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+  const keySource = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
+  await setEdits(page, keySource.width, keySource.height);
+
+  await page.click('.texture-image-tab[data-tab-id="menu"]');
+  await page.click('#textureImagePickerGrid [data-param-key="StageLeft"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'StageLeft');
+  const stageSource = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
+  await setEdits(page, stageSource.width, stageSource.height);
+  await expect(page.locator('.texture-image-tab-dirty')).toHaveCount(2);
+
+  await page.click('.texture-image-tab[data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+  await page.click('#textureImageApplyBtn');
+  await expect(page.locator('#textureImageApplyScopeModal')).toBeVisible();
+  await page.click('#textureImageApplyScopeCurrentBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 1);
+
+  const keyTab = page.locator('.texture-image-tab[data-param-key="KeyImage0"]');
+  const stageTab = page.locator('.texture-image-tab[data-param-key="StageLeft"]');
+  await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
+  await expect(keyTab).toHaveClass(/is-active/);
+  await expect(keyTab.locator('.texture-image-tab-dirty')).toHaveCount(0);
+  await expect(stageTab.locator('.texture-image-tab-dirty')).toHaveCount(1);
+  await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
+
+  await stageTab.click();
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'StageLeft');
+  await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
+  await expect(stageTab).toHaveClass(/is-active/);
+  await expect(page.locator('.texture-image-tab-dirty')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
 test('关闭有未保存编辑的贴图标签时提供保存、放弃和取消选项', async ({ page }) => {
   const errors = await boot(page);
   await selectKeyImage(page);
@@ -925,6 +1697,8 @@ test('从关闭提示保存贴图后应用修改并关闭对应标签', async ({
 
   await page.locator('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-close').click();
   await page.click('#textureImageUnsavedSaveBtn');
+  await expect(page.locator('#textureImageApplyScopeModal')).toBeVisible();
+  await page.click('#textureImageApplyScopeCurrentBtn');
   await page.waitForFunction(() => userReplacedTextures.size > 0);
   await expect(page.locator('.texture-image-tab')).toHaveCount(1);
   await expect(page.locator('.texture-image-tab[data-tab-id="menu"]')).toHaveClass(/is-active/);
@@ -953,6 +1727,8 @@ test('关闭窗口时会提示并保存所有未提交的贴图标签', async ({
   await expect(page.locator('#textureImageUnsavedModal')).toBeVisible();
   await expect(page.locator('#textureImageUnsavedText')).toContainText('2 个贴图标签');
   await page.click('#textureImageUnsavedSaveBtn');
+  await expect(page.locator('#textureImageApplyScopeModal')).toBeVisible();
+  await page.click('#textureImageApplyScopeCurrentBtn');
   await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none');
 
   const applied = await page.evaluate(() => {

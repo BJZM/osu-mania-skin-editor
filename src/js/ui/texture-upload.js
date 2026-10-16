@@ -316,8 +316,8 @@
                             userReplacedTextures.delete(`mania-stage-right${oppExt}`);
                             userReplacedTextures.delete(`StageRight${oppExt}`);
                         } else if (pKey === 'StageBottom' || targetBase === 'mania-stage-bottom' || targetBase === 'stagebottom') {
-                            userReplacedTextures.set(`mania-stage-bottom${curExt}`, arrayBuffer);
-                            userReplacedTextures.set(`StageBottom${curExt}`, arrayBuffer);
+                            userReplacedTextures.set(`stagebottom${curExt}`, arrayBuffer);
+                            userReplacedTextures.delete(`stagebottom${oppExt}`);
                             userReplacedTextures.delete(`mania-stage-bottom${oppExt}`);
                             userReplacedTextures.delete(`StageBottom${oppExt}`);
                         } else if (pKey === 'StageHint' || targetBase === 'mania-stage-hint' || targetBase === 'stagehint') {

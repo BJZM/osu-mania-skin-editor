@@ -42,7 +42,7 @@
 
         const ANIMATABLE_TEXTURE_FILE_PATTERNS = [
             /^mania-note(?:\d+[hlt]?|s[hlt]?)$/,
-            /^mania-stage-(?:bottom|light)$/,
+            /^(?:mania-stage-(?:bottom|light)|stagebottom)$/,
             /^lighting[ln]$/,
             /^mania-hit(?:300g|300|200|100|50|0)$/,
             /^hit(?:300g|300|200|100|50|0)$/,

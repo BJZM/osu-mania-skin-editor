@@ -12,10 +12,13 @@ const JSZip = require('../../vendor/jszip.min.js');
 const ROOT = path.resolve(__dirname, '../..');
 const SKIN = path.join(ROOT, 'samples', 'skins', 'Kumakalerki.osk');
 const BOJII_SKIN = path.join(ROOT, 'samples', 'skins', 'bojii 04-02-2023.osk');
+const CURSOR_MIDDLE_SKIN = path.join(ROOT, 'samples', 'skins', 'Unknown111.osk');
 const BEATMAP = path.join(ROOT, 'samples', 'beatmaps', '1790742 MIMI - Kuu ni Naru.osz');
 
 let tmpDir;
 let skinWithoutIni;
+let rootStageBottomSkin;
+let nestedStageBottomSkin;
 let singleOsu;
 let unsafeSkinArchive;
 
@@ -33,14 +36,25 @@ test.beforeAll(async () => {
   skinWithoutIni = path.join(tmpDir, 'no-skin-ini.osk');
   fs.writeFileSync(skinWithoutIni, await noIniZip.generateAsync({ type: 'nodebuffer' }));
 
-  // 2) 从 .osz 中抽出一个独立的 .osu，验证单文件导入路径
+  // 2) StageBottom 默认只识别皮肤根目录的 stagebottom.png，不识别子目录同名文件
+  const rootStageBottomZip = new JSZip();
+  rootStageBottomZip.file('stagebottom.png', png);
+  rootStageBottomSkin = path.join(tmpDir, 'root-stagebottom.osk');
+  fs.writeFileSync(rootStageBottomSkin, await rootStageBottomZip.generateAsync({ type: 'nodebuffer' }));
+
+  const nestedStageBottomZip = new JSZip();
+  nestedStageBottomZip.file('mania/stage/stagebottom.png', png);
+  nestedStageBottomSkin = path.join(tmpDir, 'nested-stagebottom.osk');
+  fs.writeFileSync(nestedStageBottomSkin, await nestedStageBottomZip.generateAsync({ type: 'nodebuffer' }));
+
+  // 3) 从 .osz 中抽出一个独立的 .osu，验证单文件导入路径
   const oszBuf = fs.readFileSync(BEATMAP);
   const osz = await JSZip.loadAsync(oszBuf);
   const entry = Object.keys(osz.files).find((p) => p.toLowerCase().endsWith('.osu'));
   singleOsu = path.join(tmpDir, 'single.osu');
   fs.writeFileSync(singleOsu, await osz.files[entry].async('nodebuffer'));
 
-  // 3) 含可执行文件和损坏条目名的皮肤包：导入与再次导出都应自动清理
+  // 4) 含可执行文件和损坏条目名的皮肤包：导入与再次导出都应自动清理
   const unsafeZip = new JSZip();
   unsafeZip.file('skin.ini', [
     '[General]',
@@ -188,6 +202,35 @@ test('B2 导入不含 skin.ini 的 .osk：不崩溃并回退默认命名规范',
   expect(errors).toEqual([]);
 });
 
+test('B2a StageBottom 只读取皮肤根目录的 stagebottom', async ({ page }) => {
+  const errors = await boot(page);
+
+  await importSkin(page, rootStageBottomSkin);
+  const rootState = await page.evaluate(() => {
+    const stageBottomParam = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === 'StageBottom');
+    return {
+      canvasImage: !!getManiaSkinImage(4, LML.BottomStageImage),
+      panelState: resolveTextureParam(4, stageBottomParam).state
+    };
+  });
+  expect(rootState.canvasImage).toBe(true);
+  expect(rootState.panelState).toBe('ok');
+
+  await importSkin(page, nestedStageBottomSkin);
+  const nestedState = await page.evaluate(() => {
+    const stageBottomParam = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === 'StageBottom');
+    return {
+      canvasImage: !!getManiaSkinImage(4, LML.BottomStageImage),
+      panelState: resolveTextureParam(4, stageBottomParam).state,
+      nestedAssetExists: skinImageStore.has('mania/stage/stagebottom')
+    };
+  });
+  expect(nestedState.canvasImage).toBe(false);
+  expect(nestedState.panelState).toBe('unset');
+  expect(nestedState.nestedAssetExists).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test('B3 缺少 cursortrail 时回退到 stable 默认拖尾', async ({ page }) => {
   const errors = await boot(page);
   await importSkin(page, BOJII_SKIN);
@@ -227,6 +270,46 @@ test('B3 缺少 cursortrail 时回退到 stable 默认拖尾', async ({ page }) 
     return count;
   });
   expect(trailPixels).toBeGreaterThan(20);
+  expect(errors).toEqual([]);
+});
+
+test('B4 cursor 与 cursormiddle 始终按 stable 规则叠加', async ({ page }) => {
+  const errors = await boot(page);
+  await importSkin(page, CURSOR_MIDDLE_SKIN);
+
+  const assets = await page.evaluate(() => ({
+    cursor: getSkinAnimationFromStore(skinImageStore, 'cursor'),
+    middle: getSkinAnimationFromStore(skinImageStore, 'cursormiddle')
+  }));
+  expect(assets.cursor).not.toBeNull();
+  expect(assets.middle).not.toBeNull();
+
+  await page.mouse.move(160, 160);
+  await page.waitForTimeout(60);
+
+  const getCursorAlpha = () => page.evaluate(() => {
+    const layer = document.getElementById('skinCursorLayer');
+    const data = layer.getContext('2d').getImageData(0, 0, layer.width, layer.height).data;
+    let alpha = 0;
+    for (let i = 3; i < data.length; i += 4) alpha += data[i];
+    return alpha;
+  });
+
+  const compositeAlpha = await getCursorAlpha();
+
+  await page.evaluate(() => {
+    skinImageStore.delete('cursormiddle');
+    skinFallbackImageStore.delete('cursormiddle');
+    defaultSkinImageStore.delete('cursormiddle');
+    defaultSkinFallbackStore.delete('cursormiddle');
+    refreshSkinCursor();
+  });
+  await page.mouse.move(161, 160);
+  await page.mouse.move(160, 160);
+  await page.waitForTimeout(60);
+
+  const cursorOnlyAlpha = await getCursorAlpha();
+  expect(compositeAlpha).toBeGreaterThan(cursorOnlyAlpha);
   expect(errors).toEqual([]);
 });
 
@@ -1092,7 +1175,7 @@ test('G5 不支持帧序列的贴图不提供动态上传入口', async ({ page 
       ['StageHint', LML.HitTargetImage, 'mania-stage-hint', false],
       ['scorebar-bg', null, 'scorebar-bg', false],
       ['NoteImage0', LML.NoteImage, 'mania-note1', true],
-      ['StageBottom', LML.BottomStageImage, 'mania-stage-bottom', true],
+      ['StageBottom', LML.BottomStageImage, 'stagebottom', true],
       ['StageLight', LML.LightImage, 'mania-stage-light', true],
       ['LightingL', LML.HoldNoteLightImage, 'lightingL', true],
       ['Hit300g', LML.Hit300g, 'mania-hit300g', true],
@@ -1136,7 +1219,7 @@ test('G5 不支持帧序列的贴图不提供动态上传入口', async ({ page 
   expect(errors).toEqual([]);
 });
 
-test('G6 按键发光直接框住贴图本体，判定线不再提供替换贴图', async ({ page }) => {
+test('G6 按键发光直接框住贴图本体，但判定提示 / 连击 / HUD / note 优先于光柱', async ({ page }) => {
   const errors = await boot(page);
   // 这个皮肤自身不含 mania-stage-light，会回退到内置默认皮肤的真实光柱贴图，
   // 便于验证「有可见光柱时选中框直接框住贴图本体」。
@@ -1162,19 +1245,24 @@ test('G6 按键发光直接框住贴图本体，判定线不再提供替换贴�
     syncCanvasSelectedCard(hp);
     const hitReplaceCount = countReplace();
 
-    // 在光柱本体上找一个不被更高优先级元素（判定线/连击数/判定评价/血条/HUD/音符）遮挡的点，
-    // 保证这一次点击一定落到光柱本体上。
-    const blockers = canvasInteractiveElements.filter((e) =>
+    // 找一个同时落在光柱和更高优先级元素（判定提示 / 连击 / 血条 / HUD / note）上的点，
+    // 验证这些元素仍会优先于 mania-stage-light。
+    const higherPriority = canvasInteractiveElements.filter((e) =>
       e.id === 'hitPosition' || e.id === 'combo' || e.id === 'judgement' || e.id === 'healthDisplay' ||
-      e.id.startsWith('hud_') || e.id.startsWith('note_') || e.id.startsWith('hold_') ||
-      e.dragType === 'lighting_width');
-    const blocked = (x, y) => blockers.some((n) =>
+      e.id.startsWith('hud_') || e.id.startsWith('note_') || e.id.startsWith('hold_'));
+    const keyImages = canvasInteractiveElements.filter((e) => e.id.startsWith('key_'));
+    const coveredByHigherPriority = (x, y) => higherPriority.some((n) =>
+      x >= n.x && x <= n.x + n.w && y >= n.y && y <= n.y + n.h);
+    const coveredByKeyImage = (x, y) => keyImages.some((n) =>
       x >= n.x && x <= n.x + n.w && y >= n.y && y <= n.y + n.h);
     let clickPoint = null;
     for (let y = lp.y + 2; y < lp.y + lp.h - 2 && !clickPoint; y += 3) {
       for (const fx of [0.5, 0.25, 0.75, 0.1, 0.9]) {
         const x = lp.x + lp.w * fx;
-        if (!blocked(x, y)) { clickPoint = { x, y }; break; }
+        if (coveredByHigherPriority(x, y) && !coveredByKeyImage(x, y)) {
+          clickPoint = { x, y };
+          break;
+        }
       }
     }
 
@@ -1183,6 +1271,9 @@ test('G6 按键发光直接框住贴图本体，判定线不再提供替换贴�
       missing: false,
       box: { x: lp.x, y: lp.y, w: lp.w, h: lp.h },
       visible: { y: lp.visibleY, h: lp.visibleH },
+      higherPriorityOverlap: clickPoint ? higherPriority.some((n) =>
+        clickPoint.x >= n.x && clickPoint.x <= n.x + n.w &&
+        clickPoint.y >= n.y && clickPoint.y <= n.y + n.h) : false,
       lightReplaceCount, hitReplaceCount, clickPoint,
       scaleX: canvas.width / rect.width, scaleY: canvas.height / rect.height,
       left: rect.left, top: rect.top
@@ -1201,6 +1292,7 @@ test('G6 按键发光直接框住贴图本体，判定线不再提供替换贴�
 
   // 直接点击贴图本体即可选中按键发光
   expect(info.clickPoint).not.toBeNull();
+  expect(info.higherPriorityOverlap).toBe(true);
   // 先清空选中并隐藏悬浮卡片：卡片会吸附在元素上方，可能正好盖住要点击的光柱本体
   await page.evaluate(() => {
     selectedCanvasElement = null;
@@ -1212,7 +1304,103 @@ test('G6 按键发光直接框住贴图本体，判定线不再提供替换贴�
   await page.mouse.down();
   await page.mouse.up();
   await page.waitForTimeout(80);
-  expect(await page.evaluate(() => (selectedCanvasElement ? selectedCanvasElement.id : null))).toBe('lightPosition');
+  expect(await page.evaluate(() => (selectedCanvasElement ? selectedCanvasElement.id : null)))
+    .toMatch(/^(judgement|combo|healthDisplay|hud_|note_|hold_)/);
+
+  expect(errors).toEqual([]);
+});
+
+test('G6a Lighting 高于 mania-stage-light / KeyImage / 轨道，低于其余元素', async ({ page }) => {
+  const errors = await boot(page);
+  await importSkin(page, path.join(ROOT, 'samples', 'skins', "#MuTong233's Touhou Skin Refreshed - 副本.osk"));
+  await page.waitForFunction(() => !document.getElementById('loadingOverlay').classList.contains('active'));
+
+  const geometry = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = maniaSkinConfigurations.get(keys) || ensureManiaConfigForKeys(keys);
+    cfg.ExplosionWidth[0] = 10000;
+    maniaSkinConfigurations.set(keys, cfg);
+    activeExplosions = [{ column: 0, hitTime: effectAnimClockMs, duration: 200 }];
+    testLightUntil = performance.now() + 60000;
+    selectedCanvasElement = canvasInteractiveElements.find((e) => e.id === 'track_col_0');
+    drawFrame();
+
+    const lighting = canvasInteractiveElements.find((e) => e.id === 'lighting_n_col_0');
+    const track = canvasInteractiveElements.find((e) => e.id === 'track_col_0');
+    const keyElements = canvasInteractiveElements.filter((e) => e.id.startsWith('key_'));
+    if (!lighting || !track) return { missing: true };
+
+    const inTrackHandle = (x, y) =>
+      x >= track.x + track.w - 14 && x <= track.x + track.w + 18 &&
+      y >= track.y - 10 && y <= track.y + track.h + 10;
+    const inKey = (x, y) => keyElements.some((key) =>
+      x >= key.x && x <= key.x + key.w && y >= key.y && y <= key.y + key.h);
+    const keyHandlePad = Math.max(8, 12 * (canvas.height / 480));
+    const inKeyHandle = (x, y) => keyElements.some((key) =>
+      key.keyImageResizeEdgeY != null &&
+      x >= key.x && x <= key.x + key.w &&
+      Math.abs(y - key.keyImageResizeEdgeY) <= keyHandlePad);
+
+    let trackHandlePoint = null;
+    let keyPoint = null;
+    for (let y = lighting.y + 2; y < lighting.y + lighting.h - 2; y += 3) {
+      for (let x = lighting.x + 2; x < lighting.x + lighting.w - 2; x += 4) {
+        if (!trackHandlePoint && inTrackHandle(x, y) && !inKey(x, y)) {
+          trackHandlePoint = { x, y };
+        }
+        if (!keyPoint && inKey(x, y) && !inKeyHandle(x, y)) {
+          keyPoint = { x, y };
+        }
+      }
+      if (trackHandlePoint && keyPoint) break;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    return {
+      missing: false,
+      trackHandlePoint,
+      keyPoint,
+      scaleX: canvas.width / rect.width,
+      scaleY: canvas.height / rect.height,
+      left: rect.left,
+      top: rect.top
+    };
+  });
+  expect(geometry.missing).toBe(false);
+
+  // 点击轨道与 Lighting 的重叠区：Lighting 高于轨道，应胜出。
+  expect(geometry.trackHandlePoint).not.toBeNull();
+  await page.evaluate(() => {
+    selectedCanvasElement = null;
+    const card = document.getElementById('canvasSelectedCard');
+    if (card) card.style.display = 'none';
+  });
+  await page.mouse.move(
+    geometry.left + geometry.trackHandlePoint.x / geometry.scaleX,
+    geometry.top + geometry.trackHandlePoint.y / geometry.scaleY
+  );
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => (selectedCanvasElement ? selectedCanvasElement.id : null)))
+    .toBe('lighting_n_col_0');
+
+  // KeyImage 低于 Lighting：点击二者重叠区应选中 Lighting。
+  expect(geometry.keyPoint).not.toBeNull();
+  await page.evaluate(() => {
+    selectedCanvasElement = null;
+    const card = document.getElementById('canvasSelectedCard');
+    if (card) card.style.display = 'none';
+  });
+  await page.mouse.move(
+    geometry.left + geometry.keyPoint.x / geometry.scaleX,
+    geometry.top + geometry.keyPoint.y / geometry.scaleY
+  );
+  await page.mouse.down();
+  await page.mouse.up();
+  await page.waitForTimeout(80);
+  expect(await page.evaluate(() => (selectedCanvasElement ? selectedCanvasElement.id : null)))
+    .toBe('lighting_n_col_0');
 
   expect(errors).toEqual([]);
 });

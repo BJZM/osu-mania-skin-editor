@@ -260,18 +260,18 @@
         }
 
         // 在用户皮肤库 / 官方默认皮肤库中按名字查找一张贴图 (支持精确路径与子目录 basename 回退)
-        function lookupTextureByName(name) {
+        function lookupTextureByName(name, allowNestedFallback = true) {
             if (!name) return null;
-            let img = getSkinAnimationFromStore(skinImageStore, name);
+            let img = getSkinAnimationFromStore(skinImageStore, name, allowNestedFallback);
             if (!img) {
-                const frames = getSkinAnimationFramesFromStore(skinImageStore, name);
+                const frames = getSkinAnimationFramesFromStore(skinImageStore, name, allowNestedFallback);
                 if (frames && frames.length > 0) img = frames[0];
             }
             if (img) return img;
 
-            img = getSkinAnimationFromStore(defaultSkinImageStore, name);
+            img = getSkinAnimationFromStore(defaultSkinImageStore, name, allowNestedFallback);
             if (!img) {
-                const frames = getSkinAnimationFramesFromStore(defaultSkinImageStore, name);
+                const frames = getSkinAnimationFramesFromStore(defaultSkinImageStore, name, allowNestedFallback);
                 if (frames && frames.length > 0) img = frames[0];
             }
             return img || null;
@@ -357,7 +357,8 @@
                     return { img: getTransparent1x1Image(), name: iniVal, state: 'blank' };
                 }
                 const cleanPath = String(iniVal).trim().replace(/\.(png|jpg|jpeg)$/i, '');
-                const img = lookupTextureByName(cleanPath);
+                const lookup = TEXTURE_PARAM_LOOKUP_MAP[p.key] || LML[p.key];
+                const img = lookupTextureByName(cleanPath, lookup !== LML.BottomStageImage);
                 if (img) return { img: img, name: cleanPath, state: 'ok' };
                 // 显式指定的图片文件在各库中均不存在 → 「未找到」，绝不伪装成「透明」
                 return { img: null, name: iniVal, state: 'missing' };
@@ -365,8 +366,9 @@
 
             // B2. ini 未显式指定：按 osu! 官方规则回退查找当前皮肤或官方默认皮肤中的对应素材
             const candidates = getTextureParamFallbackCandidates(p, keyCount);
+            const lookup = TEXTURE_PARAM_LOOKUP_MAP[p.key] || LML[p.key];
             for (const cand of candidates) {
-                const img = getSkinAnimation(cand);
+                const img = getSkinAnimation(cand, lookup !== LML.BottomStageImage);
                 if (img) return { img: img, name: cand, state: 'ok' };
             }
             // 完全未找到任何贴图 → 「未配置」，绝不伪装成 1x1 透明图

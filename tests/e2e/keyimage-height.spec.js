@@ -198,3 +198,98 @@ test('选中 KeyImage 后点击更换贴图会定位并高亮同轨 KeyImage 与
   ]));
   expect(errors).toEqual([]);
 });
+
+test('画布调整 KeyImage 高度会实时同步到贴图编辑标签且关闭后不回退', async ({ page }) => {
+  const errors = await boot(page);
+  await installPerTrackKeyImages(page);
+
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+  await page.evaluate(() => {
+    const dialog = document.getElementById('textureImageEditorDialog');
+    dialog.style.left = '920px';
+    dialog.style.right = 'auto';
+  });
+
+  const beforeEditor = await page.evaluate(() => textureImageEditorUi.getState());
+  const targetHeight = beforeEditor.contentBounds.bottom + 48;
+  await dragSelectedKeyTop(page, 0, targetHeight);
+  await page.waitForFunction((minimumHeight) => {
+    const state = textureImageEditorUi.getState();
+    const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+    return state.workingSize &&
+      img &&
+      img.height > minimumHeight &&
+      state.workingSize.height === img.height;
+  }, beforeEditor.workingSize.height);
+
+  const synced = await page.evaluate(() => ({
+    editor: textureImageEditorUi.getState(),
+    canvas: (() => {
+      const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+      return img ? { width: img.width, height: img.height } : null;
+    })()
+  }));
+  expect(synced.editor.workingSize.height).toBe(synced.canvas.height);
+  expect(synced.editor.workingSize.height).toBeGreaterThan(beforeEditor.workingSize.height);
+  expect(synced.editor.dirtyTabCount).toBe(0);
+
+  await page.click('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-close');
+  await page.waitForFunction(() => !document.querySelector('.texture-image-tab[data-param-key="KeyImage0"]'));
+  const afterClose = await page.evaluate(() => {
+    const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+    return img ? img.height : 0;
+  });
+  expect(afterClose).toBe(synced.editor.workingSize.height);
+  expect(errors).toEqual([]);
+});
+
+test('贴图编辑器保存 KeyImage 后，画布高度不再复用旧基准', async ({ page }) => {
+  const errors = await boot(page);
+  await installPerTrackKeyImages(page);
+
+  const before = await keyImageSizes(page);
+  await dragSelectedKeyTop(page, 0, before[0].normal.height + 30);
+  await page.waitForFunction(() => userReplacedTextures.size >= 2);
+  const raised = await keyImageSizes(page);
+
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+
+  const editorBefore = await page.evaluate(() => textureImageEditorUi.getState());
+  await page.fill('#textureImageCropHeight', '-5');
+  await page.waitForFunction(
+    (height) => textureImageEditorUi.getState().previewSize.height === height,
+    editorBefore.workingSize.height - 5
+  );
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => document.getElementById('textureImageApplyScopeModal').style.display === 'flex');
+  await page.click('#textureImageApplyScopeCurrentBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  const saved = await keyImageSizes(page);
+  expect(saved[0].normal.height).toBe(raised[0].normal.height - 5);
+
+  const baseline = await page.evaluate(() => {
+    const target = collectKeyImageHeightTarget(getActiveKeyCount(), 0);
+    return {
+      contentHeight: target.contentFrames[0].height,
+      initialOffset1x: target.initialOffset1x
+    };
+  });
+  expect(baseline.contentHeight).toBe(saved[0].normal.height);
+  expect(baseline.initialOffset1x).toBe(0);
+
+  await page.click('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-close');
+  await page.waitForFunction(() => !document.querySelector('.texture-image-tab[data-param-key="KeyImage0"]'));
+  await page.click('#textureImageEditorCloseBtn');
+  await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none');
+  const adjustedHeight = saved[0].normal.height + 24;
+  await dragSelectedKeyTop(page, 0, adjustedHeight);
+  const adjusted = await keyImageSizes(page);
+  expect(adjusted[0].normal.height).toBeGreaterThan(saved[0].normal.height);
+  expect(adjusted[0].normal.height).not.toBe(raised[0].normal.height);
+  expect(errors).toEqual([]);
+});

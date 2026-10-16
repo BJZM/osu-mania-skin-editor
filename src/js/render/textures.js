@@ -198,9 +198,10 @@
                 if (isDummyBlankName(customName)) return null;
                 if (customName && customName.trim().length > 0) {
                     const targetName = customName.trim().replace(/\.(png|jpg|jpeg)$/i, '');
-                    const userImg = getSkinAnimationFromStore(skinImageStore, targetName);
+                    const allowNestedFallback = lookup !== LML.BottomStageImage;
+                    const userImg = getSkinAnimationFromStore(skinImageStore, targetName, allowNestedFallback);
                     if (userImg) return userImg;
-                    const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName);
+                    const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName, allowNestedFallback);
                     if (userFrames && userFrames.length > 0) return userFrames[0];
                     // 找不到对应图片则不显示（不回退到默认文件名或默认皮肤）
                     return null;
@@ -225,7 +226,7 @@
             }
 
             for (const cand of candidates) {
-                result = getSkinAnimation(cand);
+                result = getSkinAnimation(cand, lookup !== LML.BottomStageImage);
                 if (result) break;
             }
             return result;
@@ -303,9 +304,10 @@
                 if (isDummyBlankName(customName)) return null;
                 if (customName && customName.trim().length > 0) {
                     const targetName = customName.trim().replace(/\.(png|jpg|jpeg)$/i, '');
-                    const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName);
+                    const allowNestedFallback = lookup !== LML.BottomStageImage;
+                    const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName, allowNestedFallback);
                     if (userFrames && userFrames.length > 0) return userFrames;
-                    const userSingle = getSkinAnimationFromStore(skinImageStore, targetName);
+                    const userSingle = getSkinAnimationFromStore(skinImageStore, targetName, allowNestedFallback);
                     if (userSingle) return [userSingle];
                     // 找不到对应图片则不显示
                     return null;
@@ -316,7 +318,7 @@
             const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, info);
 
             for (const cand of candidates) {
-                const frames = getSkinAnimationFrames(cand);
+                const frames = getSkinAnimationFrames(cand, lookup !== LML.BottomStageImage);
                 if (frames && frames.length > 0) return frames;
             }
             const single = getManiaSkinImage(keyCount, lookup, columnIndex);

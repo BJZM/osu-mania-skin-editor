@@ -306,7 +306,7 @@
             return null;
         }
 
-        function getSkinAnimationFromStore(store, namePrefix) {
+        function getSkinAnimationFromStore(store, namePrefix, allowNestedFallback = true) {
             if (!store || !namePrefix || store.size === 0) return null;
             const fallbackStore = (store === skinImageStore) ? skinFallbackImageStore : (store === defaultSkinImageStore ? defaultSkinFallbackStore : null);
             const key = normalizeSkinKey(namePrefix).replace(/@2x/g, '');
@@ -317,7 +317,7 @@
             if (res) return res;
 
             // 2. 仅当精确匹配无结果时，才尝试子目录 basename 回退匹配
-            if (fallbackStore && fallbackStore.size > 0) {
+            if (allowNestedFallback && fallbackStore && fallbackStore.size > 0) {
                 const base = key.split('/').pop();
                 if (base) {
                     const fbEntry = fallbackStore.get(base);
@@ -329,7 +329,7 @@
             return null;
         }
 
-        function getSkinAnimationFramesFromStore(store, namePrefix) {
+        function getSkinAnimationFramesFromStore(store, namePrefix, allowNestedFallback = true) {
             if (!store || !namePrefix || store.size === 0) return null;
             const fallbackStore = (store === skinImageStore) ? skinFallbackImageStore : (store === defaultSkinImageStore ? defaultSkinFallbackStore : null);
             const key = normalizeSkinKey(namePrefix).replace(/@2x/g, '');
@@ -340,7 +340,7 @@
             if (res && res.length > 0) return res;
 
             // 2. 仅当精确匹配无结果时，才尝试子目录 basename 回退匹配
-            if (fallbackStore && fallbackStore.size > 0) {
+            if (allowNestedFallback && fallbackStore && fallbackStore.size > 0) {
                 const base = key.split('/').pop();
                 if (base) {
                     const fbEntry = fallbackStore.get(base);
@@ -352,19 +352,19 @@
             return null;
         }
 
-        function getSkinAnimation(namePrefix) {
+        function getSkinAnimation(namePrefix, allowNestedFallback = true) {
             if (!namePrefix) return null;
             // 1. 优先在用户导入的皮肤 (skinImageStore) 中查找
-            const userImg = getSkinAnimationFromStore(skinImageStore, namePrefix);
+            const userImg = getSkinAnimationFromStore(skinImageStore, namePrefix, allowNestedFallback);
             if (userImg) return userImg;
 
             // 2. 回退到 osu! stable 官方默认贴图库 (defaultSkinImageStore) 中查找
-            return getSkinAnimationFromStore(defaultSkinImageStore, namePrefix);
+            return getSkinAnimationFromStore(defaultSkinImageStore, namePrefix, allowNestedFallback);
         }
 
-        function getSkinAnimationFrames(namePrefix) {
+        function getSkinAnimationFrames(namePrefix, allowNestedFallback = true) {
             if (!namePrefix) return null;
-            const userFrames = getSkinAnimationFramesFromStore(skinImageStore, namePrefix);
+            const userFrames = getSkinAnimationFramesFromStore(skinImageStore, namePrefix, allowNestedFallback);
             if (userFrames && userFrames.length > 0) return userFrames;
-            return getSkinAnimationFramesFromStore(defaultSkinImageStore, namePrefix) || null;
+            return getSkinAnimationFramesFromStore(defaultSkinImageStore, namePrefix, allowNestedFallback) || null;
         }

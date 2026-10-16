@@ -136,7 +136,8 @@
                 case LML.HoldNoteLightImage: return 'lightingL';
                 case LML.ExplosionImage: return 'lightingN';
                 case LML.HitTargetImage: return 'mania-stage-hint';
-                case LML.BottomStageImage: return null;
+                // stable 的 mania 舞台底图默认文件名是全小写 stagebottom，且只读取皮肤根目录。
+                case LML.BottomStageImage: return 'stagebottom';
                 case LML.LeftStageImage: return 'mania-stage-left';
                 case LML.RightStageImage: return 'mania-stage-right';
                 case LML.LightImage: return 'mania-stage-light';

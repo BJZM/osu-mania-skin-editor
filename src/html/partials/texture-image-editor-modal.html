@@ -104,6 +104,28 @@
                                     </div>
                                 </section>
 
+                                <section class="texture-image-control-section" id="textureImageTransformSection">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">拉伸与缩放</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-number-grid">
+                                        <label>
+                                            <span>放大百分比</span>
+                                            <input type="number" id="textureImageScalePercent" min="1" max="1000" step="1" value="100">
+                                        </label>
+                                        <label>
+                                            <span>横向拉伸 (px)</span>
+                                            <input type="number" id="textureImageStretchX" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>纵向拉伸 (px)</span>
+                                            <input type="number" id="textureImageStretchY" step="1" value="0">
+                                        </label>
+                                    </div>
+                                </section>
+
                                 <section class="texture-image-control-section" id="textureImageLongBodySection" style="display: none;">
                                     <div class="texture-image-control-head">
                                         <div>
@@ -158,6 +180,7 @@
 
                     <div class="texture-image-footer">
                         <button type="button" class="btn btn-secondary" id="textureImageResetBtn" disabled>重置当前贴图</button>
+                        <button type="button" class="btn btn-secondary" id="textureImageBlankBtn" title="将当前贴图直接替换为 1×1 全透明 PNG" disabled>设为空白</button>
                         <div class="texture-image-footer-right">
                             <button type="button" class="btn btn-secondary" id="textureImageCancelBtn">不保存</button>
                             <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
@@ -196,7 +219,7 @@
                             </svg>
                         </div>
                         <h3 id="textureImageApplyScopeTitle">选择应用范围</h3>
-                        <p>完整长条身体要只替换当前轨道，还是同时应用到全部轨道？</p>
+                        <p id="textureImageApplyScopeText">完整长条身体要只替换当前轨道，还是同时应用到全部轨道？</p>
                         <div class="texture-image-scope-actions">
                             <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCancelBtn">取消</button>
                             <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCurrentBtn">仅当前轨道</button>
