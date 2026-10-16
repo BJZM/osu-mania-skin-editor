@@ -104,11 +104,11 @@
                 zhName: '舞台底部贴图',
                 enName: 'StageBottom',
                 comment: '轨道底部装饰条',
-                desc: '位于整个游戏区域最底部的舞台基座贴图。默认文件名 stagebottom.png，并且只从皮肤根目录读取，不搜索子目录。宽高按原生尺寸 × 480p 缩放系数等比缩放（@2x 先折半），横向与纵向都不拉伸、水平居中并贴齐画布底部；存在 ColumnSpacing 或开启 SplitStages 时会被逐轨裁剪，轨道间隙留空。绘制层级在音符与按键之上，会遮挡落在舞台底部的音符。',
+                desc: '位于整个游戏区域最底部的舞台基座贴图。skin.ini 未指定 StageBottom 时，默认只读取皮肤根目录的 mania-stage-bottom.png，不搜索子目录；skin.ini 显式写出文件路径时，按该路径精确读取图片。宽高按原生尺寸 × 480p 缩放系数等比缩放（@2x 先折半），横向与纵向都不拉伸、水平居中并贴齐画布底部；存在 ColumnSpacing 或开启 SplitStages 时会被逐轨裁剪，轨道间隙留空。绘制层级在音符与按键之上，会遮挡落在舞台底部的音符。',
                 category: '贴图映射',
                 tab: 'textures',
                 type: 'texture',
-                default: 'stagebottom',
+                default: 'mania-stage-bottom',
                 elementId: 'track'
             },
             {

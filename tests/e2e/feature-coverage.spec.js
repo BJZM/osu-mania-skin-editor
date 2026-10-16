@@ -18,7 +18,9 @@ const BEATMAP = path.join(ROOT, 'samples', 'beatmaps', '1790742 MIMI - Kuu ni Na
 let tmpDir;
 let skinWithoutIni;
 let rootStageBottomSkin;
+let legacyStageBottomSkin;
 let nestedStageBottomSkin;
+let iniStageBottomSkin;
 let singleOsu;
 let unsafeSkinArchive;
 
@@ -36,16 +38,34 @@ test.beforeAll(async () => {
   skinWithoutIni = path.join(tmpDir, 'no-skin-ini.osk');
   fs.writeFileSync(skinWithoutIni, await noIniZip.generateAsync({ type: 'nodebuffer' }));
 
-  // 2) StageBottom 默认只识别皮肤根目录的 stagebottom.png，不识别子目录同名文件
+  // 2) StageBottom 未指定 ini 路径时只识别皮肤根目录的 mania-stage-bottom.png
   const rootStageBottomZip = new JSZip();
-  rootStageBottomZip.file('stagebottom.png', png);
+  rootStageBottomZip.file('mania-stage-bottom.png', png);
   rootStageBottomSkin = path.join(tmpDir, 'root-stagebottom.osk');
   fs.writeFileSync(rootStageBottomSkin, await rootStageBottomZip.generateAsync({ type: 'nodebuffer' }));
 
+  const legacyStageBottomZip = new JSZip();
+  legacyStageBottomZip.file('stagebottom.png', png);
+  legacyStageBottomSkin = path.join(tmpDir, 'legacy-stagebottom.osk');
+  fs.writeFileSync(legacyStageBottomSkin, await legacyStageBottomZip.generateAsync({ type: 'nodebuffer' }));
+
   const nestedStageBottomZip = new JSZip();
-  nestedStageBottomZip.file('mania/stage/stagebottom.png', png);
+  nestedStageBottomZip.file('mania/stage/mania-stage-bottom.png', png);
   nestedStageBottomSkin = path.join(tmpDir, 'nested-stagebottom.osk');
   fs.writeFileSync(nestedStageBottomSkin, await nestedStageBottomZip.generateAsync({ type: 'nodebuffer' }));
+
+  const iniStageBottomZip = new JSZip();
+  iniStageBottomZip.file('skin.ini', [
+    '[General]',
+    'Version: latest',
+    '',
+    '[Mania]',
+    'Keys: 4',
+    'StageBottom: custom/stage/result-bottom'
+  ].join('\r\n'));
+  iniStageBottomZip.file('custom/stage/result-bottom.png', png);
+  iniStageBottomSkin = path.join(tmpDir, 'ini-stagebottom.osk');
+  fs.writeFileSync(iniStageBottomSkin, await iniStageBottomZip.generateAsync({ type: 'nodebuffer' }));
 
   // 3) 从 .osz 中抽出一个独立的 .osu，验证单文件导入路径
   const oszBuf = fs.readFileSync(BEATMAP);
@@ -202,7 +222,7 @@ test('B2 导入不含 skin.ini 的 .osk：不崩溃并回退默认命名规范',
   expect(errors).toEqual([]);
 });
 
-test('B2a StageBottom 只读取皮肤根目录的 stagebottom', async ({ page }) => {
+test('B2a StageBottom 默认只认根目录 mania-stage-bottom，ini 路径按精确路径读取', async ({ page }) => {
   const errors = await boot(page);
 
   await importSkin(page, rootStageBottomSkin);
@@ -210,11 +230,24 @@ test('B2a StageBottom 只读取皮肤根目录的 stagebottom', async ({ page })
     const stageBottomParam = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === 'StageBottom');
     return {
       canvasImage: !!getManiaSkinImage(4, LML.BottomStageImage),
-      panelState: resolveTextureParam(4, stageBottomParam).state
+      panelState: resolveTextureParam(4, stageBottomParam).state,
+      panelName: resolveTextureParam(4, stageBottomParam).name
     };
   });
   expect(rootState.canvasImage).toBe(true);
   expect(rootState.panelState).toBe('ok');
+  expect(rootState.panelName).toBe('mania-stage-bottom');
+
+  await importSkin(page, legacyStageBottomSkin);
+  const legacyState = await page.evaluate(() => {
+    const stageBottomParam = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === 'StageBottom');
+    return {
+      canvasImage: !!getManiaSkinImage(4, LML.BottomStageImage),
+      panelState: resolveTextureParam(4, stageBottomParam).state
+    };
+  });
+  expect(legacyState.canvasImage).toBe(false);
+  expect(legacyState.panelState).toBe('unset');
 
   await importSkin(page, nestedStageBottomSkin);
   const nestedState = await page.evaluate(() => {
@@ -222,12 +255,27 @@ test('B2a StageBottom 只读取皮肤根目录的 stagebottom', async ({ page })
     return {
       canvasImage: !!getManiaSkinImage(4, LML.BottomStageImage),
       panelState: resolveTextureParam(4, stageBottomParam).state,
-      nestedAssetExists: skinImageStore.has('mania/stage/stagebottom')
+      nestedAssetExists: skinImageStore.has('mania/stage/mania-stage-bottom')
     };
   });
   expect(nestedState.canvasImage).toBe(false);
   expect(nestedState.panelState).toBe('unset');
   expect(nestedState.nestedAssetExists).toBe(true);
+
+  await importSkin(page, iniStageBottomSkin);
+  const iniState = await page.evaluate(() => {
+    const stageBottomParam = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === 'StageBottom');
+    return {
+      canvasImage: !!getManiaSkinImage(4, LML.BottomStageImage),
+      panelState: resolveTextureParam(4, stageBottomParam).state,
+      panelName: resolveTextureParam(4, stageBottomParam).name,
+      exactAssetExists: skinImageStore.has('custom/stage/result-bottom')
+    };
+  });
+  expect(iniState.canvasImage).toBe(true);
+  expect(iniState.panelState).toBe('ok');
+  expect(iniState.panelName).toBe('custom/stage/result-bottom');
+  expect(iniState.exactAssetExists).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -1175,7 +1223,7 @@ test('G5 不支持帧序列的贴图不提供动态上传入口', async ({ page 
       ['StageHint', LML.HitTargetImage, 'mania-stage-hint', false],
       ['scorebar-bg', null, 'scorebar-bg', false],
       ['NoteImage0', LML.NoteImage, 'mania-note1', true],
-      ['StageBottom', LML.BottomStageImage, 'stagebottom', true],
+      ['StageBottom', LML.BottomStageImage, 'mania-stage-bottom', true],
       ['StageLight', LML.LightImage, 'mania-stage-light', true],
       ['LightingL', LML.HoldNoteLightImage, 'lightingL', true],
       ['Hit300g', LML.Hit300g, 'mania-hit300g', true],

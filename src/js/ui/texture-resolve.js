@@ -311,7 +311,9 @@
             }
 
             if (p.default && !candidates.includes(p.default)) candidates.push(p.default);
-            if (p.key && !candidates.includes(p.key)) candidates.push(p.key);
+            // StageBottom 的参数键 StageBottom 会被归一化为旧文件名 stagebottom；
+            // 未在 skin.ini 显式指定时不能靠它兜底，否则会误识别根目录旧贴图。
+            if (lookup !== LML.BottomStageImage && p.key && !candidates.includes(p.key)) candidates.push(p.key);
             return candidates;
         }
 

@@ -1236,7 +1236,7 @@
                     <div class="help-card-head">
                         <div class="help-card-title-group">
                             <span class="help-card-title">舞台底栏</span>
-                            <span class="help-card-file">stagebottom.png（仅皮肤根目录）</span>
+                            <span class="help-card-file">mania-stage-bottom.png（默认仅皮肤根目录）</span>
                         </div>
                         <div class="help-badges-group">
                             <span class="help-badge badge-original">等比缩放不拉伸</span>
@@ -1251,6 +1251,10 @@
                         <div class="help-desc-item">
                             <span class="desc-key">位置：</span>
                             <span class="desc-val">在舞台上<strong>水平居中</strong>，底边贴齐画布最底部。</span>
+                        </div>
+                        <div class="help-desc-item">
+                            <span class="desc-key">路径规则：</span>
+                            <span class="desc-val"><code>skin.ini</code> 未指定 <code>StageBottom</code> 时，仅识别皮肤根目录的 <code>mania-stage-bottom.png</code>；显式指定路径时，按路径精确读取对应图片。</span>
                         </div>
                         <div class="help-desc-item">
                             <span class="desc-key">轨道间距：</span>
@@ -1546,7 +1550,7 @@
                 <section class="about-hero">
                     <div class="about-app-name">osu!mania Skin Editor</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.2.2</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.2.3</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>
