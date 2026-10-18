@@ -5,6 +5,8 @@ const ROOT = path.resolve(__dirname, '../..');
 const SKIN = path.join(ROOT, 'samples', 'skins', 'Kumakalerki.osk');
 const OPAQUE_TAIL_SKIN = path.join(ROOT, 'samples', 'skins', 'Gyoo.osk');
 
+const BEATMAP = path.join(ROOT, 'samples', 'beatmaps', '1790742 MIMI - Kuu ni Naru.osz');
+
 async function boot(page, skinPath = SKIN) {
   const errors = [];
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
@@ -17,8 +19,14 @@ async function boot(page, skinPath = SKIN) {
     null,
     { timeout: 30000 }
   );
+  await page.setInputFiles('#oszInput', BEATMAP);
+  await page.waitForFunction(
+    () => isStartupBeatmapReady() && beatmaps.length > 0,
+    null,
+    { timeout: 60000 }
+  );
   await page.setInputFiles('#oskInput', skinPath);
-  await page.waitForFunction(() => isSkinLoading === false, null, { timeout: 60000 });
+  await page.waitForFunction(() => isSkinLoading === false && isStartupWorkspaceReady(), null, { timeout: 60000 });
   await page.waitForTimeout(250);
   return errors;
 }
@@ -43,23 +51,48 @@ async function selectLongBodyImage(page) {
   await selectPickerParam(page, 'NoteImage0L');
 }
 
-async function saveTextureEditor(page, scope = 'current') {
+async function installLongBodyHeight(page, height) {
+  await page.evaluate((bodyHeight) => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+    const currentBody = getManiaSkinImage(keys, LML.HoldNoteBodyImage, 0);
+    const body = document.createElement('canvas');
+    body.width = Math.max(4, currentBody ? currentBody.width : 4);
+    body.height = bodyHeight;
+    const ctx = body.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, body.width, body.height);
+    const bodyName = `longbody_height_${bodyHeight}`;
+    saveSkinAssetToStore(skinImageStore, bodyName, body, false, true, true);
+    cfg.ImageLookups.set('NoteImage0L', bodyName);
+  }, height);
+}
+
+async function saveTextureEditor(page) {
   await page.click('#textureImageApplyBtn');
-  await expect(page.locator('#textureImageApplyScopeModal')).toBeVisible();
-  if (scope === 'all') {
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  if (await scopeModal.isVisible()) {
     await page.click('#textureImageApplyScopeAllBtn');
-  } else {
-    await page.click('#textureImageApplyScopeCurrentBtn');
+    await expect(scopeModal).toBeHidden();
+  }
+}
+
+async function acceptSharedTextureDecision(page) {
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  if (await scopeModal.isVisible()) {
+    await page.click('#textureImageApplyScopeAllBtn');
+    await expect(scopeModal).toBeHidden();
   }
 }
 
 async function setEdits(page, sourceWidth, sourceHeight) {
-  await page.fill('#textureImageCropX', '-1');
-  await page.fill('#textureImageCropY', '-1');
+  await page.fill('#textureImageCropLeft', '-1');
+  await page.fill('#textureImageCropTop', '-1');
+  await page.fill('#textureImageCropRight', '4');
+  await page.fill('#textureImageCropBottom', '3');
   const outputWidth = sourceWidth + 3;
   const outputHeight = sourceHeight + 2;
-  await page.fill('#textureImageCropWidth', '3');
-  await page.fill('#textureImageCropHeight', '2');
   const expected = {
     width: outputWidth,
     height: outputHeight
@@ -222,7 +255,8 @@ test('贴图编辑在数值变化时实时更新画布，取消后恢复', async
   expect(state.previewSize).toEqual(expected);
   expect(await getKeyImageSize(page)).toEqual(expected);
 
-  await page.click('#textureImageCancelBtn');
+  await page.click('#textureImageEditorCloseBtn');
+  await page.click('#textureImageUnsavedDiscardBtn');
   await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none');
   expect(await getKeyImageSize(page)).toEqual(source);
   expect(errors).toEqual([]);
@@ -233,10 +267,10 @@ test('右侧参数以原图边界和尺寸为 0，并按扩边正数、内收负
   await selectKeyImage(page);
 
   const source = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
-  await page.fill('#textureImageCropX', '7');
-  await page.fill('#textureImageCropY', '5');
-  await page.fill('#textureImageCropWidth', '11');
-  await page.fill('#textureImageCropHeight', '-9');
+  await page.fill('#textureImageCropLeft', '7');
+  await page.fill('#textureImageCropTop', '5');
+  await page.fill('#textureImageCropRight', '4');
+  await page.fill('#textureImageCropBottom', '-14');
   await page.waitForFunction((size) => {
     const preview = textureImageEditorUi.getState().previewSize;
     return preview && preview.width === size.width && preview.height === size.height;
@@ -249,12 +283,10 @@ test('右侧参数以原图边界和尺寸为 0，并按扩边正数、内收负
     width: source.width + 11,
     height: source.height - 9
   });
-  expect(state.inputValues).toEqual({
-    x: 7,
-    y: 5,
-    width: 11,
-    height: -9
-  });
+  expect(state.inputValues.left).toBe(7);
+  expect(state.inputValues.top).toBe(5);
+  expect(state.inputValues.right).toBe(4);
+  expect(state.inputValues.bottom).toBe(-14);
   expect(errors).toEqual([]);
 });
 
@@ -274,7 +306,7 @@ test('拖动裁剪框时会吸附到非透明内容的最外缘', async ({ page 
 
   const snapped = await page.evaluate(() => textureImageEditorUi.getState());
   expect(snapped.cropRect.x).toBe(state.contentBounds.left);
-  expect(Number(await page.inputValue('#textureImageCropX'))).toBe(-state.contentBounds.left);
+  expect(Number(await page.inputValue('#textureImageCropLeft'))).toBe(-state.contentBounds.left);
   expect(errors).toEqual([]);
 });
 
@@ -285,10 +317,10 @@ test('裁剪与扩边时预览中的原图位置保持一致', async ({ page }) 
   const before = await page.evaluate(() => textureImageEditorUi.getState());
   const outputWidth = before.sourceSize.width + 24;
   const outputHeight = before.sourceSize.height + 18;
-  await page.fill('#textureImageCropX', '12');
-  await page.fill('#textureImageCropY', '9');
-  await page.fill('#textureImageCropWidth', '24');
-  await page.fill('#textureImageCropHeight', '18');
+  await page.fill('#textureImageCropLeft', '12');
+  await page.fill('#textureImageCropTop', '9');
+  await page.fill('#textureImageCropRight', '12');
+  await page.fill('#textureImageCropBottom', '9');
   await page.waitForFunction((size) => {
     const preview = textureImageEditorUi.getState().previewSize;
     return preview && preview.width === size.width && preview.height === size.height;
@@ -305,8 +337,8 @@ test('预览中贴图范围为透明棋盘格，范围外为纯黑', async ({ pa
   const errors = await boot(page);
   await selectKeyImage(page);
 
-  await page.fill('#textureImageCropWidth', '-60');
-  await page.fill('#textureImageCropHeight', '-244');
+  await page.fill('#textureImageCropRight', '-60');
+  await page.fill('#textureImageCropBottom', '-244');
   await page.waitForFunction(() => {
     const preview = textureImageEditorUi.getState().previewSize;
     return preview && preview.width === 40 && preview.height === 40;
@@ -350,8 +382,8 @@ test('拖动裁剪手柄可裁剪和扩大，画布内部拖动不再移动裁�
   const expanded = await page.evaluate(() => textureImageEditorUi.getState());
   expect(expanded.cropRect.width).toBeGreaterThan(before.cropRect.width);
   expect(expanded.cropRect.height).toBeGreaterThan(before.cropRect.height);
-  expect(Number(await page.inputValue('#textureImageCropWidth'))).toBe(expanded.cropRect.width - before.cropRect.width);
-  expect(Number(await page.inputValue('#textureImageCropHeight'))).toBe(expanded.cropRect.height - before.cropRect.height);
+  expect(Number(await page.inputValue('#textureImageCropRight'))).toBe(expanded.cropRect.width - before.cropRect.width);
+  expect(Number(await page.inputValue('#textureImageCropBottom'))).toBe(expanded.cropRect.height - before.cropRect.height);
 
   const center = await getPreviewPoint(
     page,
@@ -366,8 +398,8 @@ test('拖动裁剪手柄可裁剪和扩大，画布内部拖动不再移动裁�
 
   const unchanged = await page.evaluate(() => textureImageEditorUi.getState());
   expect(unchanged.cropRect).toEqual(expanded.cropRect);
-  expect(Number(await page.inputValue('#textureImageCropX'))).toBe(-expanded.cropRect.x || 0);
-  expect(Number(await page.inputValue('#textureImageCropY'))).toBe(-expanded.cropRect.y || 0);
+  expect(Number(await page.inputValue('#textureImageCropLeft'))).toBe(-expanded.cropRect.x || 0);
+  expect(Number(await page.inputValue('#textureImageCropTop'))).toBe(-expanded.cropRect.y || 0);
   expect(errors).toEqual([]);
 });
 
@@ -455,8 +487,7 @@ test('纵向裁切保持原图逐行像素映射，不产生额外重采样', as
     return { width: img.width, height: img.height };
   });
 
-  await page.fill('#textureImageCropY', '-20');
-  await page.fill('#textureImageCropHeight', '-20');
+  await page.fill('#textureImageCropTop', '-20');
   await page.waitForFunction(
     (height) => textureImageEditorUi.getState().previewSize.height === height,
     source.height - 20
@@ -581,8 +612,8 @@ test('裁剪偏移后等比缩放以编辑后图像中心为锚点', async ({ pa
   const errors = await boot(page);
   await selectKeyImage(page);
 
-  await page.fill('#textureImageCropX', '15');
-  await page.fill('#textureImageCropY', '20');
+  await page.fill('#textureImageCropLeft', '15');
+  await page.fill('#textureImageCropTop', '20');
   await page.waitForFunction(() => {
     const crop = textureImageEditorUi.getState().cropRect;
     return crop && crop.x === -15 && crop.y === -20;
@@ -643,8 +674,8 @@ test('先拉伸再裁剪不会再次改变已设置的拉伸倍率', async ({ pa
   const expectedWidth = Math.round(stretched.previewSize.width * nextWidth / stretched.cropRect.width);
   const expectedHeight = Math.round(stretched.previewSize.height * nextHeight / stretched.cropRect.height);
 
-  await page.fill('#textureImageCropWidth', String(-24));
-  await page.fill('#textureImageCropHeight', String(-16));
+  await page.fill('#textureImageCropRight', String(-24));
+  await page.fill('#textureImageCropBottom', String(-16));
   await page.waitForFunction(({ width, height }) => {
     const preview = textureImageEditorUi.getState().previewSize;
     return preview && preview.width === width && preview.height === height;
@@ -798,7 +829,7 @@ test('裁剪偏移后上下拉伸仍固定未编辑原图中心', async ({ page 
   const errors = await boot(page);
   await selectKeyImage(page);
 
-  await page.fill('#textureImageCropY', '20');
+  await page.fill('#textureImageCropTop', '20');
   await page.waitForFunction(() => {
     const state = textureImageEditorUi.getState();
     return state.cropRect.y === -20;
@@ -882,7 +913,7 @@ test('保存贴图编辑结果后写入替换资源并保留透明扩边', async
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
 
   await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
-  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
   await expect(page.locator('.texture-image-tab[data-param-key="KeyImage0"]')).toHaveClass(/is-active/);
   await expect(page.locator('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-dirty')).toHaveCount(0);
   await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
@@ -904,33 +935,53 @@ test('保存贴图编辑结果后写入替换资源并保留透明扩边', async
   expect(errors).toEqual([]);
 });
 
-test('设为空白会将当前贴图直接替换为 1×1 全透明 PNG', async ({ page }) => {
+test('设为空白只生成未保存预览，可撤回、重做并需保存后生效', async ({ page }) => {
   const errors = await boot(page);
   await selectKeyImage(page);
 
-  const selectedBase = await page.evaluate(() => textureImageEditorUi.getState().selectedBase);
-  const expectedNamePart = selectedBase
-    .split('/')
-    .pop()
-    .replace(/\.[^.]+$/, '')
-    .replace(/@2x$/i, '')
-    .toLowerCase();
+  const before = await page.evaluate(() => ({
+    sourceSize: textureImageEditorUi.getState().sourceSize,
+    exportKeys: Array.from(userReplacedTextures.keys())
+  }));
 
   await page.click('#textureImageBlankBtn');
-  await page.waitForFunction(() => {
+  await page.waitForFunction((sourceSize) => {
+    const state = textureImageEditorUi.getState();
+    return state.dirtyTabCount === 1 &&
+      state.sourceSize && state.sourceSize.width === sourceSize.width &&
+      state.sourceSize.height === sourceSize.height &&
+      state.workingSize && state.workingSize.width === 1 && state.workingSize.height === 1 &&
+      state.previewSize && state.previewSize.width === 1 && state.previewSize.height === 1;
+  }, before.sourceSize);
+
+  await expect(page.locator('#textureImageUndoBtn')).toBeEnabled();
+  expect(await page.evaluate(() => userReplacedTextures.size)).toBe(before.exportKeys.length);
+
+  await page.click('#textureImageUndoBtn');
+  await page.waitForFunction((sourceSize) => {
     const state = textureImageEditorUi.getState();
     return state.dirtyTabCount === 0 &&
-      state.sourceSize && state.sourceSize.width === 1 && state.sourceSize.height === 1 &&
-      state.workingSize && state.workingSize.width === 1 && state.workingSize.height === 1 &&
+      state.previewSize && state.previewSize.width === sourceSize.width &&
+      state.previewSize.height === sourceSize.height;
+  }, before.sourceSize);
+
+  await page.click('#textureImageRedoBtn');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.dirtyTabCount === 1 &&
       state.previewSize && state.previewSize.width === 1 && state.previewSize.height === 1;
   });
 
   expect(await getKeyImageSize(page)).toEqual({ width: 1, height: 1 });
   await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
 
-  const applied = await page.evaluate(async (namePart) => {
+  await saveTextureEditor(page, 'current');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+  await page.waitForFunction((count) => userReplacedTextures.size > count, before.exportKeys.length);
+
+  const applied = await page.evaluate(async (beforeKeys) => {
     const match = Array.from(userReplacedTextures.entries())
-      .find(([name]) => name.toLowerCase().includes(namePart));
+      .find(([name]) => !beforeKeys.includes(name));
     if (!match) return null;
 
     const [name, buffer] = match;
@@ -951,7 +1002,7 @@ test('设为空白会将当前贴图直接替换为 1×1 全透明 PNG', async (
       isBlankPlaceholder: !!image._isBlankPlaceholder,
       isTransparent1x1: !!image._isTransparent1x1
     };
-  }, expectedNamePart);
+  }, before.exportKeys);
 
   expect(applied).not.toBeNull();
   expect(applied.width).toBe(1);
@@ -959,6 +1010,49 @@ test('设为空白会将当前贴图直接替换为 1×1 全透明 PNG', async (
   expect(applied.alpha).toBe(0);
   expect(applied.isBlankPlaceholder).toBe(true);
   expect(applied.isTransparent1x1).toBe(true);
+
+  await page.click('#textureImageEditorCloseBtn');
+  await page.waitForFunction(() =>
+    document.getElementById('textureImageEditorModal').style.display === 'none'
+  );
+  await page.click('#openTextureImageEditorBtn');
+  const editBtn = page.locator('#param-card-KeyImage0 .texture-edit-main-btn');
+  await expect(editBtn).toBeEnabled();
+  await editBtn.click();
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+  expect(await page.evaluate(() => textureImageEditorUi.getState().previewSize))
+    .toEqual({ width: 1, height: 1 });
+  expect(errors).toEqual([]);
+});
+
+test('重置只修改未保存预览，可撤回且不会立即写入替换资源', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  const source = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
+  const resetTarget = await setEdits(page, source.width, source.height);
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 1);
+  const beforeReset = await page.evaluate(() => ({
+    exportCount: userReplacedTextures.size,
+    previewSize: textureImageEditorUi.getState().previewSize
+  }));
+  expect(beforeReset.previewSize).toEqual(resetTarget);
+
+  await page.click('#textureImageResetBtn');
+  await page.waitForFunction((sourceSize) => {
+    const state = textureImageEditorUi.getState();
+    return state.previewSize &&
+      state.previewSize.width === sourceSize.width &&
+      state.previewSize.height === sourceSize.height;
+  }, source);
+  expect(await page.evaluate(() => userReplacedTextures.size)).toBe(beforeReset.exportCount);
+  await expect(page.locator('#textureImageUndoBtn')).toBeEnabled();
+
+  await page.click('#textureImageUndoBtn');
+  await page.waitForFunction((expected) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.width === expected.width && preview.height === expected.height;
+  }, resetTarget);
   expect(errors).toEqual([]);
 });
 
@@ -971,7 +1065,7 @@ test('普通贴图保存后仍可继续修改并再次保存', async ({ page }) 
   await saveTextureEditor(page, 'current');
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
 
-  await page.fill('#textureImageCropWidth', '4');
+  await page.fill('#textureImageCropRight', '5');
   await page.waitForFunction((width) => {
     const preview = textureImageEditorUi.getState().previewSize;
     return preview && preview.width === width;
@@ -983,7 +1077,7 @@ test('普通贴图保存后仍可继续修改并再次保存', async ({ page }) 
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
 
   await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
-  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
   await expect(page.locator('.texture-image-tab[data-param-key="KeyImage0"]')).toHaveClass(/is-active/);
   await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
   expect(await getKeyImageSize(page)).toEqual({
@@ -999,7 +1093,7 @@ test('KeyImage 保存后关闭再选会恢复裁剪与缩放参数继续编辑',
 
   const source = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
   const savedHeight = source.height - 24;
-  await page.fill('#textureImageCropHeight', '-24');
+  await page.fill('#textureImageCropBottom', '-24');
   await page.fill('#textureImageScalePercent', '150');
   await page.waitForFunction(
     (height) => textureImageEditorUi.getState().previewSize.height === height,
@@ -1015,14 +1109,14 @@ test('KeyImage 保存后关闭再选会恢复裁剪与缩放参数继续编辑',
 
   const reopened = await page.evaluate(() => textureImageEditorUi.getState());
   expect(reopened.sourceSize.height).toBe(source.height);
-  expect(reopened.inputValues.height).toBe(-24);
+  expect(reopened.inputValues.bottom).toBe(-24);
   expect(reopened.imageTransform.scalePercent).toBe(150);
   expect(reopened.previewSize).toEqual({
     width: Math.round(source.width * 1.5),
     height: Math.round(savedHeight * 1.5)
   });
 
-  await page.fill('#textureImageCropHeight', '-6');
+  await page.fill('#textureImageCropBottom', '-6');
   await page.waitForFunction(
     (height) => textureImageEditorUi.getState().previewSize.height === height,
     Math.round((source.height - 6) * 1.5)
@@ -1185,6 +1279,7 @@ test('贴图编辑窗口的 Ctrl+Z 只撤回窗口内操作', async ({ page }) =
 test('长条身体一键投皮生成 40000px 合成图并可继续调整', async ({ page }) => {
   test.setTimeout(90000);
   const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await installLongBodyHeight(page, 4999);
   await selectLongBodyImage(page);
   const readLongBodyState = () => page.evaluate(() => {
     const keys = getActiveKeyCount();
@@ -1209,7 +1304,7 @@ test('长条身体一键投皮生成 40000px 合成图并可继续调整', async
 
   const toggle = page.locator('#textureImageLongBodyEnable');
   expect(await toggle.isDisabled()).toBe(false);
-  expect((await page.textContent('#textureImageLongBodyStatus')).trim()).toContain('不透明');
+  expect((await page.textContent('#textureImageLongBodyStatus')).trim()).toContain('4999px');
 
   await page.click('.texture-image-switch-track');
   await page.waitForFunction(() => {
@@ -1218,6 +1313,7 @@ test('长条身体一键投皮生成 40000px 合成图并可继续调整', async
       state.longBody.targetHeight === 40000 &&
       state.previewSize.height <= 800;
   });
+  await expect(page.locator('#textureImageLongBodyFade')).toHaveClass(/texture-image-range/);
   const centeredTailBottom = await page.evaluate(() => {
     const state = textureImageEditorUi.getState();
     const canvas = document.getElementById('textureImagePreviewCanvas');
@@ -1317,7 +1413,7 @@ test('长条身体一键投皮生成 40000px 合成图并可继续调整', async
   await page.click('#textureImageApplyScopeAllBtn');
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, { timeout: 60000 });
   await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
-  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
   await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
   const saved = await readLongBodyState();
   expect(saved.every((item) => item.width > 0 && item.height === 40000)).toBe(true);
@@ -1347,12 +1443,95 @@ test('长条身体一键投皮生成 40000px 合成图并可继续调整', async
   expect(errors).toEqual([]);
 });
 
-test('长条尾部透明时禁用一键投皮', async ({ page }) => {
+test('长条身体高度小于 5000px 时可开启一键投皮，不再依赖尾部透明度', async ({ page }) => {
   const errors = await boot(page);
+  await installLongBodyHeight(page, 4999);
   await selectLongBodyImage(page);
 
+  expect((await page.evaluate(() => textureImageEditorUi.getState().sourceSize)).height).toBe(4999);
+  expect(await page.locator('#textureImageLongBodyEnable').isDisabled()).toBe(false);
+  expect((await page.textContent('#textureImageLongBodyStatus')).trim()).toContain('小于 5000px');
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  expect(errors).toEqual([]);
+});
+
+test('长条身体高度等于 5000px 时禁用一键投皮', async ({ page }) => {
+  const errors = await boot(page);
+  await installLongBodyHeight(page, 5000);
+  await selectLongBodyImage(page);
+
+  expect((await page.evaluate(() => textureImageEditorUi.getState().sourceSize)).height).toBe(5000);
   expect(await page.locator('#textureImageLongBodyEnable').isDisabled()).toBe(true);
-  expect((await page.textContent('#textureImageLongBodyStatus')).trim()).toContain('透明');
+  expect((await page.textContent('#textureImageLongBodyStatus')).trim()).toContain('需小于 5000px');
+  expect(errors).toEqual([]);
+});
+
+test('一键投皮全轨统一使用当前轨透明尾部并忽略旧会话尾部', async ({ page }) => {
+  test.setTimeout(90000);
+  const errors = await boot(page);
+
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+    const tail = document.createElement('canvas');
+    tail.width = 4;
+    tail.height = 4;
+    const ctx = tail.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, tail.width, tail.height);
+    saveSkinAssetToStore(skinImageStore, 'longbody_tail_white', tail, false, true, true);
+    cfg.ImageLookups.set('NoteImage0T', 'longbody_tail_white');
+  });
+  await installLongBodyHeight(page, 4999);
+  await selectPickerParam(page, 'NoteImage0T');
+  await page.click('#textureImageBlankBtn');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.dirtyTabCount === 1 &&
+      state.previewSize && state.previewSize.width === 1 && state.previewSize.height === 1;
+  });
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+  await page.waitForFunction(() => {
+    const tail = getManiaSkinImage(getActiveKeyCount(), LML.HoldNoteTailImage, 0);
+    return !tail || tail._isBlankPlaceholder;
+  });
+
+  await page.evaluate(() => textureImageEditorUi.selectByParamKey('NoteImage0L'));
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'NoteImage0L');
+  expect((await page.evaluate(() => textureImageEditorUi.getState().sourceSize)).height)
+    .toBeLessThan(5000);
+
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => document.getElementById('textureImageApplyScopeModal').style.display === 'flex');
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, { timeout: 60000 });
+
+  const applied = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const tails = Array.from({ length: keys }, (_, column) =>
+      getManiaSkinImage(keys, LML.HoldNoteTailImage, column)
+    );
+    const sessions = Array.from(longBodyComposerSessions.entries())
+      .filter(([key]) => key.startsWith(`${keys}|NoteImage`) && key.endsWith('L'))
+      .map(([key, session]) => ({
+        key,
+        hasTail: !!session.tailFrame
+      }));
+    return {
+      allTailsTransparent: tails.every((tail) =>
+        !tail || tail._isBlankPlaceholder || isFullyTransparentImage(tail, 1, 1)
+      ),
+      sessions
+    };
+  });
+  expect(applied.allTailsTransparent).toBe(true);
+  expect(applied.sessions).toHaveLength(4);
+  expect(applied.sessions.every((session) => !session.hasTail)).toBe(true);
   expect(errors).toEqual([]);
 });
 
@@ -1369,7 +1548,7 @@ test('一键投皮同源轨道共享产物，异源轨道分别生成', async ({
       const bodyName = bodySources[column % bodySources.length];
       const body = document.createElement('canvas');
       body.width = 4;
-      body.height = 4;
+      body.height = 4999;
       const bodyCtx = body.getContext('2d');
       bodyCtx.fillStyle = column % bodySources.length === 0 ? '#ff0000' : '#0000ff';
       bodyCtx.fillRect(0, 0, body.width, body.height);
@@ -1400,7 +1579,7 @@ test('一键投皮同源轨道共享产物，异源轨道分别生成', async ({
   await page.click('#textureImageApplyScopeAllBtn');
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, { timeout: 60000 });
   await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
-  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
   await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
 
   const applied = await page.evaluate(() => {
@@ -1443,6 +1622,7 @@ test('一键投皮同源轨道共享产物，异源轨道分别生成', async ({
 
 test('一键投皮保存时可以选择仅应用到当前轨道', async ({ page }) => {
   const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await installLongBodyHeight(page, 4999);
   await selectLongBodyImage(page);
   await page.click('.texture-image-switch-track');
   await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
@@ -1452,7 +1632,7 @@ test('一键投皮保存时可以选择仅应用到当前轨道', async ({ page 
   await page.click('#textureImageApplyScopeCurrentBtn');
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, { timeout: 60000 });
   await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
-  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
   await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
 
   const applied = await page.evaluate(() => {
@@ -1510,7 +1690,8 @@ test('拉伸修复按按键固定宽度等比缩放，取消后恢复原尺寸',
   expect(Math.abs(after.previewSize.width / after.previewSize.height - before.previewSize.width / before.previewSize.height)).toBeLessThan(0.02);
   expect(await page.locator('#textureImageStretchFixBtn').isDisabled()).toBe(true);
 
-  await page.click('#textureImageCancelBtn');
+  await page.click('#textureImageEditorCloseBtn');
+  await page.click('#textureImageUnsavedDiscardBtn');
   await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none');
   expect(await getKeyImageSize(page)).toEqual(before.sourceSize);
   expect(errors).toEqual([]);
@@ -1534,7 +1715,8 @@ test('拉伸修复按舞台边框固定高度等比缩放', async ({ page }) => 
     width: expectedWidth,
     height: before.stretchFix.size
   });
-  await page.click('#textureImageCancelBtn');
+  await page.click('#textureImageEditorCloseBtn');
+  await page.click('#textureImageUnsavedDiscardBtn');
   expect(errors).toEqual([]);
 });
 
@@ -1605,7 +1787,7 @@ test('贴图编辑以不可关闭的菜单标签为起点，并可切换多个�
 
   await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
-  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
   await expect(page.locator('.texture-image-tab[data-param-key="KeyImage0"]')).toHaveClass(/is-active/);
   const source = await page.evaluate(() => textureImageEditorUi.getState().sourceSize);
   const edited = await setEdits(page, source.width, source.height);
@@ -1615,7 +1797,7 @@ test('贴图编辑以不可关闭的菜单标签为起点，并可切换多个�
 
   await page.click('#textureImagePickerGrid [data-param-key="StageLeft"]');
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'StageLeft');
-  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(4);
 
   await page.click('.texture-image-tab[data-param-key="KeyImage0"]');
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
@@ -1640,15 +1822,13 @@ test('保存当前贴图后保留标签、清除红点并保持其他标签可�
 
   await page.click('.texture-image-tab[data-param-key="KeyImage0"]');
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
-  await page.click('#textureImageApplyBtn');
-  await expect(page.locator('#textureImageApplyScopeModal')).toBeVisible();
-  await page.click('#textureImageApplyScopeCurrentBtn');
+  await saveTextureEditor(page, 'current');
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 1);
 
   const keyTab = page.locator('.texture-image-tab[data-param-key="KeyImage0"]');
   const stageTab = page.locator('.texture-image-tab[data-param-key="StageLeft"]');
   await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
-  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(4);
   await expect(keyTab).toHaveClass(/is-active/);
   await expect(keyTab.locator('.texture-image-tab-dirty')).toHaveCount(0);
   await expect(stageTab.locator('.texture-image-tab-dirty')).toHaveCount(1);
@@ -1657,11 +1837,11 @@ test('保存当前贴图后保留标签、清除红点并保持其他标签可�
   await stageTab.click();
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'StageLeft');
   await expect(page.locator('#textureImageApplyBtn')).toBeEnabled();
-  await page.click('#textureImageApplyBtn');
+  await saveTextureEditor(page, 'current');
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
 
   await expect(page.locator('#textureImageEditorModal')).toHaveClass(/active/);
-  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(4);
   await expect(stageTab).toHaveClass(/is-active/);
   await expect(page.locator('.texture-image-tab-dirty')).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -1670,8 +1850,8 @@ test('保存当前贴图后保留标签、清除红点并保持其他标签可�
 test('关闭有未保存编辑的贴图标签时提供保存、放弃和取消选项', async ({ page }) => {
   const errors = await boot(page);
   await selectKeyImage(page);
-  await page.fill('#textureImageCropX', '-1');
-  await page.waitForFunction(() => textureImageEditorUi.getState().inputValues.x === -1);
+  await page.fill('#textureImageCropLeft', '-1');
+  await page.waitForFunction(() => textureImageEditorUi.getState().inputValues.left === -1);
 
   const keyTab = page.locator('.texture-image-tab[data-param-key="KeyImage0"]');
   await keyTab.locator('.texture-image-tab-close').click();
@@ -1679,12 +1859,12 @@ test('关闭有未保存编辑的贴图标签时提供保存、放弃和取消�
 
   await page.click('#textureImageUnsavedCancelBtn');
   await expect(page.locator('#textureImageUnsavedModal')).toBeHidden();
-  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(3);
   await expect(keyTab).toHaveClass(/is-active/);
 
   await keyTab.locator('.texture-image-tab-close').click();
   await page.click('#textureImageUnsavedDiscardBtn');
-  await expect(page.locator('.texture-image-tab')).toHaveCount(1);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
   await expect(page.locator('.texture-image-tab[data-tab-id="menu"]')).toHaveClass(/is-active/);
   expect(errors).toEqual([]);
 });
@@ -1697,10 +1877,10 @@ test('从关闭提示保存贴图后应用修改并关闭对应标签', async ({
 
   await page.locator('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-close').click();
   await page.click('#textureImageUnsavedSaveBtn');
-  await expect(page.locator('#textureImageApplyScopeModal')).toBeVisible();
-  await page.click('#textureImageApplyScopeCurrentBtn');
+  await page.waitForTimeout(100);
+  await acceptSharedTextureDecision(page);
   await page.waitForFunction(() => userReplacedTextures.size > 0);
-  await expect(page.locator('.texture-image-tab')).toHaveCount(1);
+  await expect(page.locator('.texture-image-tab')).toHaveCount(2);
   await expect(page.locator('.texture-image-tab[data-tab-id="menu"]')).toHaveClass(/is-active/);
 
   const appliedWidth = await page.evaluate(() => {
@@ -1727,8 +1907,11 @@ test('关闭窗口时会提示并保存所有未提交的贴图标签', async ({
   await expect(page.locator('#textureImageUnsavedModal')).toBeVisible();
   await expect(page.locator('#textureImageUnsavedText')).toContainText('2 个贴图标签');
   await page.click('#textureImageUnsavedSaveBtn');
-  await expect(page.locator('#textureImageApplyScopeModal')).toBeVisible();
-  await page.click('#textureImageApplyScopeCurrentBtn');
+  for (let index = 0; index < 3; index++) {
+    await page.waitForTimeout(100);
+    await acceptSharedTextureDecision(page);
+    if (await page.locator('#textureImageEditorModal').isHidden()) break;
+  }
   await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none');
 
   const applied = await page.evaluate(() => {

@@ -3,6 +3,7 @@ const { test, expect } = require('@playwright/test');
 
 const ROOT = path.resolve(__dirname, '../..');
 const SKIN = path.join(ROOT, 'samples', 'skins', 'Kumakalerki.osk');
+const MINIMAL_BEATMAP = path.join(ROOT, 'samples', 'beatmaps', 'minimal-4k.osu');
 
 test('StageLight 上传不会按源文件名覆盖 LightingN', async ({ page }) => {
   await page.goto('/index.html');
@@ -57,4 +58,79 @@ test('StageLight 上传不会按源文件名覆盖 LightingN', async ({ page }) 
   expect(result.lightingNUnchanged).toBe(true);
   expect(result.stageLightReplaced).toBe(true);
   expect(result.exportKeys.some((key) => /^lightingN\.png$/i.test(key))).toBe(false);
+});
+
+test('默认皮肤替换 KeyImage 不会同步替换 KeyImageD', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+  });
+
+  await page.goto('/index.html');
+  await page.waitForFunction(
+    () => typeof triggerTextureUpload === 'function' && typeof userReplacedTextures !== 'undefined',
+    null,
+    { timeout: 30000 }
+  );
+  await page.setInputFiles('#oszInput', MINIMAL_BEATMAP);
+  await page.waitForFunction(
+    () => isStartupBeatmapReady() && beatmaps.length > 0,
+    null,
+    { timeout: 60000 }
+  );
+  await page.click('#startupUseDefaultSkinBtn');
+  await page.waitForFunction(() => isStartupWorkspaceReady(), null, { timeout: 60000 });
+
+  const before = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const info = {};
+    const name = getManiaNoteTextureName(keys, LML.KeyImageDown, 0, info);
+    const img = getManiaSkinImage(keys, LML.KeyImageDown, 0);
+    return {
+      name,
+      explicit: info.explicit,
+      width: img ? img.width : 0,
+      height: img ? img.height : 0,
+      normalName: getManiaNoteTextureName(keys, LML.KeyImage, 0)
+    };
+  });
+
+  await page.evaluate(() => {
+    triggerTextureUpload('mania-key1', LML.KeyImage, 'KeyImage0', 0, '1x');
+  });
+  await page.setInputFiles('#textureReplaceInput', {
+    name: 'replacement.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+  });
+  await page.waitForFunction(
+    () => Array.from(userReplacedTextures.keys()).some((key) => /^replacement_col1/i.test(key)),
+    null,
+    { timeout: 30000 }
+  );
+
+  const after = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const info = {};
+    const name = getManiaNoteTextureName(keys, LML.KeyImageDown, 0, info);
+    const img = getManiaSkinImage(keys, LML.KeyImageDown, 0);
+    return {
+      name,
+      explicit: info.explicit,
+      width: img ? img.width : 0,
+      height: img ? img.height : 0,
+      normalName: getManiaNoteTextureName(keys, LML.KeyImage, 0)
+    };
+  });
+
+  expect(after.normalName).not.toBe(before.normalName);
+  expect(after.name).toBe(before.name);
+  expect(after.width).toBe(before.width);
+  expect(after.height).toBe(before.height);
+  expect(after.explicit).toBe(true);
+  expect(errors).toEqual([]);
 });

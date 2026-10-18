@@ -4,15 +4,154 @@
 // ============================================================================
 
         function refreshSavedTabTarget(savedTab) {
-            if (!savedTab || savedTab.kind !== 'texture' || !savedTab.target || !savedTab.target.p) {
+            if (!savedTab || savedTab.kind !== 'texture' || !savedTab.target) {
                 return;
             }
+            if (savedTab.target.kind === 'library') {
+                const path = savedTab.target.libraryPath || savedTab.target.base;
+                const source = collectExistingTextureSources().find((item) =>
+                    normalizeSkinKey(item.path) === normalizeSkinKey(path)
+                );
+                if (!source) return;
+                const target = buildTextureLibraryEditorTarget(source);
+                if (!target) return;
+                savedTab.target = target;
+                savedTab.title = target.p.zhName;
+                if (getActiveTab() === savedTab) state.selected = target;
+                return;
+            }
+            if (!savedTab.target.p) return;
             const p = getTextureTabParams().find((item) => item.key === savedTab.target.p.key);
             if (!p) return;
             const target = buildEditorTarget(p);
             if (!target || !target.selectable) return;
             savedTab.target = target;
             if (getActiveTab() === savedTab) state.selected = target;
+        }
+
+        function getTextureEditSourcePath(selected) {
+            if (!selected) return '';
+            if (selected.kind === 'library') {
+                return normalizeTextureLookupPath(selected.libraryPath || selected.base);
+            }
+            return normalizeTextureLookupPath(
+                (selected.resolved && selected.resolved.name) ||
+                selected.base ||
+                ''
+            );
+        }
+
+        function getTextureEditParamKey(selected) {
+            if (!selected) return null;
+            if (selected.kind === 'library') return selected.libraryParamKey || null;
+            return selected.p ? selected.p.key : null;
+        }
+
+        function collectTexturePathReferences(path) {
+            const normalizedPath = normalizeTextureLookupPath(path);
+            if (!normalizedPath) return [];
+            const keys = getActiveKeyCount();
+            const references = [];
+            for (const p of getTextureTabParams()) {
+                const resolved = resolveTextureParam(keys, p);
+                if (!resolved || resolved.state !== 'ok') continue;
+                if (normalizeTextureLookupPath(resolved.name) !== normalizedPath) continue;
+                references.push(p);
+            }
+            return references;
+        }
+
+        function createIndependentTexturePath(sourcePath, paramKey) {
+            const normalizedSource = normalizeTextureLookupPath(sourcePath);
+            const slash = normalizedSource.lastIndexOf('/');
+            const directory = slash >= 0 ? normalizedSource.slice(0, slash + 1) : '';
+            const basename = slash >= 0 ? normalizedSource.slice(slash + 1) : normalizedSource;
+            const suffix = String(paramKey || 'copy')
+                .replace(/[^a-z0-9_-]+/gi, '_')
+                .replace(/^_+|_+$/g, '')
+                .toLowerCase() || 'copy';
+            const existing = new Set(
+                collectExistingTextureSources().map((item) => normalizeSkinKey(item.path))
+            );
+            let index = 1;
+            let candidate;
+            do {
+                const suffixText = index === 1 ? suffix : `${suffix}_${index}`;
+                candidate = `${directory}${basename}_${suffixText}`;
+                index++;
+            } while (existing.has(normalizeSkinKey(candidate)));
+            return candidate;
+        }
+
+        async function resolveTextureEditSavePlan(selected) {
+            const sourcePath = getTextureEditSourcePath(selected);
+            if (!sourcePath) {
+                throw new Error('无法确定当前贴图路径');
+            }
+            const paramKey = getTextureEditParamKey(selected);
+            const references = collectTexturePathReferences(sourcePath);
+            const currentParam = paramKey
+                ? getTextureTabParams().find((p) => p.key === paramKey)
+                : null;
+            const currentTrack = currentParam ? getParamTrackIndex(currentParam) : null;
+            const otherReferences = currentTrack == null
+                ? []
+                : references.filter((p) => {
+                    if (p.key === paramKey) return false;
+                    const track = getParamTrackIndex(p);
+                    if (track == null) return false;
+                    if (track !== currentTrack) return true;
+                    const currentKind = getKeyImageParamKind(currentParam);
+                    const otherKind = getKeyImageParamKind(p);
+                    return !(currentKind && otherKind && currentKind !== otherKind);
+                });
+            if (otherReferences.length === 0) {
+                return {
+                    sourcePath,
+                    savePath: sourcePath,
+                    paramKey,
+                    mode: 'overwrite',
+                    otherReferences
+                };
+            }
+            const decision = await requestLongBodyApplyScope({
+                title: '贴图被多处引用',
+                text: `“${sourcePath}”还被其他 ${otherReferences.length} 个轨道或参数引用。选择“同步修改原图”会直接覆盖所有引用；选择“独立创建副本”会复制一张新图，只切换当前项并继续编辑副本。`,
+                currentLabel: '独立创建副本',
+                allLabel: '同步修改原图'
+            });
+            if (!decision) return null;
+            if (decision === 'all') {
+                return {
+                    sourcePath,
+                    savePath: sourcePath,
+                    paramKey,
+                    mode: 'overwrite',
+                    otherReferences
+                };
+            }
+            return {
+                sourcePath,
+                savePath: createIndependentTexturePath(sourcePath, paramKey),
+                paramKey,
+                mode: 'independent',
+                otherReferences
+            };
+        }
+
+        function pointTextureEditParamToPath(paramKey, targetPath) {
+            if (!paramKey || !targetPath) return false;
+            const p = getTextureTabParams().find((item) => item.key === paramKey);
+            if (!p || typeof assignTextureParamLookup !== 'function') return false;
+            if (typeof preserveHoldHeadsBeforeNoteEdit === 'function') {
+                preserveHoldHeadsBeforeNoteEdit(
+                    getActiveKeyCount(),
+                    p,
+                    { syncInput: true }
+                );
+            }
+            assignTextureParamLookup(getActiveKeyCount(), p, targetPath);
+            return true;
         }
 
         function completeSavedTab(options = {}) {
@@ -22,7 +161,13 @@
                 clearKeyImageHeightBaselines();
             }
             refreshSavedTabTarget(savedTab);
-            rememberTextureEditRecipe(savedTab);
+            const hasPreparedRecipe = !!getStoredTextureEditRecipe(savedTab.target);
+            if (!hasPreparedRecipe) {
+                rememberTextureEditRecipe(savedTab);
+            }
+            if (!getStoredTextureEditRecipe(savedTab.target)) {
+                removeTextureEditRecipe(savedTab);
+            }
             updateEditorBaseAfterSave();
             renderPicker();
 
@@ -49,51 +194,64 @@
                 showToast('尚未选择贴图', '请先点击“选择贴图”。');
                 return false;
             }
-            const editingKeyImage = isEditingKeyImageParam(state.selected.p);
             const longBodyApplyScope = state.longBodyComposer.active
                 ? await requestLongBodyApplyScope()
                 : null;
             if (state.longBodyComposer.active && !longBodyApplyScope) return false;
+            const editingKeyImage = !state.longBodyComposer.active &&
+                state.selected.kind !== 'library' &&
+                isEditingKeyImageParam(state.selected.p);
             const keyImageApplyScope = editingKeyImage
-                ? await requestLongBodyApplyScope({
-                    title: '选择 KeyImage 应用范围',
-                    text: '仅当前轨道会同时更新 KeyImage 与 KeyImageD。应用到全部轨道时，引用相同贴图的轨道共用一份新贴图，引用不同的贴图会分别生成。',
-                    currentLabel: '仅当前轨道',
-                    allLabel: '应用到全部轨道'
-                })
+                ? (options.keyImageScope === 'all' ? 'all' : 'current')
                 : null;
-            if (editingKeyImage && !keyImageApplyScope) return false;
+            const syncKeyImagePair = editingKeyImage
+                ? options.syncKeyImagePair !== false
+                : false;
+            const selectedKeyImageKind = editingKeyImage
+                ? getKeyImageParamKind(state.selected.p)
+                : null;
             const longBodyTargetColumns = longBodyApplyScope === 'all'
                 ? Array.from({ length: getActiveKeyCount() }, (_, column) => column)
                 : [getSelectedTrackIndex()].filter((column) => column != null);
-            const applyingAll = longBodyApplyScope === 'all' || keyImageApplyScope === 'all';
+            const applyingAll = longBodyApplyScope === 'all';
 
             const applyBtn = byId('textureImageApplyBtn');
+            const applyMenuBtn = byId('textureImageApplyMenuBtn');
+            closeTextureImageSaveMenu();
             if (applyBtn) {
                 applyBtn.disabled = true;
                 applyBtn.textContent = '正在应用...';
             }
+            if (applyMenuBtn) applyMenuBtn.disabled = true;
 
             try {
                 const committingLongBodyComposer = state.longBodyComposer.active;
                 if (editingKeyImage && !committingLongBodyComposer) {
-                    const groups = collectKeyImageEditGroups(keyImageApplyScope);
+                    const groups = collectKeyImageEditGroups(keyImageApplyScope, {
+                        syncPair: syncKeyImagePair,
+                        selectedKind: selectedKeyImageKind
+                    });
                     if (groups.length === 0) {
                         throw new Error('没有找到可应用的 KeyImage 源贴图');
                     }
-                    const params = state.keyImageEditRecipe && state.keyImageEditRecipe.params
-                        ? {
+                    const params = {
+                        ...(state.keyImageEditRecipe && state.keyImageEditRecipe.params
+                            ? {
                             ...state.keyImageEditRecipe.params,
                             imageTransform: cloneImageTransform(
                                 state.keyImageEditRecipe.params.imageTransform
                             )
-                        }
-                        : getCurrentEditParams();
+                            }
+                            : getCurrentEditParams()),
+                        rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
+                    };
                     if (state.previewSnapshot) applySkinSnapshot(state.previewSnapshot);
+                    const stateLabel = syncKeyImagePair
+                        ? 'KeyImage + KeyImageD'
+                        : (selectedKeyImageKind === 'down' ? 'KeyImageD' : 'KeyImage');
+                    const scopeLabel = keyImageApplyScope === 'all' ? '全部轨道' : '当前轨道';
                     recordSkinUndoBeforeChange(
-                        keyImageApplyScope === 'all'
-                            ? '贴图编辑: KeyImage（全部轨道）'
-                            : '贴图编辑: KeyImage（当前轨道）',
+                        `贴图编辑: ${stateLabel}（${scopeLabel}）`,
                         { force: true }
                     );
                     const prepared = await persistKeyImageEditGroups(groups, params);
@@ -105,7 +263,7 @@
                     );
                     showToast(
                         '贴图编辑成功',
-                        `已更新 ${trackCount} 个 KeyImage/KeyImageD 参数，生成 ${prepared.length} 份贴图。`
+                        `已更新${scopeLabel}的 ${stateLabel}，共 ${trackCount} 个参数，生成 ${prepared.length} 份独立贴图。`
                     );
                     return completeSavedTab(options);
                 }
@@ -117,6 +275,7 @@
                         state.longBodyComposer.targetHeight,
                         (value) => setLongBodyProgress('正在生成完整长条...', value)
                     )];
+                    applyRgbAdjustmentToCanvas(framesToSave[0], state.rgbAdjustment);
                 } else {
                     framesToSave = buildPreviewFrames();
                 }
@@ -124,18 +283,99 @@
                     throw new Error('无法生成要保存的贴图');
                 }
                 if (!committingLongBodyComposer) state.previewFrames = framesToSave;
+                const savePlan = committingLongBodyComposer
+                    ? null
+                    : await resolveTextureEditSavePlan(state.selected);
+                if (!committingLongBodyComposer && !savePlan) return false;
                 if (committingLongBodyComposer) {
                     setLongBodyProgress('正在编码 PNG...', 65, true);
                     await waitForUiPaint();
                 }
                 const serialized = committingLongBodyComposer
                     ? [await serializeLongBodyFrame(framesToSave[0])]
-                    : await serializeFrames(state.selected.base, framesToSave);
+                    : await serializeFrames(savePlan.savePath, framesToSave);
                 if (committingLongBodyComposer) {
                     setLongBodyProgress('正在替换身体贴图...', 82);
                     await waitForUiPaint();
                 }
                 if (state.previewSnapshot) applySkinSnapshot(state.previewSnapshot);
+
+                if (!committingLongBodyComposer) {
+                    const editingCreatedTexture =
+                        typeof hasCreatedTextureParams === 'function' &&
+                        hasCreatedTextureParams(savePlan.sourcePath);
+                    const hasExistingRecipe = !!getStoredTextureEditRecipe(state.selected);
+                    if (savePlan.mode === 'independent' &&
+                        savePlan.paramKey &&
+                        typeof preserveHoldHeadsBeforeNoteEdit === 'function') {
+                        const currentParam = getTextureTabParams().find(
+                            (item) => item.key === savePlan.paramKey
+                        );
+                        if (currentParam) {
+                            preserveHoldHeadsBeforeNoteEdit(
+                                getActiveKeyCount(),
+                                currentParam,
+                                { syncInput: true }
+                            );
+                        }
+                    }
+                    if (savePlan.mode === 'independent' &&
+                        state.selected.kind !== 'library' &&
+                        !hasExistingRecipe &&
+                        state.originalFrames.length > 0 &&
+                        typeof installTextureFramesAtPath === 'function') {
+                        installTextureFramesAtPath(
+                            state.originalFrames,
+                            savePlan.sourcePath,
+                            { draw: false }
+                        );
+                    }
+                    persistTextureFramesAtPath(serialized, savePlan.savePath, {
+                        refresh: false,
+                        showToast: false
+                    });
+                    if (savePlan.mode === 'independent') {
+                        if (editingCreatedTexture) {
+                            cloneCreatedTextureParams(
+                                savePlan.sourcePath,
+                                savePlan.savePath
+                            );
+                        }
+                    }
+                    pointTextureEditParamToPath(
+                        savePlan.paramKey,
+                        savePlan.savePath
+                    );
+                    if (editingCreatedTexture &&
+                        typeof saveCreatedTextureGeneralEditParams === 'function') {
+                        saveCreatedTextureGeneralEditParams(savePlan.savePath, {
+                            ...getCurrentEditParams(),
+                            imageTransform: cloneImageTransform(state.imageTransform),
+                            rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
+                        });
+                    }
+                    state.originalReference = normalizeSkinKey(savePlan.savePath);
+                    if (state.selected.kind === 'library') {
+                        state.selected.base = savePlan.savePath;
+                        state.selected.libraryPath = savePlan.savePath;
+                        if (state.selected.resolved) {
+                            state.selected.resolved.name = savePlan.savePath;
+                        }
+                    } else if (state.selected.resolved) {
+                        state.selected.resolved.name = savePlan.savePath;
+                    }
+                    drawFrame();
+                    renderSkinEditorParams();
+                    renderPicker();
+                    if (typeof renderTextureLibrary === 'function') renderTextureLibrary();
+                    showToast(
+                        '贴图编辑成功',
+                        savePlan.mode === 'independent'
+                            ? `已创建独立副本 ${savePlan.savePath}`
+                            : `已直接覆盖 ${savePlan.savePath}`
+                    );
+                    return completeSavedTab(options);
+                }
 
                 let longBodyApplyPlans = null;
                 let longBodySettings = null;
@@ -154,7 +394,8 @@
                     longBodySettings = {
                         targetHeight: state.longBodyComposer.targetHeight,
                         coverage: state.longBodyComposer.coverage,
-                        fade: state.longBodyComposer.fade
+                        fade: state.longBodyComposer.fade,
+                        rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
                     };
                     longBodyApplyPlans = createLongBodyApplyPlans(longBodyTargetColumns);
                     const bodyApplied = await applyLongBodyToTracks(
@@ -172,24 +413,6 @@
                         (value) => setLongBodyProgress(tailLabel, value)
                     );
                     if (!tailsApplied) throw new Error('透明长条尾部未能写入目标轨道');
-                } else if (serialized.length === 1) {
-                    if (!textureUploadUi || typeof textureUploadUi.applyEditedTexture !== 'function') {
-                        throw new Error('贴图替换模块尚未初始化');
-                    }
-                    const frame = serialized[0];
-                    const applied = await textureUploadUi.applyEditedTexture(
-                        frame.file,
-                        frame.arrayBuffer,
-                        frame.img,
-                        !!frame.img._is2x,
-                        state.selected.base,
-                        state.selected.p.key,
-                        state.selected.p.key,
-                        state.selected.p._trackCol
-                    );
-                    if (!applied) throw new Error('贴图未能写入皮肤');
-                } else {
-                    persistEditedSequence(serialized, state.selected);
                 }
                 if (committingLongBodyComposer) {
                     setNoteBodyStyleOne(false, applyingAll);
@@ -212,10 +435,10 @@
                 return false;
             } finally {
                 hideLongBodyProgress();
-                if (applyBtn) {
-                    applyBtn.disabled = !state.selected || getActiveTab() !== applyTab;
-                    applyBtn.textContent = '保存到皮肤';
+                if (applyBtn && (!state.selected || getActiveTab() !== applyTab)) {
+                    applyBtn.disabled = true;
                 }
+                updateSelectionSummary();
             }
         }
 
@@ -225,6 +448,8 @@
                 const key = getLongBodySessionKey();
                 if (key) longBodyComposerSessions.delete(key);
                 disableLongBodyComposer();
+                resetRgbAdjustmentInputs();
+                refreshLivePreview();
                 showToast('已重置', '一键投皮已关闭，长条身体已恢复为进入编辑器前的状态。');
                 return;
             }
@@ -234,41 +459,101 @@
             state.workingFrames = state.originalFrames.map(cloneFrame);
             state.previewFrames = state.workingFrames.map(cloneFrame);
             resetTransformInputs();
+            resetRgbAdjustmentInputs();
+            state.previewFrames = buildPreviewFrames();
             installFramesToStores(state.previewFrames, state.selected, { persist: false });
             updateMeta();
             commitEditorHistory();
             showToast('已重置', '当前贴图已恢复为打开编辑器时的状态。');
         }
 
+        function refreshTextureImageEditorAfterSkinImport() {
+            const modal = byId('textureImageEditorModal');
+            if (!modal || !modal.classList.contains('active')) return false;
+
+            const activeTab = getActiveTab();
+            const previousKind = activeTab ? activeTab.kind : 'menu';
+            const previousParamKey = activeTab && activeTab.kind === 'texture' && activeTab.target && activeTab.target.p
+                ? activeTab.target.p.key
+                : null;
+
+            for (const tab of tabs) {
+                if (tab.state) clearEditorStateTimers(tab.state);
+            }
+            longBodyComposerSessions.clear();
+            textureEditRecipes.clear();
+            externalFrameUpdates.clear();
+            externalChangesPending = false;
+
+            Object.assign(menuState, createEditorState());
+            state = menuState;
+            tabs = [menuTab, libraryTab];
+            activeTabId = menuTab.id;
+            nextTextureTabId = 1;
+            resetTextureCreatorState();
+
+            editorBaseSnapshot = isSkinEditingWorkspaceReady()
+                ? createSkinSnapshot('贴图编辑基线')
+                : null;
+            menuState.previewSnapshot = editorBaseSnapshot;
+            renderTabs();
+            renderPicker();
+            if (textureLibraryUi) textureLibraryUi.refresh();
+
+            if (editorBaseSnapshot && previousKind === 'texture' && previousParamKey) {
+                const param = getTextureTabParams().find((item) => item.key === previousParamKey);
+                const target = param ? buildEditorTarget(param) : null;
+                if (target && target.selectable) {
+                    selectTarget(target);
+                    return true;
+                }
+            }
+
+            if (editorBaseSnapshot && previousKind === 'library') {
+                activateTab('texture-library', { force: true });
+                return true;
+            }
+
+            setViews(true);
+            updateSelectionSummary();
+            updateEditorHistoryButtons();
+            updateStretchFixUI();
+            return true;
+        }
+
         function open() {
             const modal = byId('textureImageEditorModal');
             if (!modal) return false;
+            const skinEditingReady = syncSkinEditingAvailabilityUI();
             if (modal.classList.contains('active')) return true;
             const skinEditorModal = byId('skinEditorModal');
             if (skinEditorModal) skinEditorModal.classList.remove('active');
             Object.assign(menuState, createEditorState());
             state = menuState;
-            tabs = [menuTab];
+            tabs = [menuTab, libraryTab];
             activeTabId = menuTab.id;
             nextTextureTabId = 1;
             externalFrameUpdates.clear();
             externalChangesPending = false;
-            editorBaseSnapshot = createSkinSnapshot('贴图编辑基线');
-            menuState.previewSnapshot = editorBaseSnapshot;
-            renderPicker();
+            resetTextureCreatorState();
             renderTabs();
-            setViews(true);
             updateSelectionSummary();
             updateEditorHistoryButtons();
             updateStretchFixUI();
             modal.classList.add('active');
             modal.style.display = 'block';
+            if (!skinEditingReady) return true;
+
+            editorBaseSnapshot = createSkinSnapshot('贴图编辑基线');
+            menuState.previewSnapshot = editorBaseSnapshot;
+            renderPicker();
+            setViews(true);
             return true;
         }
 
         async function closeTab(tabId) {
             const tab = getTabById(tabId);
-            if (!tab || tab.kind === 'menu') return false;
+            if (!tab || tab.kind === 'menu' || tab.kind === 'library') return false;
             if (activeTabId !== tab.id) activateTab(tab.id);
             commitActiveTabState();
 
@@ -330,10 +615,11 @@
             return true;
         }
 
-        const dialog = byId('textureImageEditorDialog');
-        const header = byId('textureImageEditorHeader');
-        const dockBtn = byId('dockTextureImageEditorBtn');
-        const collapseBtn = byId('collapseTextureImageEditorBtn');
+        const getEl = typeof byId === 'function' ? byId : (id) => document.getElementById(id);
+        const dialog = getEl('textureImageEditorDialog');
+        const header = getEl('textureImageEditorHeader');
+        const dockBtn = getEl('dockTextureImageEditorBtn');
+        const collapseBtn = getEl('collapseTextureImageEditorBtn');
 
         if (dialog && header) {
             let isDraggingWindow = false;

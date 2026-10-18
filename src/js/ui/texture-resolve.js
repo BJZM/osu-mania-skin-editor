@@ -112,6 +112,108 @@
             return aliases;
         }
 
+        function getEffectiveTextureSourceName(keys, lookup, columnIndex) {
+            const out = {};
+            const configuredName = getManiaNoteTextureName(keys, lookup, columnIndex, out);
+            if (out.explicit) return configuredName;
+
+            const info = imageLookupToIniPrefixSuffix(lookup);
+            const candidates = getDefaultTextureFilenameCandidates(keys, lookup, columnIndex, info);
+            for (const candidate of candidates) {
+                if (getSkinAnimation(candidate, lookup !== LML.BottomStageImage)) {
+                    return candidate;
+                }
+            }
+            return configuredName;
+        }
+
+        // 长条头没有专属键时会按 stable 规则回退到同轨单键。编辑单键前必须把
+        // 当前长条头的实际贴图源固定下来，否则单键换到新文件后，长条头会跟着一起换。
+        function preserveTrackHoldHeadBeforeNoteEdit(keys, columnIndex, options = {}) {
+            const cfg = maniaSkinConfigurations.get(keys) || getManiaConfigForKeys(keys);
+            if (!cfg || columnIndex == null) return false;
+            if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+
+            const headKeys = buildPerTrackTextureSearchKeys(
+                LML.HoldNoteHeadImage,
+                columnIndex
+            ).slice(0, 4);
+            if (findExplicitImageLookupValue(cfg, headKeys)) return false;
+            if (headKeys.some((key) => {
+                const value = cfg[key];
+                return value !== undefined && value !== null && String(value).trim().length > 0;
+            })) {
+                return false;
+            }
+
+            const headName = getEffectiveTextureSourceName(keys, LML.HoldNoteHeadImage, columnIndex);
+            if (!headName) return false;
+
+            const headParamKey = `NoteImage${columnIndex}H`;
+            cfg[headParamKey] = headName;
+            cfg.ImageLookups.set(headParamKey, headName);
+            cfg.ImageLookups.set(headParamKey.toLowerCase(), headName);
+            if (options.syncInput && typeof syncParamInputValue === 'function') {
+                syncParamInputValue(headParamKey, headName);
+            }
+            return true;
+        }
+
+        function preserveHoldHeadsBeforeNoteEdit(keys, p, options = {}) {
+            if (!p) return 0;
+            const pKey = String(p.key || '');
+            const lookup = p._trackLookup;
+            const isNote = lookup === LML.NoteImage || /^NoteImage(?:\d+)?$/i.test(pKey);
+            if (!isNote) return 0;
+
+            const explicitColumn = p._trackCol != null
+                ? Number(p._trackCol)
+                : (pKey.match(/^NoteImage(\d+)$/i) ? Number(pKey.match(/^NoteImage(\d+)$/i)[1]) : null);
+            const columns = explicitColumn != null && Number.isFinite(explicitColumn)
+                ? [explicitColumn]
+                : Array.from({ length: Math.max(1, Math.min(18, keys || 4)) }, (_, column) => column);
+
+            let preserved = 0;
+            for (const column of columns) {
+                if (preserveTrackHoldHeadBeforeNoteEdit(keys, column, options)) preserved++;
+            }
+            return preserved;
+        }
+
+        // KeyImageDown 的 stable 查找顺序会在没有显式按下态贴图时回退到 KeyImage。
+        // 修改普通 KeyImage 前先把按下态当前实际使用的默认贴图写成显式映射，
+        // 否则默认皮肤中的 KeyImageD 会跟着 KeyImage 一起换图。
+        function preserveTrackKeyImageDownBeforeKeyImageEdit(keys, columnIndex, options = {}) {
+            const cfg = maniaSkinConfigurations.get(keys) || getManiaConfigForKeys(keys);
+            if (!cfg || columnIndex == null) return false;
+            if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+
+            const fallbackKeys = new Set([`KeyImage${columnIndex}`, 'KeyImage']);
+            const downKeys = buildPerTrackTextureSearchKeys(
+                LML.KeyImageDown,
+                columnIndex
+            ).filter((key) => !fallbackKeys.has(key));
+            if (findExplicitImageLookupValue(cfg, downKeys)) return false;
+            if (downKeys.some((key) => {
+                const value = cfg[key];
+                return value !== undefined && value !== null && String(value).trim().length > 0;
+            })) {
+                return false;
+            }
+
+            const downName = getEffectiveTextureSourceName(keys, LML.KeyImageDown, columnIndex);
+            if (!downName) return false;
+
+            const downParamKey = `KeyImage${columnIndex}D`;
+            cfg[downParamKey] = downName;
+            cfg.ImageLookups.set(downParamKey, downName);
+            cfg.ImageLookups.set(downParamKey.toLowerCase(), downName);
+            if (options.syncInput && typeof syncParamInputValue === 'function') {
+                syncParamInputValue(downParamKey, downName);
+            }
+            return true;
+        }
+
 
         // 支持「按轨道单独配置」的通用贴图参数 → ini 键名前缀
         const PER_COLUMN_TEXTURE_PREFIX = {

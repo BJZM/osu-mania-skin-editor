@@ -163,6 +163,11 @@
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                 }
 
+                // 启动流程中先只展示谱面背景；皮肤来源确定前不绘制舞台与音符。
+                if (typeof shouldDeferSkinRendering === 'function' && shouldDeferSkinRendering()) {
+                    return;
+                }
+
                 let keys;
                 let notesList = activeNotes;
                 isPreviewMode = false;

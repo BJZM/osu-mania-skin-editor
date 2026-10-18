@@ -180,6 +180,9 @@
 
                     // 自动直接在右侧画布中加载第 1 个难度与其对应的背景图
                     await loadBeatmapDifficulty(0);
+                    if (typeof markStartupBeatmapReady === 'function') {
+                        markStartupBeatmapReady(file.name);
+                    }
                     showToast('谱面导入成功', `已自动加载第 1 难度背景与谱面 (共 ${beatmaps.length} 个难度)`);
                 } else {
                     ui.diff.innerHTML = '<option>未找到 Mania 谱面</option>';

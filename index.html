@@ -8,7 +8,7 @@
     <title>osu!mania 可视化皮肤编辑器</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <meta name="theme-color" content="#1b1622">
-    <link rel="stylesheet" href="src/css/style.css?v=20261013_6">
+    <link rel="stylesheet" href="src/css/style.css?v=20261017_2">
 </head>
 
 <body>
@@ -26,24 +26,59 @@
         <!-- 画布顶部工具栏 (整合品牌、导入与工具) -->
         <div class="canvas-top-bar" id="canvasTopBar">
             <div class="canvas-top-tools-left">
-                <!-- 导入谱面 (.OSZ) -->
-                <div class="topbar-file-item" id="oszWrapper">
-                    <input type="file" id="oszInput" accept=".osz,.zip,.osu">
-                    <label for="oszInput" class="topbar-btn osz-btn" title="导入谱面文件 (.osz / .zip / .osu)">
-                        <span>导入谱面</span>
-                        <span class="topbar-ext-tag">.OSZ</span>
-                    </label>
+                <!-- 文件菜单 -->
+                <div class="dropdown-wrapper topbar-file-dropdown" id="fileDropdownWrapper">
+                    <button type="button" class="tool-btn" id="fileMenuBtn" title="导入文件或从默认皮肤开始">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span>文件 &#9662;</span>
+                    </button>
+                    <div class="dropdown-menu" id="fileMenu">
+                        <input type="file" id="oskInput" accept=".osk,.zip">
+                        <label for="oskInput" class="dropdown-item topbar-file-item" id="oskWrapper" title="导入皮肤文件 (.osk / .zip)">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">导入皮肤</span>
+                                <span class="desc">载入 .osk 或 .zip 皮肤包</span>
+                            </span>
+                        </label>
 
-                </div>
+                        <input type="file" id="oszInput" accept=".osz,.zip,.osu">
+                        <label for="oszInput" class="dropdown-item topbar-file-item" id="oszWrapper" title="导入谱面文件 (.osz / .zip / .osu)">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <path d="M9 18V5l12-2v13"></path>
+                                    <circle cx="6" cy="18" r="3"></circle>
+                                    <circle cx="18" cy="16" r="3"></circle>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">导入谱面</span>
+                                <span class="desc">载入 .osz、.zip 或 .osu 谱面</span>
+                            </span>
+                        </label>
 
-                <!-- 导入皮肤 (.OSK) -->
-                <div class="topbar-file-item" id="oskWrapper">
-                    <input type="file" id="oskInput" accept=".osk,.zip">
-                    <label for="oskInput" class="topbar-btn osk-btn" title="导入皮肤文件 (.osk / .zip)">
-                        <span>导入皮肤</span>
-                        <span class="topbar-ext-tag">.OSK</span>
-                    </label>
-
+                        <button type="button" class="dropdown-item" id="useDefaultSkinBtn" title="清空当前皮肤并以内置默认皮肤继续编辑">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+                                    <path d="M3 3v5h5"></path>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">从默认皮肤开始</span>
+                                <span class="desc">使用 osu!stable 内置皮肤作为新的工作区</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 难度选择下拉菜单 -->
@@ -66,6 +101,20 @@
             </div>
 
             <div class="canvas-top-tools-right">
+                <button type="button" class="tool-btn" id="canvasUndoBtn" title="暂无可撤回的操作 (Ctrl+Z)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 7v6h6"></path>
+                        <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+                    </svg>
+                    <span>撤回</span>
+                </button>
+                <button type="button" class="tool-btn" id="canvasRedoBtn" title="暂无可重做的操作 (Ctrl+Y / Ctrl+Shift+Z)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 7v6h-6"></path>
+                        <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path>
+                    </svg>
+                    <span>重做</span>
+                </button>
                 <button type="button" class="tool-btn" id="openSkinEditorBtn" title="打开详细设置面板 (快捷键 E)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -73,12 +122,12 @@
                     </svg>
                     <span>详细设置</span>
                 </button>
-                <button type="button" class="tool-btn" id="openTextureImageEditorBtn" title="裁剪贴图或用透明像素增加画布尺寸">
+                <button type="button" class="tool-btn" id="openTextureImageEditorBtn" title="导入、替换、裁剪或编辑皮肤贴图">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
                         <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
                     </svg>
-                    <span>贴图编辑</span>
+                    <span>贴图的导入与编辑</span>
                 </button>
                 <div class="dropdown-wrapper" id="exportDropdownWrapper">
                     <button type="button" class="tool-btn" id="exportSkinBtn" title="将所有修改逆向保存并打包导出">
@@ -116,88 +165,55 @@
                         </button>
                     </div>
                 </div>
-                <div class="dropdown-wrapper" id="editDropdownWrapper">
-                    <button type="button" class="tool-btn" id="editMenuBtn" title="重做、撤回或恢复初始状态">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                <div class="dropdown-wrapper" id="otherDropdownWrapper">
+                    <button type="button" class="tool-btn" id="otherMenuBtn" title="更多操作与项目信息">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                            <circle cx="5" cy="12" r="1"></circle>
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <circle cx="19" cy="12" r="1"></circle>
                         </svg>
-                        <span>编辑 &#9662;</span>
+                        <span>其他 &#9662;</span>
                     </button>
-                    <div class="dropdown-menu" id="editMenu">
-                        <button type="button" class="dropdown-item" id="canvasRedoBtn" title="暂无可重做的操作 (Ctrl+Y / Ctrl+Shift+Z)" disabled>
-                            <span class="icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                                    <path d="M23 4v6h-6"></path>
-                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                                </svg>
-                            </span>
-                            <div class="item-text">
-                                <span class="title">重做</span>
-                                <span class="desc">重做已撤回的修改 (Ctrl+Y)</span>
-                            </div>
-                        </button>
-                        <button type="button" class="dropdown-item" id="canvasUndoBtn" title="暂无可撤回的操作 (Ctrl+Z)" disabled>
-                            <span class="icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                                    <path d="M3 7v6h6"></path>
-                                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
-                                </svg>
-                            </span>
-                            <div class="item-text">
-                                <span class="title">撤回</span>
-                                <span class="desc">撤回上一步操作 (Ctrl+Z)</span>
-                            </div>
-                        </button>
-                        <div class="dropdown-divider"></div>
-                        <button type="button" class="dropdown-item" id="sidebarRevertSkinBtn" title="将所有修改过的参数和贴图复原为导入时的原始状态">
+                    <div class="dropdown-menu" id="otherMenu">
+                        <button type="button" class="dropdown-item is-danger" id="sidebarRevertSkinBtn" title="将所有修改过的参数和贴图复原为导入时的原始状态">
                             <span class="icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path>
                                     <path d="M3 3v5h5"></path>
                                 </svg>
                             </span>
-                            <div class="item-text">
-                                <span class="title">恢复初始</span>
+                            <span class="item-text">
+                                <span class="title">恢复初始状态</span>
                                 <span class="desc">复原为导入时的参数与贴图</span>
-                            </div>
+                            </span>
+                        </button>
+                        <button type="button" class="dropdown-item" id="topHelpBtn" title="查看皮肤各贴图拉伸与尺寸规则说明 (帮助)">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">帮助</span>
+                                <span class="desc">查看贴图尺寸与拉伸规则</span>
+                            </span>
+                        </button>
+                        <button type="button" class="dropdown-item" id="topAboutBtn" title="关于本项目、版本与第三方许可">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">关于</span>
+                                <span class="desc">项目版本、版权与第三方许可</span>
+                            </span>
                         </button>
                     </div>
-                </div>
-                <button type="button" class="tool-btn" id="topHelpBtn" title="查看皮肤各贴图拉伸与尺寸规则说明 (帮助)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    <span>帮助</span>
-                </button>
-                <button type="button" class="tool-btn" id="topAboutBtn" title="关于本项目、版本与第三方许可">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                    <span>关于</span>
-                </button>
-                <div class="topbar-divider"></div>
-                <div class="tool-switch-row canvas-top-switch" title="开启判定提示动态演示：按真实比率展示 300MAX/300/200/100/50 及 Miss 断连恢复">
-                    <label for="previewJudgementToggle" class="switch-label">
-                        <span>判定演示</span>
-                    </label>
-                    <label class="ios-switch">
-                        <input type="checkbox" id="previewJudgementToggle">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="tool-switch-row canvas-top-switch">
-                    <label for="canvasEditModeToggle" class="switch-label">
-                        <span>拖拽编辑</span>
-                    </label>
-                    <label class="ios-switch">
-                        <input type="checkbox" id="canvasEditModeToggle" checked>
-                        <span class="slider"></span>
-                    </label>
                 </div>
             </div>
         </div>
@@ -263,6 +279,56 @@
                     <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
                 </svg>
             </button>
+
+            <!-- 启动面板：谱面、皮肤来源与拖拽入口 -->
+            <div class="startup-actions" id="startupActions" aria-label="选择开始方式">
+                <div class="startup-actions-content">
+                    <button type="button" class="startup-action startup-action-beatmap" id="startupImportBeatmapBtn">
+                        <span class="startup-action-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M9 18V5l12-2v13"></path>
+                                <circle cx="6" cy="18" r="3"></circle>
+                                <circle cx="18" cy="16" r="3"></circle>
+                            </svg>
+                        </span>
+                        <span class="startup-action-copy">
+                            <span class="startup-action-title">导入谱面</span>
+                            <span class="startup-action-desc" id="startupBeatmapDesc">点击或拖拽 .osz / .zip / .osu 文件</span>
+                        </span>
+                    </button>
+
+                    <div class="startup-action-separator" aria-hidden="true">
+                        <span></span>
+                    </div>
+
+                    <button type="button" class="startup-action startup-action-skin" id="startupImportSkinBtn">
+                        <span class="startup-action-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                        </span>
+                        <span class="startup-action-copy">
+                            <span class="startup-action-title">导入皮肤</span>
+                            <span class="startup-action-desc" id="startupSkinDesc">点击或拖拽 .osk / .zip 皮肤包</span>
+                        </span>
+                    </button>
+
+                    <button type="button" class="startup-action startup-action-default" id="startupUseDefaultSkinBtn">
+                        <span class="startup-action-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+                                <path d="M3 3v5h5"></path>
+                            </svg>
+                        </span>
+                        <span class="startup-action-copy">
+                            <span class="startup-action-title">从默认皮肤开始</span>
+                            <span class="startup-action-desc" id="startupDefaultDesc">使用 osu!stable 官方默认皮肤作为工作区</span>
+                        </span>
+                    </button>
+                </div>
+            </div>
 
             <!-- 中央进度加载面板 -->
             <div class="loading-overlay" id="loadingOverlay">
@@ -520,6 +586,59 @@
                 </div>
             </div>
 
+            <!-- 从当前皮肤已有贴图中选择路径并引用 -->
+            <div class="texture-existing-modal" id="textureExistingPickerModal" style="display: none;">
+                <div class="texture-existing-backdrop" id="textureExistingPickerBackdrop"></div>
+                <div class="texture-existing-dialog" role="dialog" aria-modal="true" aria-labelledby="textureExistingPickerTitle">
+                    <div class="texture-existing-header">
+                        <div class="texture-existing-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                            </svg>
+                            <span id="textureExistingPickerTitle">从已有贴图导入</span>
+                        </div>
+                        <button type="button" class="texture-existing-close" id="textureExistingPickerCloseBtn" title="关闭 (Esc)">&times;</button>
+                    </div>
+
+                    <div class="texture-existing-body">
+                        <div class="texture-existing-target">
+                            <div>
+                                <span class="texture-existing-target-label">目标贴图</span>
+                                <strong id="textureExistingPickerTargetLabel">-</strong>
+                            </div>
+                            <div class="texture-existing-current">
+                                <span>当前路径</span>
+                                <code id="textureExistingPickerCurrentPath">未指定</code>
+                            </div>
+                        </div>
+
+                        <div class="texture-existing-toolbar">
+                            <label class="texture-existing-search">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                                    <circle cx="11" cy="11" r="7"></circle>
+                                    <path d="m20 20-3.5-3.5"></path>
+                                </svg>
+                                <input type="search" id="textureExistingPickerSearch" placeholder="搜索贴图名或路径" autocomplete="off">
+                            </label>
+                            <span class="texture-existing-count" id="textureExistingPickerCount">0 项</span>
+                        </div>
+
+                        <div class="texture-existing-grid" id="textureExistingPickerGrid" role="listbox" aria-label="当前皮肤已有贴图"></div>
+                        <div class="texture-existing-empty" id="textureExistingPickerEmpty" style="display: none;">
+                            当前皮肤中没有可引用的贴图
+                        </div>
+                    </div>
+
+                    <div class="texture-existing-footer">
+                        <span class="texture-existing-hint">选择后只修改 skin.ini 路径，不复制或覆盖图片</span>
+                        <div class="texture-existing-actions">
+                            <button type="button" class="btn btn-secondary" id="textureExistingPickerCancelBtn">取消</button>
+                            <button type="button" class="btn btn-primary" id="textureExistingPickerConfirmBtn" disabled>使用此贴图</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <!-- 隐藏的动态贴图上传表单 -->
             <input type="file" id="animSingleFrameInput" accept="image/*" style="display: none;">
             <input type="file" id="animBatchFrameInput" multiple accept="image/*" style="display: none;">
@@ -680,15 +799,41 @@
 
                     <div class="texture-image-tabs">
                         <div class="texture-image-tab-list" id="textureImageTabList" role="tablist" aria-label="贴图编辑标签"></div>
+                        <button type="button" class="texture-image-tab-add" id="textureImageCreateOpenBtn" title="创建贴图" aria-label="创建贴图">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="15" height="15" aria-hidden="true">
+                                <path d="M12 5v14"></path>
+                                <path d="M5 12h14"></path>
+                            </svg>
+                        </button>
                     </div>
 
                     <div class="texture-image-body">
+                        <div class="skin-source-required-state texture-image-skin-required" id="textureImageSkinRequired" role="status" aria-live="polite" aria-hidden="true">
+                            <div class="skin-source-required-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="34" height="34">
+                                    <path d="M21 15V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10"></path>
+                                    <path d="m3 16 5-5 4 4 2-2 3 3"></path>
+                                    <circle cx="9" cy="7" r="1.5"></circle>
+                                    <path d="M19 16v6"></path>
+                                    <path d="m16 19 3-3 3 3"></path>
+                                </svg>
+                            </div>
+                            <div class="skin-source-required-title">请导入谱面和皮肤</div>
+                            <div class="skin-source-required-actions">
+                                <button type="button" class="btn btn-secondary" data-startup-required-action="beatmap">导入谱面</button>
+                                <button type="button" class="btn btn-secondary" data-skin-source-action="import" data-startup-required-action="skin">导入皮肤</button>
+                                <button type="button" class="btn btn-primary" data-skin-source-action="default" data-startup-required-action="skin">从默认皮肤开始</button>
+                            </div>
+                        </div>
+
                         <div class="texture-image-picker-view" id="textureImagePickerView">
                             <div class="texture-image-picker-head">
                                 <div>
                                     <div class="texture-image-picker-title">选择要编辑的贴图</div>
                                 </div>
-                                <span class="texture-image-picker-count" id="textureImagePickerCount">0 项</span>
+                                <div class="texture-image-picker-head-actions">
+                                    <span class="texture-image-picker-count" id="textureImagePickerCount">0 项</span>
+                                </div>
                             </div>
                             <div class="texture-image-picker-grid" id="textureImagePickerGrid"></div>
                         </div>
@@ -709,7 +854,7 @@
                                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                                             </svg>
                                         </button>
-                                        <input type="range" id="textureImagePreviewZoom" min="0.1" max="4" step="0.1" value="1" aria-label="预览缩放">
+                                        <input type="range" id="textureImagePreviewZoom" min="0.1" max="4" step="0.1" value="1" class="texture-image-range" aria-label="预览缩放">
                                         <button type="button" class="btn-icon texture-image-zoom-btn" id="textureImagePreviewZoomIn" title="放大预览" aria-label="放大预览">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14" aria-hidden="true">
                                                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -731,19 +876,19 @@
                                     <div class="texture-image-number-grid">
                                         <label>
                                             <span>左边界</span>
-                                            <input type="number" id="textureImageCropX" min="-8192" step="1" value="0">
+                                            <input type="number" id="textureImageCropLeft" min="-8192" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>右边界</span>
+                                            <input type="number" id="textureImageCropRight" min="-8192" step="1" value="0">
                                         </label>
                                         <label>
                                             <span>上边界</span>
-                                            <input type="number" id="textureImageCropY" min="-8192" step="1" value="0">
+                                            <input type="number" id="textureImageCropTop" min="-8192" step="1" value="0">
                                         </label>
                                         <label>
-                                            <span>宽度变化</span>
-                                            <input type="number" id="textureImageCropWidth" step="1" value="0">
-                                        </label>
-                                        <label>
-                                            <span>高度变化</span>
-                                            <input type="number" id="textureImageCropHeight" step="1" value="0">
+                                            <span>下边界</span>
+                                            <input type="number" id="textureImageCropBottom" min="-8192" step="1" value="0">
                                         </label>
                                     </div>
                                 </section>
@@ -794,7 +939,7 @@
                                         </div>
                                         <label class="texture-image-long-body-fade">
                                             <span>淡化范围</span>
-                                            <input type="range" id="textureImageLongBodyFade" min="0" max="100" step="1" value="0">
+                                            <input type="range" id="textureImageLongBodyFade" min="0" max="100" step="1" value="0" class="texture-image-range">
                                             <span id="textureImageLongBodyFadeValue">0%</span>
                                         </label>
                                         <div class="texture-image-long-body-progress" id="textureImageLongBodyProgress" style="display: none;">
@@ -805,6 +950,32 @@
                                             <div class="texture-image-long-body-progress-track">
                                                 <div class="texture-image-long-body-progress-bar" id="textureImageLongBodyProgressBar"></div>
                                             </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section" id="textureImageRgbSection">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">RGB 通道调整</div>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary texture-image-small-btn" id="textureImageRgbResetBtn" disabled>重置通道</button>
+                                    </div>
+                                    <div class="texture-image-rgb-grid">
+                                        <div class="texture-image-rgb-row">
+                                            <span class="texture-image-rgb-channel is-r">R</span>
+                                            <input type="range" id="textureImageRgbR" min="0" max="200" step="1" value="100" class="texture-image-range" disabled>
+                                            <input type="number" id="textureImageRgbRValue" min="0" max="200" step="1" value="100" disabled>
+                                        </div>
+                                        <div class="texture-image-rgb-row">
+                                            <span class="texture-image-rgb-channel is-g">G</span>
+                                            <input type="range" id="textureImageRgbG" min="0" max="200" step="1" value="100" class="texture-image-range" disabled>
+                                            <input type="number" id="textureImageRgbGValue" min="0" max="200" step="1" value="100" disabled>
+                                        </div>
+                                        <div class="texture-image-rgb-row">
+                                            <span class="texture-image-rgb-channel is-b">B</span>
+                                            <input type="range" id="textureImageRgbB" min="0" max="200" step="1" value="100" class="texture-image-range" disabled>
+                                            <input type="number" id="textureImageRgbBValue" min="0" max="200" step="1" value="100" disabled>
                                         </div>
                                     </div>
                                 </section>
@@ -820,14 +991,237 @@
                                 </section>
                             </div>
                         </div>
+
+                        <div class="texture-image-creator-view" id="textureImageCreatorView" style="display: none;">
+                            <div class="texture-image-creator-preview-panel">
+                                <div class="texture-image-preview-wrap">
+                                    <canvas id="textureImageCreatePreviewCanvas" width="360" height="280"></canvas>
+                                </div>
+                                <div class="texture-image-preview-meta">
+                                    <div class="texture-image-preview-sizes">
+                                        <span id="textureImageCreatePreviewSize">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="texture-image-creator-controls">
+                                <section class="texture-image-control-section" id="textureImageCreateNameSection">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">贴图名称</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-creator-name-row">
+                                        <input type="text" id="textureImageCreateName" class="texture-image-text-input" placeholder="输入贴图名称（例如 custom-texture）" spellcheck="false" autocomplete="off">
+                                        <span class="texture-image-creator-name-suffix">.png</span>
+                                    </div>
+                                    <div class="texture-image-creator-name-error" id="textureImageCreateNameError" style="display: none;"></div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head" style="margin-bottom: 0;">
+                                        <div>
+                                            <div class="texture-image-control-title">规格</div>
+                                        </div>
+                                        <div class="texture-image-segmented" role="radiogroup" aria-labelledby="textureImageCreateSpecLabel">
+                                            <span id="textureImageCreateSpecLabel" style="display: none;">规格</span>
+                                            <label>
+                                                <input type="radio" name="textureImageCreateSpec" value="1x" checked>
+                                                <span>1x</span>
+                                            </label>
+                                            <label>
+                                                <input type="radio" name="textureImageCreateSpec" value="2x">
+                                                <span>@2x</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">基础尺寸</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-number-grid texture-image-creator-size-grid" style="margin-bottom: 0;">
+                                        <label>
+                                            <span>宽度 (px)</span>
+                                            <input type="number" id="textureImageCreateWidth" min="1" max="50000" step="1" value="256">
+                                        </label>
+                                        <label>
+                                            <span>高度 (px)</span>
+                                            <input type="number" id="textureImageCreateHeight" min="1" max="50000" step="1" value="256">
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">填充颜色与透明度</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-creator-color-row">
+                                        <label class="texture-image-creator-color">
+                                            <span>颜色选择</span>
+                                            <input type="color" id="textureImageCreateColor" value="#ffffff">
+                                        </label>
+                                        <label class="texture-image-creator-hex">
+                                            <span>Hex 数值</span>
+                                            <input type="text" id="textureImageCreateColorHex" value="#ffffff" spellcheck="false">
+                                        </label>
+                                    </div>
+                                    <div class="texture-image-creator-alpha">
+                                        <span>透明度</span>
+                                        <input type="range" id="textureImageCreateAlpha" min="0" max="100" step="1" value="100" class="texture-image-range">
+                                        <input type="number" id="textureImageCreateAlphaValue" min="0" max="100" step="1" value="100">
+                                        <span>%</span>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">描边设置</div>
+                                        </div>
+                                        <input type="checkbox" id="textureImageCreateStrokeEnabled" style="display: none;">
+                                    </div>
+                                    <div id="textureImageCreateStrokeControls">
+                                        <div class="texture-image-creator-color-row">
+                                            <label class="texture-image-creator-color">
+                                                <span>描边颜色</span>
+                                                <input type="color" id="textureImageCreateStrokeColor" value="#000000">
+                                            </label>
+                                            <label class="texture-image-creator-hex">
+                                                <span>Hex 数值</span>
+                                                <input type="text" id="textureImageCreateStrokeColorHex" value="#000000" spellcheck="false">
+                                            </label>
+                                        </div>
+                                        <div class="texture-image-creator-radius" style="margin-top: 0; margin-bottom: 9px;">
+                                            <span>描边宽度</span>
+                                            <input type="range" id="textureImageCreateStrokeWidth" min="0" max="64" step="1" value="0" class="texture-image-range">
+                                            <input type="number" id="textureImageCreateStrokeWidthValue" min="0" max="64" step="1" value="0">
+                                            <span>px</span>
+                                        </div>
+                                        <div class="texture-image-creator-alpha texture-image-creator-stroke-alpha" style="margin-top: 0;">
+                                            <span>透明度</span>
+                                            <input type="range" id="textureImageCreateStrokeAlpha" min="0" max="100" step="1" value="100" class="texture-image-range">
+                                            <input type="number" id="textureImageCreateStrokeAlphaValue" min="0" max="100" step="1" value="100">
+                                            <span>%</span>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">形状类型</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-shape-grid" id="textureImageCreateShapeGrid" role="radiogroup">
+                                        <button type="button" class="texture-image-shape-btn is-active" data-shape="rectangle" role="radio" aria-checked="true">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>矩形</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="rounded-rectangle" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>圆角矩形</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="circle" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>圆形</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="rotated-square" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>菱形</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="arrow-up" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>上箭头</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="arrow-down" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>下箭头</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="arrow-left" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>左箭头</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="arrow-right" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>右箭头</span>
+                                        </button>
+                                    </div>
+
+                                    <div class="texture-image-creator-radius" id="textureImageCreateCornerRow" style="display: none;">
+                                        <span>圆角</span>
+                                        <input type="range" id="textureImageCreateCornerRadiusRange" min="0" max="128" step="1" value="24" class="texture-image-range">
+                                        <input type="number" id="textureImageCreateCornerRadius" min="0" max="128" step="1" value="24">
+                                        <span>px</span>
+                                    </div>
+
+                                    <div class="texture-image-creator-radius" id="textureImageCreateArrowThicknessRow" style="display: none;">
+                                        <span>粗细</span>
+                                        <input type="range" id="textureImageCreateArrowThickness" min="8" max="50" step="1" value="20" class="texture-image-range">
+                                        <input type="number" id="textureImageCreateArrowThicknessValue" min="8" max="50" step="1" value="20">
+                                        <span>%</span>
+                                    </div>
+
+                                    <div class="texture-image-creator-radius" id="textureImageCreateArrowRoundnessRow" style="display: none;">
+                                        <span>圆滑度</span>
+                                        <input type="range" id="textureImageCreateArrowRoundness" min="0" max="100" step="1" value="50" class="texture-image-range">
+                                        <input type="number" id="textureImageCreateArrowRoundnessValue" min="0" max="100" step="1" value="50">
+                                        <span>%</span>
+                                    </div>
+                                </section>
+
+                                <div class="texture-image-creator-footer" id="textureImageCreatorFooter" style="margin-top: 6px;">
+                                    <button type="button" class="btn btn-secondary" id="textureImageCreateCancelBtn">取消</button>
+                                    <button type="button" class="btn btn-primary" id="textureImageCreateConfirmBtn">确认创建</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="texture-image-library-view" id="textureImageLibraryView" style="display: none;">
+                            <div class="texture-existing-toolbar">
+                                <label class="texture-existing-search">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                                        <circle cx="11" cy="11" r="7"></circle>
+                                        <path d="m20 20-3.5-3.5"></path>
+                                    </svg>
+                                    <input type="search" id="textureImageLibrarySearch" placeholder="搜索贴图名或路径" autocomplete="off" aria-label="搜索全部贴图">
+                                </label>
+                                <span class="texture-existing-count" id="textureImageLibraryCount">0 项</span>
+                            </div>
+
+                            <div class="texture-existing-grid" id="textureImageLibraryGrid" role="listbox" aria-label="当前皮肤全部贴图"></div>
+                            <div class="texture-existing-empty" id="textureImageLibraryEmpty" style="display: none;">
+                                当前皮肤中没有读取到贴图
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="texture-image-footer">
+                    <div class="texture-image-footer" id="textureImageFooter" style="display: none;">
                         <button type="button" class="btn btn-secondary" id="textureImageResetBtn" disabled>重置当前贴图</button>
                         <button type="button" class="btn btn-secondary" id="textureImageBlankBtn" title="将当前贴图直接替换为 1×1 全透明 PNG" disabled>设为空白</button>
                         <div class="texture-image-footer-right">
                             <button type="button" class="btn btn-secondary" id="textureImageCancelBtn">不保存</button>
-                            <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
+                            <div class="texture-image-save-actions">
+                                <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
+                                <button type="button" class="texture-image-save-menu-btn" id="textureImageApplyMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-label="更多保存方式" title="更多保存方式" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
+                                        <path d="m6 9 6 6 6-6"></path>
+                                    </svg>
+                                </button>
+                                <div class="texture-image-save-menu" id="textureImageApplyMenu" role="menu" aria-label="保存方式" style="display: none;">
+                                    <button type="button" class="texture-image-save-menu-item" id="textureImageApplyCurrentBtn" role="menuitem">保存当前轨道</button>
+                                    <button type="button" class="texture-image-save-menu-item" id="textureImageApplyAllBtn" role="menuitem">应用到全部轨道</button>
+                                    <div class="texture-image-save-menu-divider" role="separator"></div>
+                                    <div class="texture-image-save-menu-label">高级应用</div>
+                                    <button type="button" class="texture-image-save-menu-item" id="textureImageApplyCurrentOnlyBtn" role="menuitem">仅更新当前 KeyImage</button>
+                                    <button type="button" class="texture-image-save-menu-item" id="textureImageApplyAllOnlyBtn" role="menuitem">全部轨道仅更新 KeyImage</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -868,6 +1262,29 @@
                             <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCancelBtn">取消</button>
                             <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCurrentBtn">仅当前轨道</button>
                             <button type="button" class="btn btn-primary" id="textureImageApplyScopeAllBtn">应用到全部轨道</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="texture-image-scope-modal" id="textureImageLibraryActionModal" style="display: none;">
+                    <div class="texture-image-scope-backdrop" id="textureImageLibraryActionBackdrop"></div>
+                    <div class="texture-image-scope-dialog" role="dialog" aria-modal="true" aria-labelledby="textureImageLibraryActionTitle">
+                        <div class="texture-image-scope-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </div>
+                        <h3 id="textureImageLibraryActionTitle">复制贴图</h3>
+                        <p id="textureImageLibraryActionText">请输入副本名称。</p>
+                        <div class="texture-library-action-source" id="textureImageLibraryActionSource"></div>
+                        <div class="texture-library-action-field" id="textureImageLibraryCopyField">
+                            <input type="text" id="textureImageLibraryCopyName" class="param-text-input" placeholder="输入新贴图名称...">
+                            <span class="texture-library-action-error" id="textureImageLibraryCopyError"></span>
+                        </div>
+                        <div class="texture-image-scope-actions">
+                            <button type="button" class="btn btn-secondary" id="textureImageLibraryActionCancelBtn">取消</button>
+                            <button type="button" class="btn btn-primary" id="textureImageLibraryActionConfirmBtn">复制贴图</button>
                         </div>
                     </div>
                 </div>
@@ -922,6 +1339,13 @@
 
                 <!-- 中区：故事板/视频开关、流速调节与背景暗化 -->
                 <div class="deck-group deck-tweaks">
+                    <div class="tweak-switch-item studio-utility-toggle" title="开启判定提示动态演示：按真实比率展示 300MAX/300/200/100/50 及 Miss 断连恢复">
+                        <span class="tweak-label">判定演示</span>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="previewJudgementToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class="tweak-switch-item" title="开启 / 关闭故事板渲染 (对齐 osu!stable 故事板开关)">
                         <span class="tweak-label">故事板</span>
                         <label class="ios-switch">
@@ -997,7 +1421,6 @@
             <!-- 分类标签页导航 -->
             <div class="skin-editor-tabs" id="skinEditorTabs">
                 <button type="button" class="tab-btn active" data-tab="mania">Mania 模式 (<span id="activeKeyCountTabLabel">4K</span>)</button>
-                <button type="button" class="tab-btn" data-tab="textures">贴图</button>
                 <button type="button" class="tab-btn" data-tab="fonts">字体与数字</button>
                 <button type="button" class="tab-btn" data-tab="general">基础设置</button>
                 <button type="button" class="tab-btn" data-tab="raw">skin.ini文本</button>
@@ -1005,6 +1428,23 @@
 
             <!-- 参数列表容器 -->
             <div class="skin-editor-body" id="skinEditorBody">
+                <div class="skin-source-required-state" id="skinEditorSkinRequired" role="status" aria-live="polite" aria-hidden="true">
+                    <div class="skin-source-required-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="34" height="34">
+                            <path d="M21 15V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10"></path>
+                            <path d="m3 16 5-5 4 4 2-2 3 3"></path>
+                            <circle cx="9" cy="7" r="1.5"></circle>
+                            <path d="M19 16v6"></path>
+                            <path d="m16 19 3-3 3 3"></path>
+                        </svg>
+                    </div>
+                    <div class="skin-source-required-title">请导入谱面和皮肤</div>
+                    <div class="skin-source-required-actions">
+                        <button type="button" class="btn btn-secondary" data-startup-required-action="beatmap">导入谱面</button>
+                        <button type="button" class="btn btn-secondary" data-skin-source-action="import" data-startup-required-action="skin">导入皮肤</button>
+                        <button type="button" class="btn btn-primary" data-skin-source-action="default" data-startup-required-action="skin">从默认皮肤开始</button>
+                    </div>
+                </div>
                 <div class="param-list-container" id="paramListContainer">
                     <!-- 参数卡片动态渲染 -->
                 </div>
@@ -1641,7 +2081,7 @@
     <!-- 3) Canvas 画布绘制核心 -->
     <script defer src="src/js/render/effects.js?v=20261009_2"></script>
     <script defer src="src/js/render/fonts.js?v=20261009_6"></script>
-    <script defer src="src/js/render/textures.js?v=20261012_3"></script>
+    <script defer src="src/js/render/textures.js?v=20261017_1"></script>
     <script defer src="src/js/render/combo.js?v=20261010_3"></script>
     <script defer src="src/js/render/video-transcoder.js?v=20261010_2"></script>
     <script defer src="src/js/render/storyboard-assets.js?v=20261013_2"></script>
@@ -1664,16 +2104,25 @@
     <script defer src="src/js/cursor.js?v=20261009_3"></script>
     <!-- 5) 界面交互层与启动初始化（必须最后加载） -->
     <script defer src="src/js/ui/feedback.js?v=20261010_3"></script>
+    <script defer src="src/js/ui/startup-actions.js?v=20261017_1"></script>
     <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
     <script defer src="src/js/ui/transport.js?v=20261013_2"></script>
     <script defer src="src/js/ui/canvas-element-index.js?v=20261016_1"></script>
     <script defer src="src/js/ui/canvas-editor.js?v=20261016_1"></script>
     <script defer src="src/js/ui/ini-export.js?v=20261009_3"></script>
     <script defer src="src/js/ui/param-core.js?v=20261009_6"></script>
-    <script defer src="src/js/ui/texture-resolve.js?v=20261009_2"></script>
+    <script defer src="src/js/ui/texture-resolve.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-param-lookup.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-solid-shape-factory.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-existing-sources.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-existing-picker-view.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-existing-picker.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-library-operations.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-library-view.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-library-tab.js?v=20261017_2"></script>
     <script defer src="src/js/ui/texture-control-thumbnails.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-control-score-percent.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/texture-control-param.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-control-param.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-control-track-group.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-control-font-glyph.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-control-colours.js?v=20261016_1"></script>
@@ -1684,10 +2133,12 @@
     <script defer src="src/js/ui/editor-card-controls.js?v=20261016_1"></script>
     <script defer src="src/js/ui/editor-dialog.js?v=20261016_1"></script>
     <script defer src="src/js/ui/animation-editor.js?v=20261009_4"></script>
-    <script defer src="src/js/ui/texture-upload.js?v=20261009_4"></script>
+    <script defer src="src/js/ui/texture-upload.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-rgb-adjustment.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-image-editor-state.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/texture-image-editor-tabs.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/texture-image-editor-recipes.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-tabs.js?v=20261017_2"></script>
+    <script defer src="src/js/ui/texture-image-editor-create.js?v=20261017_3"></script>
+    <script defer src="src/js/ui/texture-image-editor-recipes.js?v=20261017_2"></script>
     <script defer src="src/js/ui/texture-image-editor-preview-zoom.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-longbody-compose.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-longbody-apply.js?v=20261016_1"></script>
@@ -1700,9 +2151,9 @@
     <script defer src="src/js/ui/texture-image-editor-crop-interactions.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-frame-edit.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-keyimage-groups.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/texture-image-editor-store-serialize.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-store-serialize.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-image-editor-save-close.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/texture-image-editor.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor.js?v=20261017_2"></script>
     <script defer src="src/js/ui/canvas-key-image-height.js?v=20261016_1"></script>
     <script defer src="src/js/ui/canvas-interactions.js?v=20261016_1"></script>
     <script defer src="src/js/ui/shortcuts.js?v=20261012_1"></script>

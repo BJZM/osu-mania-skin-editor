@@ -4,6 +4,26 @@
 // ============================================================================
 
         function getCurrentEditParams() {
+            const hasNewCropInputs = !!(byId('textureImageCropLeft') || byId('textureImageCropRight') || byId('textureImageCropTop') || byId('textureImageCropBottom'));
+            if (hasNewCropInputs) {
+                const left = parseIntegerInput('textureImageCropLeft', '左边界', -MAX_TEXTURE_DIMENSION);
+                const right = parseIntegerInput('textureImageCropRight', '右边界', -MAX_TEXTURE_DIMENSION);
+                const top = parseIntegerInput('textureImageCropTop', '上边界', -MAX_TEXTURE_DIMENSION);
+                const bottom = parseIntegerInput('textureImageCropBottom', '下边界', -MAX_TEXTURE_DIMENSION);
+                return {
+                    left,
+                    right,
+                    top,
+                    bottom,
+                    cropLeft: left,
+                    cropRight: right,
+                    cropTop: top,
+                    cropBottom: bottom,
+                    cropX: -left,
+                    cropY: -top,
+                    imageTransform: cloneImageTransform(state.imageTransform)
+                };
+            }
             return {
                 cropX: -parseIntegerInput('textureImageCropX', '左边界', -MAX_TEXTURE_DIMENSION),
                 cropY: -parseIntegerInput('textureImageCropY', '上边界', -MAX_TEXTURE_DIMENSION),
@@ -16,10 +36,22 @@
         function buildEditedFrames(sourceFrames, params) {
             if (!sourceFrames || sourceFrames.length === 0 || !params) return null;
             const baseFrame = sourceFrames[0];
-            const cropX = Number(params.cropX) || 0;
-            const cropY = Number(params.cropY) || 0;
-            const cropWidth = baseFrame.width + (Number(params.widthDelta) || 0);
-            const cropHeight = baseFrame.height + (Number(params.heightDelta) || 0);
+            let cropX, cropY, cropWidth, cropHeight;
+            if (params.left != null || params.right != null || params.top != null || params.bottom != null) {
+                const left = Number(params.left) || 0;
+                const right = Number(params.right) || 0;
+                const top = Number(params.top) || 0;
+                const bottom = Number(params.bottom) || 0;
+                cropX = -left;
+                cropY = -top;
+                cropWidth = baseFrame.width + left + right;
+                cropHeight = baseFrame.height + top + bottom;
+            } else {
+                cropX = Number(params.cropX) || 0;
+                cropY = Number(params.cropY) || 0;
+                cropWidth = baseFrame.width + (Number(params.widthDelta) || 0);
+                cropHeight = baseFrame.height + (Number(params.heightDelta) || 0);
+            }
             if (cropWidth < 1 || cropHeight < 1) {
                 throw new Error('输出宽度和高度必须至少为 1px');
             }
@@ -46,6 +78,9 @@
                 output.width = outputRect.width;
                 output.height = outputRect.height;
                 output._is2x = frame._is2x;
+                output._isRootLevel = !!frame._isRootLevel;
+                output._isTransparent1x1 = !!frame._isTransparent1x1;
+                output._isBlankPlaceholder = !!frame._isBlankPlaceholder;
                 output._keyImageHeightOffset1x = 0;
                 output._keyImageHeightPadding1x = 0;
                 const ctx = output.getContext('2d');
@@ -134,6 +169,9 @@
                 resized.width = result.width;
                 resized.height = result.height;
                 resized._is2x = frame._is2x;
+                resized._isRootLevel = !!frame._isRootLevel;
+                resized._isTransparent1x1 = !!frame._isTransparent1x1;
+                resized._isBlankPlaceholder = !!frame._isBlankPlaceholder;
                 const resizedCtx = resized.getContext('2d');
                 resizedCtx.imageSmoothingEnabled = true;
                 resizedCtx.imageSmoothingQuality = 'high';
@@ -158,7 +196,9 @@
 
                 const before = sourceFrames[0];
                 state.workingFrames = resizeFramesUniform(sourceFrames, target);
-                state.previewFrames = state.workingFrames.map(cloneFrame);
+                state.previewFrames = state.workingFrames.map((frame) =>
+                    applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
+                );
                 resetTransformInputs();
                 installFramesToStores(state.previewFrames, state.selected, { persist: false });
                 updateMeta();

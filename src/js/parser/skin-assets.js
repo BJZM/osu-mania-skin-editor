@@ -94,9 +94,10 @@
             return false;
         }
 
-        function saveSkinAssetToStore(storeMap, targetKey, img, isHighRes, isRootLevel, force = false) {
+        function saveSkinAssetToStore(storeMap, targetKey, img, isHighRes, isRootLevel, force = false, options = {}) {
             const cleanKey = normalizeSkinKey(targetKey).replace(/@2x/g, '');
-            const dashMatch = cleanKey.match(/-(\d+)$/);
+            const asAnimFrame = options && options.isAnimFrame !== undefined ? options.isAnimFrame : true;
+            const dashMatch = asAnimFrame ? cleanKey.match(/-(\d+)$/) : null;
             if (dashMatch) {
                 const frameIdx = parseInt(dashMatch[1], 10);
                 const basePrefix = cleanKey.slice(0, dashMatch.index);

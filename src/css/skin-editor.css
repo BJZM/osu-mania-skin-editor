@@ -302,7 +302,7 @@
             z-index: 2001;
             pointer-events: auto; /* 窗口内部允许所有正常交互 */
             resize: both; /* 允许用户在右下角自由拉伸缩放窗口 */
-            min-width: 460px;
+            min-width: min(460px, calc(100vw - 32px));
             animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             transition: opacity 0.15s ease;
         }
@@ -326,6 +326,21 @@
         .skin-editor-dialog.is-collapsed .skin-editor-body,
         .skin-editor-dialog.is-collapsed .skin-editor-footer {
             display: none !important;
+        }
+
+        .skin-editor-dialog.is-skin-source-missing .skin-editor-toolbar,
+        .skin-editor-dialog.is-skin-source-missing .skin-editor-footer {
+            display: none !important;
+        }
+
+        .skin-editor-dialog.is-skin-source-missing .skin-editor-body > :not(.skin-source-required-state) {
+            display: none !important;
+        }
+
+        .skin-editor-dialog.is-skin-source-missing .skin-editor-body {
+            display: flex;
+            align-items: stretch;
+            overflow: hidden;
         }
 
         @keyframes modalScaleUp {
@@ -547,6 +562,7 @@
             background: #14121a;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
             flex-shrink: 0;
+            overflow-x: auto;
         }
 
         .tab-btn {
@@ -562,6 +578,8 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
 
         .tab-btn:hover {
@@ -1276,12 +1294,12 @@
             white-space: nowrap;
         }
 
-        .texture-upload-main-btn:hover {
+        .texture-upload-main-btn:not(:disabled):hover {
             background: #ffffff;
             color: #111118;
         }
 
-        .texture-upload-main-btn:active {
+        .texture-upload-main-btn:not(:disabled):active {
             transform: scale(0.96);
             background: #e2e2e8;
         }
@@ -1367,6 +1385,7 @@
         .texture-upload-menu-item:hover,
         .texture-upload-menu-item.item-1x:hover,
         .texture-upload-menu-item.item-2x:hover,
+        .texture-upload-menu-item.item-existing:hover,
         .texture-upload-menu-item.item-anim:hover {
             background: #ffffff;
             color: #111118;
@@ -1381,6 +1400,7 @@
         .upload-menu-tag,
         .upload-menu-tag.tag-1x,
         .upload-menu-tag.tag-2x,
+        .upload-menu-tag.tag-existing,
         .upload-menu-tag.tag-anim {
             display: inline-flex;
             align-items: center;
@@ -1396,6 +1416,7 @@
             border: none;
             transition: all 0.15s ease;
         }
+
 
         .texture-upload-menu-item:hover .upload-menu-tag {
             background: rgba(0, 0, 0, 0.12);

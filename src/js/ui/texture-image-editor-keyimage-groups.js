@@ -29,10 +29,16 @@
             return getKeyImageParamKind(p) != null;
         }
 
-        function collectKeyImageEditGroups(scope) {
+        function collectKeyImageEditGroups(scope, options = {}) {
             const keys = getActiveKeyCount();
             const selectedCol = getSelectedTrackIndex();
             if (selectedCol == null) return [];
+            const selectedKind = options.selectedKind || getKeyImageParamKind(state.selected && state.selected.p);
+            const syncPair = options.syncPair !== false;
+            const kinds = syncPair
+                ? ['normal', 'down']
+                : [selectedKind].filter(Boolean);
+            if (kinds.length === 0) return [];
             const editRecipe = state.keyImageEditRecipe;
             const columns = scope === 'all'
                 ? Array.from({ length: keys }, (_, column) => column)
@@ -45,7 +51,7 @@
             const entries = [];
 
             for (const column of columns) {
-                for (const kind of ['normal', 'down']) {
+                for (const kind of kinds) {
                     const p = findParam(column, kind);
                     if (!p) continue;
                     const target = buildEditorTarget(p);
@@ -55,6 +61,9 @@
                         (isSelected && editRecipe
                             ? editRecipe.keyImageOriginalSources[p.key]
                             : null);
+                    const storedRecipe = !isSelected
+                        ? getStoredTextureEditRecipe(target)
+                        : null;
                     const selectedRecipeFrames = isSelected && editRecipe
                         ? editRecipe.sourceFrames.map(cloneFrame)
                         : null;
@@ -63,20 +72,22 @@
                             ? cachedSource.frames.map(cloneFrame)
                             : (isSelected
                                 ? state.workingFrames.map(cloneFrame)
-                                : target.frames.map(cloneFrame)));
+                                : ((storedRecipe && storedRecipe.sourceFrames) ||
+                                    target.frames).map(cloneFrame)));
                     const explicitReference = isSelected && editRecipe && editRecipe.originalReference
                         ? editRecipe.originalReference
                         : (cachedSource
                         ? cachedSource.reference
-                        : (sourceFrames.length > 0
-                            ? (isSelected && state.originalReference
-                                ? state.originalReference
-                                : normalizeSkinKey(
-                                (target.resolved && target.resolved.name) ||
-                                target.base ||
-                                p.key
-                                ))
-                            : ''));
+                            : (storedRecipe && storedRecipe.originalReference) ||
+                                (sourceFrames.length > 0
+                                    ? (isSelected && state.originalReference
+                                        ? state.originalReference
+                                        : normalizeSkinKey(
+                                            (target.resolved && target.resolved.name) ||
+                                            target.base ||
+                                            p.key
+                                        ))
+                                    : ''));
                     entries.push({
                         p,
                         target,
@@ -84,47 +95,46 @@
                         kind,
                         isSelected,
                         sourceFrames,
+                        rgbAdjustment: cloneRgbAdjustment(
+                            isSelected
+                                ? state.rgbAdjustment
+                                : (storedRecipe && storedRecipe.params
+                                    ? storedRecipe.params.rgbAdjustment
+                                    : null)
+                        ),
                         reference: explicitReference || `missing:${column}:${kind}`
                     });
                 }
             }
 
-            for (const column of columns) {
-                const normal = entries.find((entry) => entry.column === column && entry.kind === 'normal');
-                const down = entries.find((entry) => entry.column === column && entry.kind === 'down');
-                if (!normal || !down) continue;
-                if (normal.sourceFrames.length === 0 && down.sourceFrames.length > 0) {
-                    normal.sourceFrames = down.sourceFrames.map(cloneFrame);
-                    normal.reference = `missing:${column}:normal`;
-                } else if (down.sourceFrames.length === 0 && normal.sourceFrames.length > 0) {
-                    down.sourceFrames = normal.sourceFrames.map(cloneFrame);
-                    down.reference = `missing:${column}:down`;
+            for (const entry of entries) {
+                if (entry.sourceFrames.length === 0 ||
+                    state.keyImageOriginalSources[entry.p.key]) {
+                    continue;
                 }
-                if (normal.sourceFrames.length > 0 && !state.keyImageOriginalSources[normal.p.key]) {
-                    state.keyImageOriginalSources[normal.p.key] = {
-                        frames: normal.sourceFrames.map(cloneFrame),
-                        reference: normal.reference
-                    };
-                }
-                if (down.sourceFrames.length > 0 && !state.keyImageOriginalSources[down.p.key]) {
-                    state.keyImageOriginalSources[down.p.key] = {
-                        frames: down.sourceFrames.map(cloneFrame),
-                        reference: down.reference
-                    };
-                }
+                state.keyImageOriginalSources[entry.p.key] = {
+                    frames: entry.sourceFrames.map(cloneFrame),
+                    reference: entry.reference
+                };
             }
 
             const groups = new Map();
             for (const entry of entries) {
                 if (entry.sourceFrames.length === 0) continue;
-                const group = groups.get(entry.reference) || {
+                const groupKey = `${entry.kind}|${entry.reference}`;
+                const group = groups.get(groupKey) || {
                     reference: entry.reference,
+                    kind: entry.kind,
                     sourceFrames: entry.sourceFrames,
+                    rgbAdjustment: entry.rgbAdjustment,
                     entries: []
                 };
                 group.entries.push(entry);
-                if (entry.isSelected) group.sourceFrames = entry.sourceFrames;
-                groups.set(entry.reference, group);
+                if (entry.isSelected) {
+                    group.sourceFrames = entry.sourceFrames;
+                    group.rgbAdjustment = entry.rgbAdjustment;
+                }
+                groups.set(groupKey, group);
             }
             return Array.from(groups.values());
         }
@@ -168,8 +178,11 @@
                 const base = chooseKeyImageGroupBase(group, usedBases);
                 const result = buildEditedFrames(group.sourceFrames, params);
                 if (!result || result.frames.length === 0) return false;
-                const serialized = await serializeFrames(base, result.frames);
-                prepared.push({ group, base, frames: result.frames, serialized });
+                const frames = result.frames.map((frame) =>
+                    applyRgbAdjustmentToCanvas(frame, group.rgbAdjustment)
+                );
+                const serialized = await serializeFrames(base, frames);
+                prepared.push({ group, base, frames, serialized });
             }
 
             for (const item of prepared) {
@@ -185,6 +198,17 @@
                 });
                 for (const entry of item.group.entries) {
                     pointKeyImageParamToBase(entry.p, item.base);
+                }
+                if (typeof hasCreatedTextureParams === 'function' &&
+                    hasCreatedTextureParams(item.group.reference)) {
+                    cloneCreatedTextureParams(item.group.reference, item.base);
+                    if (typeof saveCreatedTextureGeneralEditParams === 'function') {
+                        saveCreatedTextureGeneralEditParams(item.base, {
+                            ...params,
+                            imageTransform: cloneImageTransform(params.imageTransform),
+                            rgbAdjustment: cloneRgbAdjustment(item.group.rgbAdjustment)
+                        });
+                    }
                 }
 
                 const is2x = !!(item.frames[0] && item.frames[0]._is2x);

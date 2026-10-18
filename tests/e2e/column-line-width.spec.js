@@ -11,7 +11,11 @@ test('ColumnLineWidth normalizes, renders, clips and mirrors correctly', async (
     { timeout: 30000 }
   );
 
+  await page.waitForFunction(() => typeof markStartupBeatmapReady === 'function');
+
   const result = await page.evaluate(() => {
+    markStartupBeatmapReady();
+    markStartupSkinReady();
     activeEditorKeyCount = 4;
     currentBeatmap = {
       keys: 4,

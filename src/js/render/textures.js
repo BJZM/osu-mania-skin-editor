@@ -203,6 +203,20 @@
                     if (userImg) return userImg;
                     const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName, allowNestedFallback);
                     if (userFrames && userFrames.length > 0) return userFrames[0];
+                    // 默认皮肤工作区里，内置默认资源就是当前可编辑皮肤的一部分。
+                    // 显式路径（如编辑单键后固定的 NoteImage0H）也必须能解析到这些资源，
+                    // 否则参数面板会显示「未找到」，与「全部贴图」列表不一致。
+                    if (typeof isEditableDefaultSkinWorkspaceActive === 'function' &&
+                        isEditableDefaultSkinWorkspaceActive()) {
+                        const defaultImg = getSkinAnimationFromStore(defaultSkinImageStore, targetName, allowNestedFallback);
+                        if (defaultImg) return defaultImg;
+                        const defaultFrames = getSkinAnimationFramesFromStore(
+                            defaultSkinImageStore,
+                            targetName,
+                            allowNestedFallback
+                        );
+                        if (defaultFrames && defaultFrames.length > 0) return defaultFrames[0];
+                    }
                     // 找不到对应图片则不显示（不回退到默认文件名或默认皮肤）
                     return null;
                 }
@@ -309,6 +323,21 @@
                     if (userFrames && userFrames.length > 0) return userFrames;
                     const userSingle = getSkinAnimationFromStore(skinImageStore, targetName, allowNestedFallback);
                     if (userSingle) return [userSingle];
+                    if (typeof isEditableDefaultSkinWorkspaceActive === 'function' &&
+                        isEditableDefaultSkinWorkspaceActive()) {
+                        const defaultFrames = getSkinAnimationFramesFromStore(
+                            defaultSkinImageStore,
+                            targetName,
+                            allowNestedFallback
+                        );
+                        if (defaultFrames && defaultFrames.length > 0) return defaultFrames;
+                        const defaultSingle = getSkinAnimationFromStore(
+                            defaultSkinImageStore,
+                            targetName,
+                            allowNestedFallback
+                        );
+                        if (defaultSingle) return [defaultSingle];
+                    }
                     // 找不到对应图片则不显示
                     return null;
                 }

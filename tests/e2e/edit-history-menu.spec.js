@@ -1,24 +1,88 @@
 const { test, expect } = require('@playwright/test');
 
-test('顶部编辑菜单集中展示重做、撤回与恢复初始', async ({ page }) => {
+test('顶部菜单按文件、难度与操作、其他分组，判定演示位于播放栏', async ({ page }) => {
   await page.goto('/index.html');
-  await page.waitForFunction(() => typeof performSkinRedo === 'function');
+  await page.waitForFunction(
+    () => typeof performSkinRedo === 'function' && typeof startFromDefaultSkin === 'function'
+  );
 
-  await expect(page.locator('#editMenu')).toBeHidden();
-  await page.click('#editMenuBtn');
-
-  const menu = page.locator('#editMenu');
-  await expect(menu).toBeVisible();
-  await expect(menu.locator('.dropdown-item .title')).toHaveText([
-    '重做',
-    '撤回',
-    '恢复初始'
+  const topbarButtonOrder = await page.locator('#canvasTopBar .tool-btn').evaluateAll(
+    buttons => buttons.map(button => button.id)
+  );
+  expect(topbarButtonOrder).toEqual([
+    'fileMenuBtn',
+    'diffSelectBtn',
+    'canvasUndoBtn',
+    'canvasRedoBtn',
+    'openSkinEditorBtn',
+    'openTextureImageEditorBtn',
+    'exportSkinBtn',
+    'otherMenuBtn'
   ]);
+
+  await expect(page.locator('#fileMenu')).toBeHidden();
+  await page.click('#fileMenuBtn');
+  await expect(page.locator('#fileMenu')).toBeVisible();
+  await expect(page.locator('#fileMenu .dropdown-item .title')).toHaveText([
+    '导入皮肤',
+    '导入谱面',
+    '从默认皮肤开始'
+  ]);
+
+  await page.click('#diffSelectBtn');
+  await expect(page.locator('#fileMenu')).toBeHidden();
+  await expect(page.locator('#diffMenu')).toBeVisible();
+
+  await page.click('#exportSkinBtn');
+  await expect(page.locator('#diffMenu')).toBeHidden();
+  await expect(page.locator('#exportMenu')).toBeVisible();
+
+  await page.click('#otherMenuBtn');
+  await expect(page.locator('#exportMenu')).toBeHidden();
+  await expect(page.locator('#otherMenu')).toBeVisible();
+  await expect(page.locator('#otherMenu .dropdown-item .title')).toHaveText([
+    '恢复初始状态',
+    '帮助',
+    '关于'
+  ]);
+  await expect(page.locator('#sidebarRevertSkinBtn')).toHaveClass(/is-danger/);
   await expect(page.locator('#canvasRedoBtn')).toBeDisabled();
   await expect(page.locator('#canvasUndoBtn')).toBeDisabled();
   await expect(page.locator('#sidebarRevertSkinBtn')).toBeEnabled();
 
-  await page.click('#exportSkinBtn');
-  await expect(menu).toBeHidden();
-  await expect(page.locator('#exportMenu')).toBeVisible();
+  await expect(page.locator('#playerControls #previewJudgementToggle')).toHaveCount(1);
+  await expect(page.locator('#canvasEditModeToggle')).toHaveCount(0);
+});
+
+test('从默认皮肤开始会清空当前皮肤并恢复可编辑默认工作区', async ({ page }) => {
+  await page.goto('/index.html');
+  await page.waitForFunction(() => typeof startFromDefaultSkin === 'function');
+
+  await page.evaluate(() => {
+    currentSkinZip = { fake: true };
+    currentSkinFileName = 'ImportedSkin';
+    editableDefaultSkinWorkspaceActive = false;
+  });
+
+  await page.click('#fileMenuBtn');
+  let dialogMessage = '';
+  page.once('dialog', async dialog => {
+    dialogMessage = dialog.message();
+    await dialog.accept();
+  });
+  await page.click('#useDefaultSkinBtn');
+  expect(dialogMessage).toContain('从 osu!stable 默认皮肤重新开始');
+
+  await page.waitForFunction(
+    () => currentSkinZip === null && isEditableDefaultSkinWorkspaceActive()
+  );
+
+  const state = await page.evaluate(() => ({
+    skinName: currentSkinFileName,
+    active: isEditableDefaultSkinWorkspaceActive(),
+    keys: Array.from(maniaSkinConfigurations.keys()).sort((a, b) => a - b)
+  }));
+  expect(state.skinName).toBe('默认皮肤');
+  expect(state.active).toBe(true);
+  expect(state.keys).toContain(4);
 });

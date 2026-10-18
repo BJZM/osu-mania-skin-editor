@@ -39,7 +39,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  let urlPath = decodeURIComponent(requestUrl.pathname);
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent(requestUrl.pathname);
+  } catch (_) {
+    res.writeHead(400);
+    res.end('Bad Request');
+    return;
+  }
   if (urlPath.endsWith('/')) urlPath += 'index.html';
   const filePath = path.resolve(root, '.' + urlPath);
   if (!filePath.startsWith(root)) {
@@ -63,8 +70,30 @@ const server = http.createServer((req, res) => {
       res.end();
       return;
     }
-    fs.createReadStream(filePath).pipe(res);
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => {
+      if (!res.headersSent) {
+        res.writeHead(500);
+      }
+      res.end();
+    });
+    res.on('close', () => {
+      stream.destroy();
+    });
+    stream.pipe(res);
   });
+});
+
+server.on('error', (err) => {
+  console.error('Server error:', err);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception in server:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled rejection in server:', reason);
 });
 
 const port = process.env.PORT || 8765;

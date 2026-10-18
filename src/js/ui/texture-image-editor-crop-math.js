@@ -86,13 +86,23 @@
 
         function updateCropInputs(rect) {
             const baseFrame = state.workingFrames[0];
-            const cropX = byId('textureImageCropX');
-            const cropY = byId('textureImageCropY');
+            const cropLeft = byId('textureImageCropLeft') || byId('textureImageCropX');
+            const cropRight = byId('textureImageCropRight');
+            const cropTop = byId('textureImageCropTop') || byId('textureImageCropY');
+            const cropBottom = byId('textureImageCropBottom');
             const cropW = byId('textureImageCropWidth');
             const cropH = byId('textureImageCropHeight');
             if (!rect || !baseFrame) return;
-            if (cropX) cropX.value = String(-rect.x);
-            if (cropY) cropY.value = String(-rect.y);
+
+            const left = -rect.x;
+            const top = -rect.y;
+            const right = rect.x + rect.width - baseFrame.width;
+            const bottom = rect.y + rect.height - baseFrame.height;
+
+            if (cropLeft) cropLeft.value = String(left);
+            if (cropRight) cropRight.value = String(right);
+            if (cropTop) cropTop.value = String(top);
+            if (cropBottom) cropBottom.value = String(bottom);
             if (cropW) {
                 cropW.min = String(1 - baseFrame.width);
                 cropW.value = String(rect.width - baseFrame.width);

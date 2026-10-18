@@ -42,7 +42,6 @@
             <!-- 分类标签页导航 -->
             <div class="skin-editor-tabs" id="skinEditorTabs">
                 <button type="button" class="tab-btn active" data-tab="mania">Mania 模式 (<span id="activeKeyCountTabLabel">4K</span>)</button>
-                <button type="button" class="tab-btn" data-tab="textures">贴图</button>
                 <button type="button" class="tab-btn" data-tab="fonts">字体与数字</button>
                 <button type="button" class="tab-btn" data-tab="general">基础设置</button>
                 <button type="button" class="tab-btn" data-tab="raw">skin.ini文本</button>
@@ -50,6 +49,23 @@
 
             <!-- 参数列表容器 -->
             <div class="skin-editor-body" id="skinEditorBody">
+                <div class="skin-source-required-state" id="skinEditorSkinRequired" role="status" aria-live="polite" aria-hidden="true">
+                    <div class="skin-source-required-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="34" height="34">
+                            <path d="M21 15V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10"></path>
+                            <path d="m3 16 5-5 4 4 2-2 3 3"></path>
+                            <circle cx="9" cy="7" r="1.5"></circle>
+                            <path d="M19 16v6"></path>
+                            <path d="m16 19 3-3 3 3"></path>
+                        </svg>
+                    </div>
+                    <div class="skin-source-required-title">请导入谱面和皮肤</div>
+                    <div class="skin-source-required-actions">
+                        <button type="button" class="btn btn-secondary" data-startup-required-action="beatmap">导入谱面</button>
+                        <button type="button" class="btn btn-secondary" data-skin-source-action="import" data-startup-required-action="skin">导入皮肤</button>
+                        <button type="button" class="btn btn-primary" data-skin-source-action="default" data-startup-required-action="skin">从默认皮肤开始</button>
+                    </div>
+                </div>
                 <div class="param-list-container" id="paramListContainer">
                     <!-- 参数卡片动态渲染 -->
                 </div>

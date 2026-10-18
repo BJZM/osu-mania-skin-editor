@@ -93,6 +93,10 @@
             rawIniText: ''
         };
         let userReplacedTextures = new Map();
+        // 记录从贴图库删除的资源文件名；导出时据此移除原始包条目，并允许撤销恢复。
+        let deletedSkinTexturePaths = new Set();
+        // 记录通过创建贴图功能生成的纯色贴图参数；支持在全部贴图区域对其进行二次编辑
+        let createdSkinTextureParams = new Map();
         // score-percent 首次被编辑器改写前保留可见百分号字形；用于在透明垫片模式下
         // 重新开启百分号时恢复同一套皮肤的原始字形，而不是退化成固定占位图。
         let scorePercentSourceImages = new Map();

@@ -23,6 +23,23 @@
             const skinAuthorEl = document.getElementById('infoSkinAuthor');
             const oskFileNameEl = document.getElementById('oskFileName');
 
+            if (typeof isStartupSkinReady === 'function' && !isStartupSkinReady()) {
+                if (skinNameEl) {
+                    skinNameEl.textContent = '等待选择皮肤';
+                    skinNameEl.title = '等待选择皮肤';
+                }
+                if (skinAuthorEl) {
+                    skinAuthorEl.textContent = '请选择默认皮肤或导入皮肤';
+                    skinAuthorEl.title = '请选择默认皮肤或导入皮肤';
+                }
+                if (oskFileNameEl) {
+                    oskFileNameEl.textContent = '未选择';
+                    oskFileNameEl.title = '未选择皮肤';
+                    oskFileNameEl.classList.remove('loaded');
+                }
+                return;
+            }
+
             const sName = (currentSkinMetadata && currentSkinMetadata.general && currentSkinMetadata.general.Name)
                 || (currentSkinFileName && currentSkinFileName !== 'Custom_Mania_Skin' ? currentSkinFileName : '默认 / 内置皮肤');
             const sAuthor = (currentSkinMetadata && currentSkinMetadata.general && currentSkinMetadata.general.Author) || '';
@@ -208,9 +225,7 @@
         // 定位到菜单中具体参数行并执行聚焦高亮动画。
         // 放在最后加载的启动模块中，确保完整 UI 初始化完成后才向测试/外部调用暴露。
         function focusParameter(paramKey) {
-            const modal = document.getElementById('skinEditorModal');
-            if (!modal) return;
-            modal.classList.add('active');
+            if (!isSkinEditingWorkspaceReady()) return false;
 
             const keysToHighlight = Array.isArray(paramKey) ? paramKey : [paramKey];
             const primaryKey = keysToHighlight[0] || 'ColumnWidth';
@@ -238,6 +253,16 @@
                 activeEditorKeyCount = curKeys;
                 updateSkinEditorKeyPills();
             }
+
+            if (targetTab === 'textures') {
+                if (typeof textureImageEditorUi !== 'undefined' && textureImageEditorUi &&
+                    typeof textureImageEditorUi.focusParams === 'function') {
+                    return textureImageEditorUi.focusParams(keysToHighlight);
+                }
+                return false;
+            }
+
+            if (typeof openSkinEditorDialog !== 'function' || !openSkinEditorDialog()) return false;
             switchEditorTab(targetTab);
 
             const searchInput = document.getElementById('paramSearchInput');
@@ -274,6 +299,7 @@
                     firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 120);
+            return true;
         }
 
         // 从画布上的连击选中卡片跳到连击字体贴图。
@@ -308,6 +334,8 @@
         loadDefaultSkin();
         // 初始化可视化皮肤参数编辑器系统
         initSkinEditorUI();
+        // 初始化启动阶段谱面 / 皮肤选择面板与拖拽上传
+        initStartupActionsUI();
         // 初始化贴图拉伸规则帮助说明弹窗
         initHelpModalUI();
         // 初始化关于、版权与第三方许可弹窗

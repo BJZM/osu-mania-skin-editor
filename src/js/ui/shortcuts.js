@@ -15,19 +15,23 @@
                 textureImageEditorUi
             );
 
-            // 贴图编辑窗口激活时，Ctrl+Z / Ctrl+Y 只作用于窗口内部。
+            // 贴图编辑窗口激活时，内部贴图历史（裁剪/调色等）优先撤回；若无内部历史，则向下穿透到皮肤撤回/重做
             if (isTextureImageEditorOpen && isCtrlOrCmd && keyLower === 'z' && !e.shiftKey) {
-                e.preventDefault();
-                textureImageEditorUi.undo();
-                return;
+                if (typeof textureImageEditorUi.canUndo === 'function' && textureImageEditorUi.canUndo()) {
+                    e.preventDefault();
+                    textureImageEditorUi.undo();
+                    return;
+                }
             }
             if (isTextureImageEditorOpen && (
                 (isCtrlOrCmd && keyLower === 'y') ||
                 (isCtrlOrCmd && keyLower === 'z' && e.shiftKey)
             )) {
-                e.preventDefault();
-                textureImageEditorUi.redo();
-                return;
+                if (typeof textureImageEditorUi.canRedo === 'function' && textureImageEditorUi.canRedo()) {
+                    e.preventDefault();
+                    textureImageEditorUi.redo();
+                    return;
+                }
             }
 
             // 快捷键: Ctrl+Z (撤销) 与 Ctrl+Y / Ctrl+Shift+Z (重做)
@@ -190,9 +194,8 @@
                 if (modal) {
                     if (modal.classList.contains('active')) {
                         modal.classList.remove('active');
-                    } else {
-                        modal.classList.add('active');
-                        renderSkinEditorParams();
+                    } else if (typeof openSkinEditorDialogFromToolbar === 'function') {
+                        void openSkinEditorDialogFromToolbar();
                     }
                 }
             } else if (e.key === 'Escape') {

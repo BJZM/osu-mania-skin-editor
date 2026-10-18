@@ -1,24 +1,59 @@
         <!-- 画布顶部工具栏 (整合品牌、导入与工具) -->
         <div class="canvas-top-bar" id="canvasTopBar">
             <div class="canvas-top-tools-left">
-                <!-- 导入谱面 (.OSZ) -->
-                <div class="topbar-file-item" id="oszWrapper">
-                    <input type="file" id="oszInput" accept=".osz,.zip,.osu">
-                    <label for="oszInput" class="topbar-btn osz-btn" title="导入谱面文件 (.osz / .zip / .osu)">
-                        <span>导入谱面</span>
-                        <span class="topbar-ext-tag">.OSZ</span>
-                    </label>
-                    
-                </div>
+                <!-- 文件菜单 -->
+                <div class="dropdown-wrapper topbar-file-dropdown" id="fileDropdownWrapper">
+                    <button type="button" class="tool-btn" id="fileMenuBtn" title="导入文件或从默认皮肤开始">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span>文件 &#9662;</span>
+                    </button>
+                    <div class="dropdown-menu" id="fileMenu">
+                        <input type="file" id="oskInput" accept=".osk,.zip">
+                        <label for="oskInput" class="dropdown-item topbar-file-item" id="oskWrapper" title="导入皮肤文件 (.osk / .zip)">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">导入皮肤</span>
+                                <span class="desc">载入 .osk 或 .zip 皮肤包</span>
+                            </span>
+                        </label>
 
-                <!-- 导入皮肤 (.OSK) -->
-                <div class="topbar-file-item" id="oskWrapper">
-                    <input type="file" id="oskInput" accept=".osk,.zip">
-                    <label for="oskInput" class="topbar-btn osk-btn" title="导入皮肤文件 (.osk / .zip)">
-                        <span>导入皮肤</span>
-                        <span class="topbar-ext-tag">.OSK</span>
-                    </label>
-                    
+                        <input type="file" id="oszInput" accept=".osz,.zip,.osu">
+                        <label for="oszInput" class="dropdown-item topbar-file-item" id="oszWrapper" title="导入谱面文件 (.osz / .zip / .osu)">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <path d="M9 18V5l12-2v13"></path>
+                                    <circle cx="6" cy="18" r="3"></circle>
+                                    <circle cx="18" cy="16" r="3"></circle>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">导入谱面</span>
+                                <span class="desc">载入 .osz、.zip 或 .osu 谱面</span>
+                            </span>
+                        </label>
+
+                        <button type="button" class="dropdown-item" id="useDefaultSkinBtn" title="清空当前皮肤并以内置默认皮肤继续编辑">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+                                    <path d="M3 3v5h5"></path>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">从默认皮肤开始</span>
+                                <span class="desc">使用 osu!stable 内置皮肤作为新的工作区</span>
+                            </span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 难度选择下拉菜单 -->
@@ -41,6 +76,20 @@
             </div>
 
             <div class="canvas-top-tools-right">
+                <button type="button" class="tool-btn" id="canvasUndoBtn" title="暂无可撤回的操作 (Ctrl+Z)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 7v6h6"></path>
+                        <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+                    </svg>
+                    <span>撤回</span>
+                </button>
+                <button type="button" class="tool-btn" id="canvasRedoBtn" title="暂无可重做的操作 (Ctrl+Y / Ctrl+Shift+Z)" disabled>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 7v6h-6"></path>
+                        <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"></path>
+                    </svg>
+                    <span>重做</span>
+                </button>
                 <button type="button" class="tool-btn" id="openSkinEditorBtn" title="打开详细设置面板 (快捷键 E)">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
@@ -48,12 +97,12 @@
                     </svg>
                     <span>详细设置</span>
                 </button>
-                <button type="button" class="tool-btn" id="openTextureImageEditorBtn" title="裁剪贴图或用透明像素增加画布尺寸">
+                <button type="button" class="tool-btn" id="openTextureImageEditorBtn" title="导入、替换、裁剪或编辑皮肤贴图">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M6 2v14a2 2 0 0 0 2 2h14"></path>
                         <path d="M18 22V8a2 2 0 0 0-2-2H2"></path>
                     </svg>
-                    <span>贴图编辑</span>
+                    <span>贴图的导入与编辑</span>
                 </button>
                 <div class="dropdown-wrapper" id="exportDropdownWrapper">
                     <button type="button" class="tool-btn" id="exportSkinBtn" title="将所有修改逆向保存并打包导出">
@@ -91,88 +140,55 @@
                         </button>
                     </div>
                 </div>
-                <div class="dropdown-wrapper" id="editDropdownWrapper">
-                    <button type="button" class="tool-btn" id="editMenuBtn" title="重做、撤回或恢复初始状态">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+                <div class="dropdown-wrapper" id="otherDropdownWrapper">
+                    <button type="button" class="tool-btn" id="otherMenuBtn" title="更多操作与项目信息">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
+                            <circle cx="5" cy="12" r="1"></circle>
+                            <circle cx="12" cy="12" r="1"></circle>
+                            <circle cx="19" cy="12" r="1"></circle>
                         </svg>
-                        <span>编辑 &#9662;</span>
+                        <span>其他 &#9662;</span>
                     </button>
-                    <div class="dropdown-menu" id="editMenu">
-                        <button type="button" class="dropdown-item" id="canvasRedoBtn" title="暂无可重做的操作 (Ctrl+Y / Ctrl+Shift+Z)" disabled>
-                            <span class="icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                                    <path d="M23 4v6h-6"></path>
-                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                                </svg>
-                            </span>
-                            <div class="item-text">
-                                <span class="title">重做</span>
-                                <span class="desc">重做已撤回的修改 (Ctrl+Y)</span>
-                            </div>
-                        </button>
-                        <button type="button" class="dropdown-item" id="canvasUndoBtn" title="暂无可撤回的操作 (Ctrl+Z)" disabled>
-                            <span class="icon">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-                                    <path d="M3 7v6h6"></path>
-                                    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
-                                </svg>
-                            </span>
-                            <div class="item-text">
-                                <span class="title">撤回</span>
-                                <span class="desc">撤回上一步操作 (Ctrl+Z)</span>
-                            </div>
-                        </button>
-                        <div class="dropdown-divider"></div>
-                        <button type="button" class="dropdown-item" id="sidebarRevertSkinBtn" title="将所有修改过的参数和贴图复原为导入时的原始状态">
+                    <div class="dropdown-menu" id="otherMenu">
+                        <button type="button" class="dropdown-item is-danger" id="sidebarRevertSkinBtn" title="将所有修改过的参数和贴图复原为导入时的原始状态">
                             <span class="icon">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
                                     <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L2 8"></path>
                                     <path d="M3 3v5h5"></path>
                                 </svg>
                             </span>
-                            <div class="item-text">
-                                <span class="title">恢复初始</span>
+                            <span class="item-text">
+                                <span class="title">恢复初始状态</span>
                                 <span class="desc">复原为导入时的参数与贴图</span>
-                            </div>
+                            </span>
+                        </button>
+                        <button type="button" class="dropdown-item" id="topHelpBtn" title="查看皮肤各贴图拉伸与尺寸规则说明 (帮助)">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">帮助</span>
+                                <span class="desc">查看贴图尺寸与拉伸规则</span>
+                            </span>
+                        </button>
+                        <button type="button" class="dropdown-item" id="topAboutBtn" title="关于本项目、版本与第三方许可">
+                            <span class="icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                            </span>
+                            <span class="item-text">
+                                <span class="title">关于</span>
+                                <span class="desc">项目版本、版权与第三方许可</span>
+                            </span>
                         </button>
                     </div>
-                </div>
-                <button type="button" class="tool-btn" id="topHelpBtn" title="查看皮肤各贴图拉伸与尺寸规则说明 (帮助)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    <span>帮助</span>
-                </button>
-                <button type="button" class="tool-btn" id="topAboutBtn" title="关于本项目、版本与第三方许可">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="16" x2="12" y2="12"></line>
-                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                    </svg>
-                    <span>关于</span>
-                </button>
-                <div class="topbar-divider"></div>
-                <div class="tool-switch-row canvas-top-switch" title="开启判定提示动态演示：按真实比率展示 300MAX/300/200/100/50 及 Miss 断连恢复">
-                    <label for="previewJudgementToggle" class="switch-label">
-                        <span>判定演示</span>
-                    </label>
-                    <label class="ios-switch">
-                        <input type="checkbox" id="previewJudgementToggle">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-                <div class="tool-switch-row canvas-top-switch">
-                    <label for="canvasEditModeToggle" class="switch-label">
-                        <span>拖拽编辑</span>
-                    </label>
-                    <label class="ios-switch">
-                        <input type="checkbox" id="canvasEditModeToggle" checked>
-                        <span class="slider"></span>
-                    </label>
                 </div>
             </div>
         </div>

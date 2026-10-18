@@ -37,6 +37,9 @@
 
         function playAudioAndBeatmap() {
             if (!currentBeatmap) return;
+            if (typeof canPlayWithStartupSelection === 'function' && !canPlayWithStartupSelection()) {
+                return;
+            }
             cancelAnimationFrame(animationId);
             animationId = null;
 
@@ -116,6 +119,7 @@
 
         function startSeeking() {
             if (!currentBeatmap) return;
+            if (typeof canPlayWithStartupSelection === 'function' && !canPlayWithStartupSelection()) return;
             clearResumePlaybackPosition();
             isSeeking = true;
         }

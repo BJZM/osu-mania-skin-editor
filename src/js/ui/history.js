@@ -99,6 +99,11 @@
                 modalUndoBtn.style.cursor = (count === 0) ? 'not-allowed' : 'pointer';
                 modalUndoBtn.title = title;
             }
+            const textureEditorModal = document.getElementById('textureImageEditorModal');
+            if (textureEditorModal && textureEditorModal.classList.contains('active') &&
+                typeof updateEditorHistoryButtons === 'function') {
+                updateEditorHistoryButtons();
+            }
         }
 
         function createSkinSnapshot(desc = '操作') {
@@ -112,6 +117,8 @@
                 skinImageStore: cloneSkinImageStore(skinImageStore),
                 skinFallbackImageStore: cloneSkinImageStore(skinFallbackImageStore),
                 userReplacedTextures: new Map(userReplacedTextures),
+                deletedSkinTexturePaths: new Set(deletedSkinTexturePaths),
+                createdSkinTextureParams: new Map(Array.from(createdSkinTextureParams.entries(), ([k, v]) => [k, { ...v }])),
                 activeEditorKeyCount: activeEditorKeyCount
             };
         }
@@ -147,6 +154,18 @@
                 if (snap.userReplacedTextures) {
                     for (const [k, v] of snap.userReplacedTextures.entries()) {
                         userReplacedTextures.set(k, v);
+                    }
+                }
+                deletedSkinTexturePaths.clear();
+                if (snap.deletedSkinTexturePaths) {
+                    for (const name of snap.deletedSkinTexturePaths) {
+                        deletedSkinTexturePaths.add(name);
+                    }
+                }
+                createdSkinTextureParams.clear();
+                if (snap.createdSkinTextureParams) {
+                    for (const [k, v] of snap.createdSkinTextureParams.entries()) {
+                        createdSkinTextureParams.set(k, { ...v });
                     }
                 }
 
@@ -206,6 +225,9 @@
                     syncNotesStateWithTime(currentTimeMs);
                 }
                 drawFrame();
+                if (typeof textureLibraryUi !== 'undefined' && textureLibraryUi) {
+                    textureLibraryUi.refresh();
+                }
                 updateSkinInfoDisplay();
                 if (selectedCanvasElement) {
                     const liveElem = canvasInteractiveElements.find(e => {
@@ -224,6 +246,16 @@
             }
         }
 
+        function syncTextureEditorBaseAfterSkinHistory() {
+            const modal = document.getElementById('textureImageEditorModal');
+            if (!modal || (!modal.classList.contains('active') && modal.style.display === 'none')) {
+                return;
+            }
+            if (typeof updateEditorBaseAfterSave === 'function') {
+                updateEditorBaseAfterSave();
+            }
+        }
+
         function performSkinUndo() {
             if (continuousActionTimer) {
                 clearTimeout(continuousActionTimer);
@@ -239,6 +271,7 @@
 
             const previousState = undoStack.pop();
             applySkinSnapshot(previousState);
+            syncTextureEditorBaseAfterSkinHistory();
             showToast('已撤回 (Ctrl+Z)', previousState.desc ? `已撤回: ${previousState.desc}` : '已恢复上一状态');
         }
 
@@ -257,6 +290,7 @@
 
             const nextState = redoStack.pop();
             applySkinSnapshot(nextState);
+            syncTextureEditorBaseAfterSkinHistory();
             showToast('已重做 (Ctrl+Y)', nextState.desc ? `已重做: ${nextState.desc}` : '已恢复操作');
         }
 
@@ -268,7 +302,8 @@
                     skinFontsConfig: { ...skinFontsConfig },
                     globalSkinImageLookups: new Map(globalSkinImageLookups),
                     skinImageStore: cloneSkinImageStore(skinImageStore),
-                    skinFallbackImageStore: cloneSkinImageStore(skinFallbackImageStore)
+                    skinFallbackImageStore: cloneSkinImageStore(skinFallbackImageStore),
+                    deletedSkinTexturePaths: new Set(deletedSkinTexturePaths)
                 };
                 undoStack.length = 0;
                 redoStack.length = 0;
@@ -298,5 +333,79 @@
             if (card) card.style.display = 'none';
 
             applySkinSnapshot(initialSkinSnapshot);
+            syncTextureEditorBaseAfterSkinHistory();
             showToast('已复原', '所有参数与贴图已恢复为导入时的初始状态 (可按 Ctrl+Z 撤回)');
+        }
+
+        async function startFromDefaultSkin(options = {}) {
+            const skipConfirm = options && options.skipConfirm === true;
+            if (!skipConfirm && !confirm('确定要清空当前皮肤，并从 osu!stable 默认皮肤重新开始吗？未导出的修改将被丢弃。')) {
+                return false;
+            }
+
+            if (isPlaying) {
+                pauseAudioAndBeatmap();
+            }
+
+            const keyCount = getActiveKeyCount();
+            currentSkinZip = null;
+            currentSkinFileName = '默认皮肤';
+            deactivateEditableDefaultSkinWorkspace();
+
+            userReplacedTextures.clear();
+            deletedSkinTexturePaths.clear();
+            createdSkinTextureParams.clear();
+            scorePercentSourceImages.clear();
+            for (const url of activeSkinBlobUrls) {
+                try { URL.revokeObjectURL(url); } catch (_) {}
+            }
+            activeSkinBlobUrls = [];
+
+            skinImageStore.clear();
+            skinFallbackImageStore.clear();
+            maniaSkinConfigurations.clear();
+            globalSkinImageLookups.clear();
+            if (typeof keyImageHeightBaselineState !== 'undefined') {
+                keyImageHeightBaselineState.clear();
+            }
+
+            skinFontsConfig = {
+                scorePrefix: 'score',
+                scoreOverlap: 0,
+                comboPrefix: 'combo',
+                comboOverlap: 0,
+                hitCirclePrefix: 'default',
+                hitCircleOverlap: -2,
+                hasExplicitScoreOverlap: false,
+                hasExplicitComboOverlap: false,
+                hasExplicitComboPrefix: false
+            };
+            currentSkinMetadata = createEditableDefaultSkinMetadata();
+
+            if (ui.osk) ui.osk.value = '';
+            await loadDefaultSkin();
+            activateEditableDefaultSkinWorkspace(keyCount);
+
+            selectedCanvasElement = null;
+            const card = document.getElementById('canvasSelectedCard');
+            if (card) card.style.display = 'none';
+
+            updateSkinInfoDisplay();
+            updateSkinEditorKeyPills();
+            renderSkinEditorParams();
+            if (typeof refreshSkinEditorAfterSkinImport === 'function') {
+                refreshSkinEditorAfterSkinImport();
+            }
+            if (typeof refreshSkinCursor === 'function') refreshSkinCursor();
+            if (currentBeatmap) {
+                const currentTimeMs = (audio && !isNaN(audio.currentTime)) ? audio.currentTime * 1000 : 0;
+                syncNotesStateWithTime(currentTimeMs);
+            }
+            drawFrame();
+            saveInitialSkinSnapshot();
+            if (typeof markStartupSkinReady === 'function') {
+                markStartupSkinReady('默认皮肤');
+            }
+            showToast('已切换到默认皮肤', '当前工作区已重置为 osu!stable 默认皮肤');
+            return true;
         }

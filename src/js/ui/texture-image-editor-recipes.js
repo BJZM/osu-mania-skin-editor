@@ -15,7 +15,11 @@
         }
 
         function getTextureEditRecipeKey(target) {
-            if (!target || !target.p || !target.p.key) return null;
+            if (!target) return null;
+            if (target.kind === 'library' && target.libraryPath) {
+                return `library|${normalizeSkinKey(target.libraryPath)}`;
+            }
+            if (!target.p || !target.p.key) return null;
             return `${getActiveKeyCount()}|${target.p.key}`;
         }
 
@@ -26,6 +30,17 @@
             const key = getTextureEditRecipeKey(target);
             if (!key) return false;
             return textureEditRecipes.delete(key);
+        }
+
+        function renameTextureLibraryEditRecipe(oldPath, newPath) {
+            if (!oldPath || !newPath) return false;
+            const oldKey = `library|${normalizeSkinKey(oldPath)}`;
+            const recipe = textureEditRecipes.get(oldKey);
+            if (!recipe) return false;
+            textureEditRecipes.delete(oldKey);
+            recipe.originalReference = normalizeSkinKey(newPath);
+            textureEditRecipes.set(`library|${normalizeSkinKey(newPath)}`, recipe);
+            return true;
         }
 
         function textureEditRecipeOutputMatches(recipe, target) {
@@ -65,11 +80,20 @@
                     editorState.keyImageOriginalSources
                 ),
                 params: {
+                    left: -Number(cropRect.x || 0),
+                    right: Number(cropRect.x || 0) + Number(cropRect.width || 0) - Number(baseFrame.width || 0),
+                    top: -Number(cropRect.y || 0),
+                    bottom: Number(cropRect.y || 0) + Number(cropRect.height || 0) - Number(baseFrame.height || 0),
+                    cropLeft: -Number(cropRect.x || 0),
+                    cropRight: Number(cropRect.x || 0) + Number(cropRect.width || 0) - Number(baseFrame.width || 0),
+                    cropTop: -Number(cropRect.y || 0),
+                    cropBottom: Number(cropRect.y || 0) + Number(cropRect.height || 0) - Number(baseFrame.height || 0),
                     cropX: -Number(cropRect.x || 0),
                     cropY: -Number(cropRect.y || 0),
                     widthDelta: Number(cropRect.width || 0) - Number(baseFrame.width || 0),
                     heightDelta: Number(cropRect.height || 0) - Number(baseFrame.height || 0),
-                    imageTransform: cloneImageTransform(editorState.imageTransform)
+                    imageTransform: cloneImageTransform(editorState.imageTransform),
+                    rgbAdjustment: cloneRgbAdjustment(editorState.rgbAdjustment)
                 },
                 outputFrames: outputTarget.frames.slice()
             };
@@ -110,7 +134,12 @@
                         keyImageOriginalSources: cloneKeyImageEditSources(originalSources),
                         params: {
                             ...params,
-                            imageTransform: cloneImageTransform(params.imageTransform)
+                            imageTransform: cloneImageTransform(params.imageTransform),
+                            rgbAdjustment: cloneRgbAdjustment(
+                                item.group.rgbAdjustment != null
+                                    ? item.group.rgbAdjustment
+                                    : params.rgbAdjustment
+                            )
                         },
                         outputFrames: target.frames.slice()
                     });
@@ -131,9 +160,15 @@
                 editorState.imageTransform = cloneImageTransform(
                     recipe.params.imageTransform
                 );
-                editorState.previewFrames = result.frames;
+                editorState.rgbAdjustment = cloneRgbAdjustment(
+                    recipe.params.rgbAdjustment
+                );
+                editorState.previewFrames = result.frames.map((frame) =>
+                    applyRgbAdjustmentToCanvas(cloneFrame(frame), editorState.rgbAdjustment)
+                );
                 updateCropInputs(editorState.cropRect);
                 updateImageTransformInputs();
+                updateRgbAdjustmentInputs();
                 return true;
             } catch (err) {
                 console.warn('恢复贴图编辑参数失败:', err);
@@ -275,19 +310,47 @@
 
             absorbExternalChanges();
             const wasActive = tab.id === activeTabId;
-            clearEditorStateTimers(tab.state);
-            if (wasActive && options.restorePreview !== false && tab.state.previewSnapshot) {
-                applySkinSnapshot(tab.state.previewSnapshot);
+            if (tab.state) {
+                clearEditorStateTimers(tab.state);
+                if (wasActive && options.restorePreview !== false && tab.state.previewSnapshot) {
+                    applySkinSnapshot(tab.state.previewSnapshot);
+                }
             }
-
+            if (tab.kind === 'creator' &&
+                tab.creatorState &&
+                wasActive &&
+                options.restorePreview !== false &&
+                tab.creatorState.previewSnapshot) {
+                applySkinSnapshot(tab.creatorState.previewSnapshot);
+                drawFrame();
+            }
             tabs.splice(index, 1);
             if (!wasActive) {
                 renderTabs();
                 return true;
             }
 
+            if (tab.kind === 'creator') {
+                const nextCreatorTab = tabs.slice(index).find((item) => item.kind === 'creator') ||
+                    tabs.slice(0, index).reverse().find((item) => item.kind === 'creator') ||
+                    null;
+                if (nextCreatorTab) {
+                    activeTabId = '';
+                    return activateTab(nextCreatorTab.id, { force: true });
+                }
+                activeTabId = '';
+                const fallbackTabId = (tab.previousTabId && tabs.some((item) => item.id === tab.previousTabId))
+                    ? tab.previousTabId
+                    : (tabs.some((t) => t.id === 'texture-library') ? 'texture-library' : 'menu');
+                if (typeof resetTextureCreatorState === 'function') {
+                    resetTextureCreatorState();
+                }
+                return activateTab(fallbackTabId, { force: true });
+            }
+
+            const remainingTextureTabs = tabs.filter((t) => t.kind === 'texture');
             const nextIndex = Math.min(index, tabs.length - 1);
-            const nextTab = tabs[Math.max(0, nextIndex)] || menuTab;
+            const nextTab = remainingTextureTabs.length > 0 ? (tabs[Math.max(0, nextIndex)] || menuTab) : menuTab;
             activeTabId = '';
             return activateTab(nextTab.id, { force: true });
         }
@@ -304,7 +367,7 @@
             Object.assign(menuState, createEditorState());
             menuState.previewSnapshot = null;
             state = menuState;
-            tabs = [menuTab];
+            tabs = [menuTab, libraryTab];
             activeTabId = menuTab.id;
             editorBaseSnapshot = null;
             externalFrameUpdates.clear();

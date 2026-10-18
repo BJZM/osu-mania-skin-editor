@@ -43,10 +43,14 @@
             const tailFrames = tailParam ? resolveTextureParamFrames(keys, tailParam) : null;
             const bodyFrame = (bodyFrames && bodyFrames[0]) || (bodyResolved && bodyResolved.img) || null;
             const tailFrame = (tailFrames && tailFrames[0]) || (tailResolved && tailResolved.img) || null;
+            const transparentTail = !!tailFrame && (
+                !!tailFrame._isBlankPlaceholder ||
+                isFullyTransparentImage(tailFrame, 48, 36)
+            );
             return {
                 baseFrames: bodyFrame && !bodyFrame._isBlankPlaceholder ? [bodyFrame] : [],
                 bodySourceName: bodyResolved ? bodyResolved.name : '',
-                tailFrame: tailFrame && !tailFrame._isBlankPlaceholder ? tailFrame : null,
+                tailFrame: tailFrame && !transparentTail ? tailFrame : null,
                 tailSourceName: tailResolved ? tailResolved.name : ''
             };
         }
@@ -91,8 +95,9 @@
                 reusesSelectedOutput,
                 baseFrames: compositeSource.baseFrames || [],
                 bodySourceName: compositeSource.bodySourceName || '',
-                tailFrame: compositeSource.tailFrame || null,
-                tailSourceName: compositeSource.tailSourceName || ''
+                // “应用到全部轨道”复用当前轨道的投皮配方；各轨只保留自己的身体底图来源。
+                tailFrame: selectedSource.tailFrame || null,
+                tailSourceName: selectedSource.tailSourceName || ''
             };
         }
 
@@ -133,24 +138,32 @@
 
         function enableLongBodyComposer(session = null) {
             if (!isHoldBodySelected()) return false;
-            const info = session ? null : getLongBodyTailInfo();
+            const info = session ? null : getLongBodySourceInfo();
             if (!session && info && !info.eligible) {
-                showToast('无法开启', '当前轨道需要先配置一张不透明的长条尾部贴图。');
+                showToast(
+                    '无法开启',
+                    `当前长条身体高度为 ${info.bodyHeight}px，需小于 ${LONG_BODY_OPEN_HEIGHT_LIMIT}px 才能开启一键投皮。`
+                );
                 updateLongBodyComposerUI();
                 return false;
             }
             const composer = state.longBodyComposer;
+            const selectedColumn = getSelectedTrackIndex();
+            const currentTrackSource = session && selectedColumn != null
+                ? readLongBodyTrackSource(selectedColumn)
+                : null;
             composer.active = true;
             composer.sessionKey = getLongBodySessionKey();
             composer.baseFrames = (session ? session.baseFrames : state.workingFrames).map(cloneFrame);
-            composer.tailFrame = session && session.tailFrame
-                ? cloneFrame(session.tailFrame)
-                : (info && info.frame ? cloneFrame(info.frame) : null);
+            const tailFrame = session
+                ? (currentTrackSource && currentTrackSource.tailFrame)
+                : (info && info.frame);
+            composer.tailFrame = tailFrame ? cloneFrame(tailFrame) : null;
             composer.bodySourceName = session
                 ? (session.bodySourceName || '')
                 : ((state.selected.resolved && state.selected.resolved.name) || state.selected.base || '');
             composer.tailSourceName = session
-                ? (session.tailSourceName || '')
+                ? ((currentTrackSource && currentTrackSource.tailSourceName) || '')
                 : ((info && info.name) || '');
             composer.tailScaledHeight = composer.tailFrame
                 ? Math.max(1, Math.round(composer.tailFrame.height * composer.baseFrames[0].width / Math.max(1, composer.tailFrame.width)))
@@ -182,9 +195,9 @@
             composer.active = false;
             state.savedLongBodyComposer = null;
             state.workingFrames = baseFrames;
-            state.previewFrames = baseFrames.map(cloneFrame);
             restoreNoteBodyStyle();
             resetTransformInputs();
+            state.previewFrames = buildPreviewFrames();
             installFramesToStores(state.previewFrames, state.selected, { persist: false });
             updateMeta();
             updateLongBodyComposerUI();
@@ -237,6 +250,7 @@
                             settings.targetHeight
                         );
                         if (!generated) return false;
+                        applyRgbAdjustmentToCanvas(generated, settings.rgbAdjustment);
                         serialized = await serializeLongBodyFrame(generated);
                     }
                     const applied = await textureUploadUi.applyEditedTexture(

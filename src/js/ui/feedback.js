@@ -86,7 +86,9 @@
         function hideProgress() {
             canvas.classList.remove('blurred');
             ui.loadingOverlay.classList.remove('active');
-            if (currentBeatmap && ui.playerControls) {
+            if (typeof syncStartupPlayerControls === 'function') {
+                syncStartupPlayerControls();
+            } else if (currentBeatmap && ui.playerControls) {
                 ui.playerControls.classList.remove('disabled');
                 if (ui.progressRange) ui.progressRange.disabled = false;
                 if (ui.playPauseBtn) ui.playPauseBtn.disabled = false;

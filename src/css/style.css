@@ -441,6 +441,7 @@
             justify-content: space-between;
             gap: 16px;
             width: 100%;
+            flex-wrap: wrap;
         }
 
         .deck-group {
@@ -473,6 +474,8 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
         }
 
         .tweak-switch-item {
@@ -505,6 +508,10 @@
         .tweak-switch-item.is-disabled .slider {
             cursor: not-allowed;
             pointer-events: none;
+        }
+
+        .player-controls.disabled .studio-utility-toggle {
+            pointer-events: auto;
         }
 
         .tweak-slider-item {
@@ -1014,6 +1021,18 @@
             display: none;
         }
 
+        .topbar-file-dropdown .dropdown-menu {
+            min-width: 282px;
+        }
+
+        .topbar-file-dropdown input[type="file"] {
+            display: none;
+        }
+
+        .topbar-file-dropdown .topbar-file-item {
+            width: 100%;
+        }
+
         .topbar-file-item.disabled {
             opacity: 0.5;
             pointer-events: none;
@@ -1181,6 +1200,20 @@
             flex: 0 0 auto;
             position: relative;
             z-index: 101;
+        }
+
+        .canvas-top-tools-right .dropdown-menu {
+            left: auto;
+            right: 0;
+        }
+
+        .dropdown-item.is-danger .icon,
+        .dropdown-item.is-danger .title {
+            color: #ff5d73;
+        }
+
+        .dropdown-item.is-danger:hover {
+            background: rgba(255, 77, 109, 0.16);
         }
 
         .canvas-top-switch {
@@ -1411,6 +1444,256 @@
             box-shadow: none;
             background: #000;
             z-index: 99999;
+        }
+
+        /* ===== 启动选择面板 (谱面 / 皮肤来源) ===== */
+        .startup-actions {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 28px;
+            box-sizing: border-box;
+            overflow: auto;
+            background: rgba(8, 7, 12, 0.48);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+        }
+
+        .startup-actions[hidden] {
+            display: none !important;
+        }
+
+        .startup-actions-content {
+            width: min(500px, 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            transition: transform 0.18s ease;
+        }
+
+        .startup-action {
+            width: 100%;
+            min-height: 86px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 8px;
+            background: rgba(23, 20, 31, 0.84);
+            color: #ffffff;
+            text-align: left;
+            cursor: pointer;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+            transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+            box-sizing: border-box;
+        }
+
+        .startup-action:hover {
+            transform: translateY(-2px);
+            background: rgba(35, 31, 46, 0.94);
+            border-color: rgba(255, 255, 255, 0.34);
+            box-shadow: 0 16px 38px rgba(0, 0, 0, 0.44);
+        }
+
+        .startup-action:active {
+            transform: translateY(0) scale(0.99);
+        }
+
+        .startup-action-beatmap {
+            border-color: rgba(255, 102, 170, 0.42);
+        }
+
+        .startup-action-separator {
+            height: 28px;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            padding: 0 28px;
+        }
+
+        .startup-action-separator span {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(
+                to right,
+                transparent,
+                rgba(255, 255, 255, 0.28) 18%,
+                rgba(255, 255, 255, 0.28) 82%,
+                transparent
+            );
+        }
+
+        .startup-action-skin {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .startup-action-default {
+            margin-top: 10px;
+            border-color: rgba(255, 255, 255, 0.14);
+            background: rgba(18, 17, 24, 0.78);
+        }
+
+        .startup-action-icon {
+            width: 46px;
+            height: 46px;
+            flex: 0 0 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ff8fc0;
+        }
+
+        .startup-action-skin .startup-action-icon {
+            color: #ffffff;
+        }
+
+        .startup-action-default .startup-action-icon {
+            color: #a9d7ff;
+        }
+
+        .startup-action-icon svg {
+            width: 25px;
+            height: 25px;
+        }
+
+        .startup-action-copy {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .startup-action-title {
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .startup-action-desc {
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: rgba(255, 255, 255, 0.62);
+        }
+
+        .startup-actions.is-dragging .startup-actions-content {
+            transform: scale(1.015);
+        }
+
+        .startup-actions.is-dragging .startup-action {
+            border-color: rgba(255, 102, 170, 0.68);
+        }
+
+        /* 尚未选择皮肤来源时，详细设置与贴图编辑共用的提示状态 */
+        .skin-source-required-state {
+            display: none;
+            width: 100%;
+            min-height: 280px;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 36px 24px;
+            text-align: center;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.035);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+        }
+
+        .skin-source-required-state.is-visible {
+            display: flex;
+        }
+
+        .skin-source-required-icon {
+            width: 58px;
+            height: 58px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            color: rgba(255, 255, 255, 0.65);
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 50%;
+        }
+
+        .skin-source-required-title {
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .skin-source-required-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 9px;
+            margin-top: 20px;
+        }
+
+        .skin-source-required-actions [hidden] {
+            display: none !important;
+        }
+
+        @media (max-width: 640px) {
+            .startup-actions {
+                align-items: flex-start;
+                padding: 12px;
+            }
+
+            .startup-action {
+                min-height: 74px;
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .startup-action-separator {
+                height: 18px;
+                padding: 0 18px;
+            }
+
+            .startup-action-icon {
+                width: 38px;
+                height: 38px;
+                flex-basis: 38px;
+            }
+
+            .startup-action-icon svg {
+                width: 21px;
+                height: 21px;
+            }
+
+            .startup-action-title {
+                font-size: 0.9rem;
+            }
+
+            .startup-action-desc {
+                font-size: 0.7rem;
+            }
+
+            .skin-source-required-state {
+                min-height: 240px;
+                padding: 28px 18px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .player-main-area:has(.startup-actions:not([hidden])) .left-info-panel {
+                display: none;
+            }
+
+            .player-main-area:has(.startup-actions:not([hidden])) .canvas-wrapper {
+                width: calc(100vw - 16px);
+                max-width: calc(100vw - 16px);
+                height: auto;
+                margin: 8px;
+            }
         }
 
         /* ===== 全屏悬浮按钮 ===== */
@@ -1997,7 +2280,7 @@
             z-index: 2001;
             pointer-events: auto; /* 窗口内部允许所有正常交互 */
             resize: both; /* 允许用户在右下角自由拉伸缩放窗口 */
-            min-width: 460px;
+            min-width: min(460px, calc(100vw - 32px));
             animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             transition: opacity 0.15s ease;
         }
@@ -2021,6 +2304,21 @@
         .skin-editor-dialog.is-collapsed .skin-editor-body,
         .skin-editor-dialog.is-collapsed .skin-editor-footer {
             display: none !important;
+        }
+
+        .skin-editor-dialog.is-skin-source-missing .skin-editor-toolbar,
+        .skin-editor-dialog.is-skin-source-missing .skin-editor-footer {
+            display: none !important;
+        }
+
+        .skin-editor-dialog.is-skin-source-missing .skin-editor-body > :not(.skin-source-required-state) {
+            display: none !important;
+        }
+
+        .skin-editor-dialog.is-skin-source-missing .skin-editor-body {
+            display: flex;
+            align-items: stretch;
+            overflow: hidden;
         }
 
         @keyframes modalScaleUp {
@@ -2242,6 +2540,7 @@
             background: #14121a;
             border-bottom: 1px solid rgba(255, 255, 255, 0.06);
             flex-shrink: 0;
+            overflow-x: auto;
         }
 
         .tab-btn {
@@ -2257,6 +2556,8 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            flex-shrink: 0;
+            white-space: nowrap;
         }
 
         .tab-btn:hover {
@@ -2971,12 +3272,12 @@
             white-space: nowrap;
         }
 
-        .texture-upload-main-btn:hover {
+        .texture-upload-main-btn:not(:disabled):hover {
             background: #ffffff;
             color: #111118;
         }
 
-        .texture-upload-main-btn:active {
+        .texture-upload-main-btn:not(:disabled):active {
             transform: scale(0.96);
             background: #e2e2e8;
         }
@@ -3062,6 +3363,7 @@
         .texture-upload-menu-item:hover,
         .texture-upload-menu-item.item-1x:hover,
         .texture-upload-menu-item.item-2x:hover,
+        .texture-upload-menu-item.item-existing:hover,
         .texture-upload-menu-item.item-anim:hover {
             background: #ffffff;
             color: #111118;
@@ -3076,6 +3378,7 @@
         .upload-menu-tag,
         .upload-menu-tag.tag-1x,
         .upload-menu-tag.tag-2x,
+        .upload-menu-tag.tag-existing,
         .upload-menu-tag.tag-anim {
             display: inline-flex;
             align-items: center;
@@ -3091,6 +3394,7 @@
             border: none;
             transition: all 0.15s ease;
         }
+
 
         .texture-upload-menu-item:hover .upload-menu-tag {
             background: rgba(0, 0, 0, 0.12);
@@ -4498,6 +4802,355 @@
             background: rgba(255, 255, 255, 0.02);
         }
 
+        /* ==========================================================================
+           从已有贴图导入路径
+           ========================================================================== */
+
+        .texture-existing-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 3300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .texture-existing-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(8, 6, 16, 0.78);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .texture-existing-dialog {
+            position: relative;
+            z-index: 3301;
+            width: min(860px, calc(100vw - 32px));
+            height: min(680px, calc(100vh - 32px));
+            min-height: 420px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #17141f;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.78), 0 8px 24px rgba(0, 0, 0, 0.52);
+            animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .texture-existing-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 15px 18px;
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .texture-existing-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.96rem;
+            font-weight: 650;
+            color: #ffffff;
+        }
+
+        .texture-existing-title svg {
+            color: var(--primary);
+        }
+
+        .texture-existing-close {
+            padding: 0 6px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 1.4rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .texture-existing-close:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.09);
+        }
+
+        .texture-existing-body {
+            min-height: 0;
+            padding: 16px 18px;
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .texture-existing-target {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            padding: 12px 14px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.045);
+        }
+
+        .texture-existing-target > div {
+            min-width: 0;
+        }
+
+        .texture-existing-target-label,
+        .texture-existing-current > span {
+            display: block;
+            margin-bottom: 4px;
+            color: rgba(255, 255, 255, 0.46);
+            font-size: 0.72rem;
+        }
+
+        .texture-existing-target strong {
+            display: block;
+            overflow: hidden;
+            color: #ffffff;
+            font-size: 0.86rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-existing-current {
+            min-width: 0;
+            max-width: 46%;
+            text-align: right;
+        }
+
+        .texture-existing-current code {
+            display: block;
+            overflow: hidden;
+            color: #f2a9c8;
+            font-family: var(--font-clean);
+            font-size: 0.76rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-existing-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .texture-existing-search {
+            min-width: 0;
+            display: flex;
+            flex: 1;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 11px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.055);
+            color: rgba(255, 255, 255, 0.46);
+        }
+
+        .texture-existing-search:focus-within {
+            background: rgba(255, 255, 255, 0.085);
+            box-shadow: inset 0 0 0 2px rgba(255, 102, 170, 0.45);
+        }
+
+        .texture-existing-search input {
+            width: 100%;
+            min-width: 0;
+            padding: 0;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: #ffffff;
+            font: inherit;
+            font-size: 0.8rem;
+        }
+
+        .texture-existing-search input::placeholder {
+            color: rgba(255, 255, 255, 0.34);
+        }
+
+        .texture-existing-count {
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.74rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .texture-existing-grid {
+            min-height: 0;
+            display: grid;
+            flex: 1;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            align-content: start;
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 3px;
+        }
+
+        .texture-existing-card {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.045);
+            color: #ffffff;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .texture-existing-card:hover {
+            background: rgba(255, 255, 255, 0.085);
+            transform: translateY(-1px);
+        }
+
+        .texture-existing-card.selected {
+            background: rgba(255, 102, 170, 0.12);
+            box-shadow: inset 0 0 0 2px rgba(255, 102, 170, 0.74);
+        }
+
+        .texture-existing-card:focus-visible {
+            outline: 2px solid rgba(255, 102, 170, 0.8);
+            outline-offset: 2px;
+        }
+
+        .texture-library-card {
+            position: relative;
+        }
+
+        .texture-existing-preview {
+            width: 88px;
+            height: 58px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 6px;
+            background:
+                linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255,255,255,0.06) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.06) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.06) 75%),
+                rgba(0, 0, 0, 0.18);
+            background-size: 12px 12px;
+            background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+        }
+
+        .texture-existing-preview canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .texture-existing-meta {
+            min-width: 0;
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .texture-existing-meta strong {
+            overflow: hidden;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-existing-path {
+            overflow: hidden;
+            color: rgba(255, 255, 255, 0.44);
+            font-family: var(--font-clean);
+            font-size: 0.68rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-existing-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .texture-existing-badge {
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.76);
+            font-size: 0.64rem;
+            line-height: 1.35;
+        }
+
+        .texture-existing-badge.is-animation {
+            background: rgba(255, 102, 170, 0.14);
+            color: #ff8cb9;
+        }
+
+        .texture-existing-empty {
+            min-height: 120px;
+            display: flex;
+            flex: 1;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.44);
+            font-size: 0.8rem;
+        }
+
+        .texture-existing-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 13px 18px;
+            background: rgba(255, 255, 255, 0.025);
+        }
+
+        .texture-existing-hint {
+            color: rgba(255, 255, 255, 0.42);
+            font-size: 0.7rem;
+        }
+
+        .texture-existing-actions {
+            display: flex;
+            flex-shrink: 0;
+            gap: 10px;
+        }
+
+        @media (max-width: 680px) {
+            .texture-existing-dialog {
+                width: calc(100vw - 20px);
+                height: calc(100vh - 20px);
+            }
+
+            .texture-existing-target,
+            .texture-existing-footer {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .texture-existing-current {
+                max-width: none;
+                text-align: left;
+            }
+
+            .texture-existing-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .texture-existing-actions {
+                justify-content: flex-end;
+            }
+        }
+
         .texture-anim-upload-btn {
             padding: 6px 12px;
             background: rgba(255, 255, 255, 0.12);
@@ -5084,7 +5737,7 @@
             right: 24px;
             top: 48px;
             z-index: 2401;
-            width: min(860px, calc(100vw - 32px));
+            width: min(1040px, calc(100vw - 32px));
             max-width: calc(100vw - 32px);
             height: 84vh;
             min-width: min(460px, calc(100vw - 32px));
@@ -5094,7 +5747,7 @@
             flex-direction: column;
             overflow: hidden;
             background: #14121a;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: none;
             border-radius: 10px;
             box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
             pointer-events: auto;
@@ -5121,6 +5774,25 @@
         .texture-image-dialog.is-collapsed .texture-image-body,
         .texture-image-dialog.is-collapsed .texture-image-footer {
             display: none !important;
+        }
+
+        .texture-image-dialog.is-skin-source-missing .texture-image-body > .texture-image-picker-view,
+        .texture-image-dialog.is-skin-source-missing .texture-image-body > .texture-image-library-view,
+        .texture-image-dialog.is-skin-source-missing .texture-image-body > .texture-image-creator-view,
+        .texture-image-dialog.is-skin-source-missing .texture-image-body > .texture-image-editor-view,
+        .texture-image-dialog.is-skin-source-missing > .texture-image-footer {
+            display: none !important;
+        }
+
+        .texture-image-dialog.is-skin-source-missing .texture-image-body {
+            display: flex;
+            align-items: stretch;
+            padding: 16px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-dialog.is-skin-source-missing .texture-image-skin-required {
+            height: 100%;
         }
 
         .texture-image-scope-modal {
@@ -5184,6 +5856,155 @@
             gap: 8px;
             margin-top: 20px;
             flex-wrap: wrap;
+        }
+
+        .texture-image-library-action-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .texture-image-library-action-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.62);
+            backdrop-filter: blur(3px);
+        }
+
+        .texture-image-library-action-dialog {
+            position: relative;
+            width: min(440px, calc(100vw - 40px));
+            padding: 20px;
+            color: #ffffff;
+            background: #181520;
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 20px 56px rgba(0, 0, 0, 0.76);
+            box-sizing: border-box;
+        }
+
+        .texture-image-library-action-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .texture-image-library-action-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 650;
+        }
+
+        .texture-image-library-action-head code {
+            max-width: 330px;
+            display: block;
+            margin-top: 5px;
+            overflow: hidden;
+            color: #f2a9c8;
+            font-family: var(--font-clean);
+            font-size: 0.72rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-image-library-action-close {
+            padding: 0 5px;
+            color: rgba(255, 255, 255, 0.58);
+            background: transparent;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.35rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .texture-image-library-action-close:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .texture-image-library-action-dialog > p {
+            margin: 11px 0 0;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.76rem;
+            line-height: 1.55;
+        }
+
+        .texture-image-library-copy-field {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            margin-top: 16px;
+        }
+
+        .texture-image-library-copy-field > span {
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 0.74rem;
+        }
+
+        .texture-image-library-copy-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 11px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.055);
+        }
+
+        .texture-image-library-copy-input-wrap:focus-within {
+            background: rgba(255, 255, 255, 0.085);
+            box-shadow: inset 0 0 0 2px rgba(255, 102, 170, 0.42);
+        }
+
+        .texture-image-library-copy-input-wrap input {
+            min-width: 0;
+            flex: 1;
+            padding: 0;
+            color: #ffffff;
+            background: transparent;
+            border: none;
+            outline: none;
+            font: inherit;
+            font-size: 0.82rem;
+        }
+
+        .texture-image-library-copy-input-wrap input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .texture-image-library-copy-input-wrap > span {
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.42);
+            font-family: var(--font-clean);
+            font-size: 0.75rem;
+        }
+
+        .texture-image-library-copy-field small {
+            min-height: 1em;
+            color: #ff91b9;
+            font-size: 0.7rem;
+        }
+
+        .texture-image-library-action-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .texture-image-library-action-actions .is-danger {
+            color: #ffffff;
+            background: #a72e54;
+        }
+
+        .texture-image-library-action-actions .is-danger:hover:not(:disabled) {
+            background: #c33a66;
+            color: #ffffff;
         }
 
         .texture-image-header {
@@ -5280,12 +6101,13 @@
         }
 
         .texture-image-tab {
+            min-width: 108px;
             max-width: 220px;
             height: 32px;
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            flex: 0 0 auto;
+            flex: 0 1 auto;
             padding: 0 9px 0 12px;
             color: rgba(255, 255, 255, 0.54);
             background: rgba(255, 255, 255, 0.035);
@@ -5311,6 +6133,7 @@
 
         .texture-image-tab-label {
             min-width: 0;
+            flex: 1 1 auto;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -5349,6 +6172,38 @@
             background: rgba(255, 255, 255, 0.12);
         }
 
+        .texture-image-tab-add {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 32px;
+            padding: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            color: rgba(255, 255, 255, 0.62);
+            background: rgba(255, 255, 255, 0.055);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .texture-image-tab-add:hover {
+            color: #ffffff;
+            background: rgba(255, 102, 170, 0.2);
+        }
+
+        .texture-image-tab-add:active {
+            transform: scale(0.94);
+        }
+
+        .texture-image-tab-add:focus-visible {
+            outline: 2px solid rgba(255, 102, 170, 0.72);
+            outline-offset: 2px;
+        }
+
         .texture-image-body {
             flex: 1;
             min-height: 0;
@@ -5361,6 +6216,16 @@
             display: flex;
             flex-direction: column;
             padding: 15px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-library-view {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px 18px;
             box-sizing: border-box;
         }
 
@@ -5388,14 +6253,18 @@
             font-size: 0.7rem;
         }
 
+        .texture-image-picker-head-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
         .texture-image-picker-grid {
             flex: 1;
             min-height: 0;
             overflow-y: auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
-            align-content: start;
-            gap: 9px;
+            display: block;
             padding-right: 4px;
         }
 
@@ -5508,6 +6377,746 @@
             white-space: nowrap;
         }
 
+        /* 贴图导入列表直接复用详细设置的参数卡片结构，外观与详细设置保持一致。 */
+        .texture-image-picker-grid .param-cards-grid {
+            grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+        }
+
+        .texture-image-picker-grid .param-card.texture-image-picker-item {
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+            padding: 10px 12px;
+            color: inherit;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.03);
+            border: none;
+            border-radius: 8px;
+            cursor: default;
+            box-sizing: border-box;
+        }
+
+        .texture-image-picker-grid .param-card.texture-image-picker-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .texture-image-picker-grid .param-card.texture-image-picker-item.selected {
+            background: rgba(255, 102, 170, 0.06);
+            box-shadow: inset 2px 0 0 rgba(255, 102, 170, 0.7);
+        }
+
+        .texture-image-picker-grid .per-track-texture-row.texture-image-picker-item {
+            min-height: 0;
+            display: flex;
+            grid-template-columns: none;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            color: inherit;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.22);
+            border: none;
+            border-radius: 7px;
+            cursor: default;
+        }
+
+        .texture-image-picker-grid .per-track-texture-row.texture-image-picker-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .texture-image-picker-grid .per-track-texture-row.texture-image-picker-item.selected {
+            background: rgba(255, 102, 170, 0.08);
+            box-shadow: inset 2px 0 0 rgba(255, 102, 170, 0.7);
+        }
+
+        .texture-edit-main-btn:disabled {
+            opacity: 0.36;
+            cursor: not-allowed;
+        }
+
+        .texture-edit-dropdown {
+            position: relative;
+            display: inline-flex;
+            flex-shrink: 0;
+        }
+
+        .param-card:has(.texture-edit-dropdown.is-open) {
+            z-index: 120 !important;
+        }
+
+        .texture-edit-main-btn .edit-mode-chevron {
+            display: none;
+            flex-shrink: 0;
+            opacity: 0.72;
+            transition: transform 0.15s ease;
+        }
+
+        .texture-edit-main-btn.has-modes .edit-mode-chevron {
+            display: block;
+        }
+
+        .texture-edit-dropdown.is-open {
+            z-index: 700;
+        }
+
+        .texture-edit-dropdown.is-open .edit-mode-chevron {
+            transform: rotate(180deg);
+        }
+
+        .texture-edit-mode-menu {
+            position: absolute;
+            z-index: 710;
+            top: 100%;
+            right: 0;
+            width: 142px;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            padding: 5px;
+            border-radius: 8px;
+            background: #14121a;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.52);
+        }
+
+        .texture-edit-dropdown.is-open .texture-edit-mode-menu {
+            display: flex;
+        }
+
+        .texture-edit-dropdown.opens-up .texture-edit-mode-menu {
+            top: auto;
+            bottom: 100%;
+        }
+
+        .texture-edit-mode-menu[hidden] {
+            display: none;
+        }
+
+        .texture-edit-mode-option {
+            width: 100%;
+            min-height: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 8px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.055);
+            color: rgba(255, 255, 255, 0.88);
+            font: inherit;
+            font-size: 0.74rem;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.14s ease, color 0.14s ease;
+        }
+
+        .texture-edit-mode-option:hover,
+        .texture-edit-mode-option:focus-visible {
+            outline: none;
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+        }
+
+        .texture-edit-mode-option.is-general {
+            color: #9dceff;
+        }
+
+        .texture-edit-mode-option.is-general:hover,
+        .texture-edit-mode-option.is-general:focus-visible {
+            background: rgba(102, 170, 255, 0.2);
+            color: #b8dcff;
+        }
+
+        .texture-edit-mode-option.is-generation {
+            color: #ffabd0;
+        }
+
+        .texture-edit-mode-option.is-generation:hover,
+        .texture-edit-mode-option.is-generation:focus-visible {
+            background: rgba(255, 102, 170, 0.2);
+            color: #ffd1e5;
+        }
+
+        .texture-image-creator-view {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            gap: 16px;
+            padding: 16px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-creator-preview-panel {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .texture-image-creator-controls {
+            width: 355px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .texture-image-creator-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .texture-image-creator-name-row input {
+            flex: 1;
+            min-width: 0;
+            height: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.35);
+            color: #ffffff;
+            padding: 0 10px;
+            font-size: 0.78rem;
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .texture-image-creator-name-row input:focus {
+            border-color: rgba(255, 102, 170, 0.6);
+        }
+
+        .texture-image-creator-name-suffix {
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.52);
+            font-family: monospace;
+            user-select: none;
+        }
+
+        .texture-image-creator-name-error {
+            color: #ff88a3;
+            font-size: 0.69rem;
+            margin-top: 4px;
+        }
+
+        .texture-image-creator-target {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: start;
+            gap: 8px;
+            margin-bottom: 9px;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-creator-target-label {
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.72);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .texture-image-creator-target-picker {
+            position: relative;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .texture-image-creator-target-trigger {
+            width: 100%;
+            height: 32px;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 9px 0 10px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            border-radius: 6px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+            outline: none;
+            box-sizing: border-box;
+            font-family: var(--font-clean);
+            font-size: 0.73rem;
+            cursor: pointer;
+            transition: background 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .texture-image-creator-target-trigger:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.075);
+        }
+
+        .texture-image-creator-target-trigger:focus-visible {
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 2px rgba(255, 102, 170, 0.12);
+        }
+
+        .texture-image-creator-target-trigger:disabled {
+            opacity: 0.42;
+            cursor: not-allowed;
+        }
+
+        .texture-image-creator-target-trigger-copy {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex: 1;
+            text-align: left;
+        }
+
+        .texture-image-creator-target-trigger-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .texture-image-creator-target-trigger-key {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: rgba(255, 255, 255, 0.38);
+            font-size: 0.64rem;
+        }
+
+        .texture-image-creator-target-trigger-arrow {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.42);
+            transition: transform 0.18s ease, color 0.18s ease;
+        }
+
+        .texture-image-creator-target-trigger[aria-expanded="true"] .texture-image-creator-target-trigger-arrow {
+            color: #ff8cba;
+            transform: rotate(180deg);
+        }
+
+        .texture-image-creator-target-panel {
+            max-height: 268px;
+            display: none;
+            overflow: hidden;
+            background: #18151f;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.52);
+        }
+
+        .texture-image-creator-target-panel.is-open {
+            display: block;
+            animation: texture-creator-target-panel-in 0.16s ease-out;
+        }
+
+        @keyframes texture-creator-target-panel-in {
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .texture-image-creator-target-list {
+            max-height: 268px;
+            padding: 6px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .texture-image-creator-target-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .texture-image-creator-target-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.16);
+            border-radius: 3px;
+        }
+
+        .texture-image-creator-target-group + .texture-image-creator-target-group,
+        .texture-image-creator-target-group + .texture-image-creator-target-option,
+        .texture-image-creator-target-option + .texture-image-creator-target-group {
+            margin-top: 4px;
+        }
+
+        .texture-image-creator-target-group-toggle {
+            width: 100%;
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 7px;
+            color: rgba(255, 255, 255, 0.66);
+            background: rgba(255, 255, 255, 0.045);
+            border: none;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.69rem;
+            text-align: left;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .texture-image-creator-target-group-toggle:hover,
+        .texture-image-creator-target-group-toggle:focus-visible {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.085);
+            outline: none;
+        }
+
+        .texture-image-creator-target-group-arrow {
+            width: 11px;
+            height: 11px;
+            flex-shrink: 0;
+            color: #ff8cba;
+            transform: rotate(90deg);
+            transition: transform 0.18s ease;
+        }
+
+        .texture-image-creator-target-group.is-collapsed .texture-image-creator-target-group-arrow {
+            transform: rotate(0deg);
+        }
+
+        .texture-image-creator-target-group-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .texture-image-creator-target-group-count {
+            flex-shrink: 0;
+            padding: 1px 5px;
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.58);
+            background: rgba(255, 255, 255, 0.07);
+            font-size: 0.62rem;
+        }
+
+        .texture-image-creator-target-group-items {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 4px 0 1px 11px;
+        }
+
+        .texture-image-creator-target-group-items[hidden] {
+            display: none;
+        }
+
+        .texture-image-creator-target-option {
+            width: 100%;
+            min-height: 39px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 7px 5px 8px;
+            color: rgba(255, 255, 255, 0.72);
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .texture-image-creator-target-option.is-direct {
+            margin-top: 1px;
+        }
+
+        .texture-image-creator-target-option:hover,
+        .texture-image-creator-target-option:focus-visible {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.065);
+            outline: none;
+        }
+
+        .texture-image-creator-target-option.is-selected {
+            color: #ffffff;
+            background: rgba(255, 102, 170, 0.13);
+        }
+
+        .texture-image-creator-target-option-copy {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex: 1;
+        }
+
+        .texture-image-creator-target-option-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            font-size: 0.69rem;
+            font-weight: 600;
+        }
+
+        .texture-image-creator-target-option-key {
+            max-width: 128px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: rgba(255, 255, 255, 0.34);
+            font-family: var(--font-clean);
+            font-size: 0.62rem;
+        }
+
+        .texture-image-creator-target-option-check {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            color: #ff8cba;
+            opacity: 0;
+            transform: scale(0.82);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .texture-image-creator-target-option.is-selected .texture-image-creator-target-option-check {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .texture-image-creator-target-native {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .texture-image-creator-size-grid {
+            margin-bottom: 9px;
+        }
+
+        .texture-image-creator-spec-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 9px;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-segmented {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px;
+            border-radius: 7px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .texture-image-segmented label {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .texture-image-segmented input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .texture-image-segmented span {
+            min-width: 40px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+            border-radius: 5px;
+            color: rgba(255, 255, 255, 0.54);
+            font-family: var(--font-clean);
+            font-size: 0.69rem;
+            font-weight: 600;
+            box-sizing: border-box;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .texture-image-segmented input:checked + span {
+            color: #ffffff;
+            background: rgba(255, 102, 170, 0.42);
+        }
+
+        .texture-image-creator-color-row {
+            display: grid;
+            grid-template-columns: 1fr 1.45fr;
+            gap: 8px;
+            margin-bottom: 9px;
+        }
+
+        .texture-image-creator-color,
+        .texture-image-creator-hex {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-creator-color input[type="color"] {
+            width: 100%;
+            height: 30px;
+            padding: 3px;
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .texture-image-creator-hex input {
+            width: 100%;
+            height: 30px;
+            padding: 0 8px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+            font-family: var(--font-clean);
+            font-size: 0.74rem;
+            text-transform: lowercase;
+        }
+
+        .texture-image-creator-alpha {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) 52px auto;
+            align-items: center;
+            gap: 7px;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-creator-alpha input[type="range"] {
+            width: 100%;
+        }
+
+        .texture-image-creator-alpha input[type="number"],
+        .texture-image-creator-radius input[type="number"] {
+            width: 100%;
+            height: 28px;
+            padding: 0 7px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+            font-family: var(--font-clean);
+            font-size: 0.74rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .texture-image-creator-stroke-alpha {
+            margin-top: 9px;
+        }
+
+        .texture-image-shape-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .texture-image-shape-btn {
+            min-width: 0;
+            height: 66px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            padding: 4px 3px;
+            color: rgba(255, 255, 255, 0.56);
+            background: rgba(0, 0, 0, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 7px;
+            cursor: pointer;
+            overflow: hidden;
+            box-sizing: border-box;
+            transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .texture-image-shape-btn:hover {
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.16);
+        }
+
+        .texture-image-shape-btn.is-active {
+            color: #ffffff;
+            background: rgba(255, 102, 170, 0.12);
+            border-color: rgba(255, 102, 170, 0.48);
+            box-shadow: inset 0 0 0 1px rgba(255, 102, 170, 0.18);
+        }
+
+        .texture-image-shape-btn canvas {
+            width: 48px;
+            height: 34px;
+            flex-shrink: 0;
+        }
+
+        .texture-image-shape-btn span {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.61rem;
+            line-height: 1;
+        }
+
+        .texture-image-creator-radius {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) 52px auto;
+            align-items: center;
+            gap: 7px;
+            margin-top: 9px;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.69rem;
+            transition: opacity 0.15s ease;
+        }
+
+        .texture-image-creator-radius input[type="range"] {
+            width: 100%;
+        }
+
+        .texture-image-creator-radius.is-disabled {
+            opacity: 0.38;
+        }
+
+        .texture-image-creator-arrow-control {
+            display: none;
+            margin-top: 9px;
+        }
+
         .texture-image-editor-view {
             height: 100%;
             min-height: 0;
@@ -5532,9 +7141,10 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: none;
             border-radius: 8px;
             background: #000000;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
         }
 
         .texture-image-preview-wrap canvas {
@@ -5601,10 +7211,6 @@
 
         .texture-image-preview-zoom input[type="range"] {
             width: 82px;
-            height: 18px;
-            margin: 0;
-            accent-color: #ff66aa;
-            cursor: pointer;
         }
 
         .texture-image-preview-zoom-value {
@@ -5627,7 +7233,8 @@
             padding: 12px;
             border-radius: 8px;
             background: rgba(255, 255, 255, 0.035);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
         }
 
         .texture-image-control-head {
@@ -5642,6 +7249,74 @@
             color: #ffffff;
             font-size: 0.82rem;
             font-weight: 600;
+        }
+
+        .texture-image-range {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: linear-gradient(
+                to right,
+                #ff66aa 0%,
+                #ff66aa var(--slider-pct, 0%),
+                rgba(255, 255, 255, 0.2) var(--slider-pct, 0%),
+                rgba(255, 255, 255, 0.2) 100%
+            ) !important;
+            outline: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+        }
+
+        .texture-image-range::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            margin-top: -3px !important;
+            transition: transform 0.15s ease;
+        }
+
+        .texture-image-range::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .texture-image-range::-moz-range-thumb {
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: #ffffff !important;
+            border: none !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            transition: transform 0.15s ease;
+        }
+
+        .texture-image-range::-moz-range-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .texture-image-range::-webkit-slider-runnable-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+        }
+
+        .texture-image-range::-moz-range-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
         }
 
         .texture-image-small-btn {
@@ -5685,7 +7360,72 @@
             box-shadow: 0 0 0 2px rgba(255, 102, 170, 0.08);
         }
 
-        .texture-image-switch {
+        .texture-image-rgb-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .texture-image-rgb-row {
+            display: grid;
+            grid-template-columns: 18px minmax(0, 1fr) 64px;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .texture-image-rgb-channel {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .texture-image-rgb-channel.is-r {
+            color: #ff7380;
+        }
+
+        .texture-image-rgb-channel.is-g {
+            color: #6fd58c;
+        }
+
+        .texture-image-rgb-channel.is-b {
+            color: #72a7ff;
+        }
+
+        .texture-image-rgb-row input[type="range"] {
+            width: 100%;
+        }
+
+        .texture-image-rgb-row input[type="range"]:focus {
+            outline: none;
+        }
+
+        .texture-image-rgb-row input[type="number"] {
+            width: 100%;
+            height: 28px;
+            padding: 0 7px;
+            color: #ffffff;
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+            font-family: var(--font-clean);
+            font-size: 0.74rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .texture-image-rgb-row input[type="number"]:focus {
+            border-color: rgba(255, 102, 170, 0.5);
+            box-shadow: 0 0 0 2px rgba(255, 102, 170, 0.08);
+        }
+
+        .texture-image-rgb-row input:disabled {
+            opacity: 0.38;
+            cursor: not-allowed;
+        }
+
+        .texture-image-switch,
+        .texture-image-stroke-switch {
             position: relative;
             width: 38px;
             height: 22px;
@@ -5693,13 +7433,15 @@
             cursor: pointer;
         }
 
-        .texture-image-switch input {
+        .texture-image-switch input,
+        .texture-image-stroke-switch input {
             position: absolute;
             opacity: 0;
             pointer-events: none;
         }
 
-        .texture-image-switch-track {
+        .texture-image-switch-track,
+        .texture-image-stroke-switch-track {
             position: absolute;
             inset: 0;
             border-radius: 11px;
@@ -5708,7 +7450,8 @@
             transition: background 0.18s ease, border-color 0.18s ease;
         }
 
-        .texture-image-switch-track::after {
+        .texture-image-switch-track::after,
+        .texture-image-stroke-switch-track::after {
             content: "";
             position: absolute;
             top: 3px;
@@ -5720,17 +7463,20 @@
             transition: transform 0.18s ease, background 0.18s ease;
         }
 
-        .texture-image-switch input:checked + .texture-image-switch-track {
+        .texture-image-switch input:checked + .texture-image-switch-track,
+        .texture-image-stroke-switch input:checked + .texture-image-stroke-switch-track {
             background: rgba(255, 102, 170, 0.58);
             border-color: rgba(255, 102, 170, 0.7);
         }
 
-        .texture-image-switch input:checked + .texture-image-switch-track::after {
+        .texture-image-switch input:checked + .texture-image-switch-track::after,
+        .texture-image-stroke-switch input:checked + .texture-image-stroke-switch-track::after {
             transform: translateX(16px);
             background: #ffffff;
         }
 
-        .texture-image-switch input:disabled + .texture-image-switch-track {
+        .texture-image-switch input:disabled + .texture-image-switch-track,
+        .texture-image-stroke-switch input:disabled + .texture-image-stroke-switch-track {
             opacity: 0.35;
             cursor: not-allowed;
         }
@@ -5766,9 +7512,6 @@
 
         .texture-image-long-body-fade input[type="range"] {
             width: 100%;
-            margin: 0;
-            accent-color: #ff66aa;
-            cursor: pointer;
         }
 
         .texture-image-long-body-fade span:last-child {
@@ -5863,6 +7606,90 @@
             margin-left: auto;
         }
 
+        .texture-image-save-actions {
+            position: relative;
+            display: inline-flex;
+            align-items: stretch;
+        }
+
+        .texture-image-save-actions .texture-image-save-btn {
+            border-radius: 6px 0 0 6px;
+        }
+
+        .texture-image-save-menu-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            min-width: 34px;
+            padding: 0;
+            color: rgba(255, 255, 255, 0.78);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 102, 170, 0.32);
+            border-left: none;
+            border-radius: 0 6px 6px 0;
+            cursor: pointer;
+        }
+
+        .texture-image-save-menu-btn:hover:not(:disabled),
+        .texture-image-save-menu-btn[aria-expanded="true"] {
+            color: #111118;
+            background: #ffffff;
+            border-color: #ffffff;
+        }
+
+        .texture-image-save-menu-btn:disabled {
+            cursor: default;
+            opacity: 0.45;
+        }
+
+        .texture-image-save-menu {
+            position: absolute;
+            right: 0;
+            bottom: calc(100% + 7px);
+            z-index: 8;
+            width: 214px;
+            padding: 6px;
+            background: #191720;
+            border-radius: 8px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.58);
+        }
+
+        .texture-image-save-menu-item {
+            display: block;
+            width: 100%;
+            padding: 9px 10px;
+            color: rgba(255, 255, 255, 0.86);
+            background: transparent;
+            border: none;
+            border-radius: 5px;
+            font: inherit;
+            font-size: 0.72rem;
+            line-height: 1.35;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .texture-image-save-menu-item:hover,
+        .texture-image-save-menu-item:focus-visible {
+            color: #ffffff;
+            background: rgba(255, 102, 170, 0.16);
+            outline: none;
+        }
+
+        .texture-image-save-menu-divider {
+            height: 1px;
+            margin: 5px 4px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .texture-image-save-menu-label {
+            padding: 4px 10px 3px;
+            color: rgba(255, 255, 255, 0.38);
+            font-size: 0.62rem;
+            line-height: 1.3;
+        }
+
         .texture-image-dialog .btn-secondary {
             color: rgba(255, 255, 255, 0.86);
             background: rgba(255, 255, 255, 0.08);
@@ -5893,23 +7720,72 @@
                 min-height: 560px;
             }
 
-            .texture-image-editor-view {
+            .texture-image-footer {
+                flex-wrap: wrap;
+            }
+
+            .texture-image-footer-right {
+                width: 100%;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+
+            .texture-image-save-menu {
+                width: min(214px, calc(100vw - 64px));
+            }
+
+            .texture-image-editor-view,
+            .texture-image-creator-view {
                 flex-direction: column;
                 overflow-y: auto;
             }
 
-            .texture-image-preview-panel {
+            .texture-image-preview-panel,
+            .texture-image-creator-preview-panel {
                 min-height: 240px;
                 flex: 0 0 240px;
             }
 
-            .texture-image-controls {
+            .texture-image-controls,
+            .texture-image-creator-controls {
                 width: 100%;
                 overflow: visible;
             }
 
-            .texture-image-picker-grid {
-                grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+            .texture-image-picker-grid .param-cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .texture-image-library-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .texture-image-picker-grid .texture-param-combo {
+                flex-wrap: wrap;
+            }
+
+            .texture-image-picker-grid .texture-path-input {
+                flex: 1 1 160px;
+            }
+
+            .texture-image-picker-grid .texture-edit-main-btn,
+            .texture-image-picker-grid .texture-upload-dropdown {
+                flex: 1 1 auto;
+            }
+
+            .texture-image-picker-grid .texture-edit-mode-menu {
+                right: auto;
+                left: 0;
+            }
+
+            .texture-image-picker-grid .texture-upload-main-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .texture-image-picker-grid .texture-upload-menu {
+                right: auto;
+                left: 0;
             }
         }
 

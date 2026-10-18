@@ -71,6 +71,7 @@
             justify-content: space-between;
             gap: 16px;
             width: 100%;
+            flex-wrap: wrap;
         }
 
         .deck-group {
@@ -103,6 +104,8 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
         }
 
         .tweak-switch-item {
@@ -135,6 +138,10 @@
         .tweak-switch-item.is-disabled .slider {
             cursor: not-allowed;
             pointer-events: none;
+        }
+
+        .player-controls.disabled .studio-utility-toggle {
+            pointer-events: auto;
         }
 
         .tweak-slider-item {

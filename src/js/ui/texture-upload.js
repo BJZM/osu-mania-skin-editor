@@ -225,9 +225,17 @@
                     const oppExt = is2x ? '.png' : '@2x.png';
 
                     if (shouldRecordUndo) {
-                        recordSkinUndoBeforeChange(`替换贴图: ${exportFilename}`);
+                        recordSkinUndoBeforeChange(`替换贴图: ${exportFilename}`, { force: true });
                         continuousActionActive = false;
                     }
+                    if (isTrackNote && trackCol != null && noteType === 'key') {
+                        preserveTrackKeyImageDownBeforeKeyImageEdit(curKeys, trackCol, { syncInput: true });
+                    }
+                    preserveHoldHeadsBeforeNoteEdit(curKeys, {
+                        key: canonicalParamKey,
+                        _trackLookup: noteType === 'note' ? LML.NoteImage : null,
+                        _trackCol: isTrackNote && noteType === 'note' ? trackCol : null
+                    }, { syncInput: true });
 
                     const keysToUpdate = new Set();
                     keysToUpdate.add(targetBase);
@@ -381,6 +389,13 @@
                     if (shouldRefresh) {
                         drawFrame();
                         renderSkinEditorParams();
+                        const imageEditorModal = document.getElementById('textureImageEditorModal');
+                        const imageEditorPicker = document.getElementById('textureImagePickerView');
+                        if (imageEditorModal && imageEditorModal.classList.contains('active') &&
+                            imageEditorPicker && getComputedStyle(imageEditorPicker).display !== 'none' &&
+                            typeof renderPicker === 'function') {
+                            renderPicker();
+                        }
                         if (selectedCanvasElement) {
                             syncCanvasSelectedCard(selectedCanvasElement);
                         }

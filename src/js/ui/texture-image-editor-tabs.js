@@ -18,6 +18,8 @@
         function getTabTitle(tab) {
             if (!tab) return '';
             if (tab.kind === 'menu') return '菜单';
+            if (tab.kind === 'library') return '全部贴图';
+            if (tab.kind === 'creator') return tab.title || '创建贴图';
             const target = tab.target || {};
             const p = target.p || {};
             const base = target.base || (target.resolved && target.resolved.name) || p.default || '';
@@ -103,9 +105,13 @@
 
                 const label = document.createElement('span');
                 label.className = 'texture-image-tab-label';
-                label.textContent = tab.kind === 'menu' ? '菜单' : (tab.target && tab.target.p
-                    ? tab.target.p.zhName
-                    : tab.title);
+                label.textContent = tab.kind === 'menu'
+                    ? '菜单'
+                    : (tab.kind === 'library'
+                        ? '全部贴图'
+                        : (tab.kind === 'creator'
+                            ? (tab.title || '创建贴图')
+                            : (tab.target && tab.target.p ? tab.target.p.zhName : tab.title)));
                 label.title = getTabTitle(tab);
                 tabEl.appendChild(label);
 
@@ -123,7 +129,7 @@
                     activateTab(tab.id);
                 });
 
-                if (tab.kind !== 'menu') {
+                if (tab.kind === 'texture' || tab.kind === 'creator') {
                     const close = document.createElement('button');
                     close.type = 'button';
                     close.className = 'texture-image-tab-close';
@@ -139,6 +145,18 @@
 
                 list.appendChild(tabEl);
             }
+
+            requestAnimationFrame(() => {
+                const activeEl = list.querySelector('.texture-image-tab.is-active');
+                if (!activeEl) return;
+                const left = activeEl.offsetLeft;
+                const right = left + activeEl.offsetWidth;
+                if (left < list.scrollLeft) {
+                    list.scrollLeft = left;
+                } else if (right > list.scrollLeft + list.clientWidth) {
+                    list.scrollLeft = right - list.clientWidth;
+                }
+            });
         }
 
         function flushActiveTabState() {
@@ -168,9 +186,29 @@
                 return;
             }
 
+            if (tab.kind === 'library') {
+                if (textureLibraryUi) textureLibraryUi.refresh();
+                setViews('library');
+                updateSelectionSummary();
+                updateEditorHistoryButtons();
+                updateStretchFixUI();
+                return;
+            }
+
+            if (tab.kind === 'creator') {
+                if (tab.creatorState) textureCreatorState = tab.creatorState;
+                renderTextureCreatorForm();
+                setViews('creator');
+                updateSelectionSummary();
+                updateEditorHistoryButtons();
+                return;
+            }
+
             updateCropInputs(state.cropRect);
             updateImageTransformInputs();
             updateImageTransformControlAvailability();
+            updateRgbAdjustmentInputs();
+            updateRgbAdjustmentControlAvailability();
             updatePreviewZoomControls();
             updateSelectionSummary();
             updateLongBodyComposerUI();
@@ -197,10 +235,18 @@
                 if (currentTab.state.previewSnapshot) {
                     applySkinSnapshot(currentTab.state.previewSnapshot);
                 }
+            } else if (currentTab && currentTab.kind === 'creator' &&
+                currentTab.creatorState &&
+                currentTab.creatorState.previewSnapshot) {
+                applySkinSnapshot(currentTab.creatorState.previewSnapshot);
+                drawFrame();
             }
 
             activeTabId = nextTab.id;
-            state = nextTab.kind === 'menu' ? menuState : nextTab.state;
+            if (nextTab.kind === 'creator' && nextTab.creatorState) {
+                textureCreatorState = nextTab.creatorState;
+            }
+            state = nextTab.kind === 'texture' ? nextTab.state : menuState;
             syncActiveTabView();
             return true;
         }

@@ -7,13 +7,17 @@
             const container = document.getElementById('paramListContainer');
             if (!container) return;
             container.innerHTML = '';
+            if (typeof isSkinEditingWorkspaceReady === 'function' && !isSkinEditingWorkspaceReady()) {
+                if (typeof syncSkinEditingAvailabilityUI === 'function') syncSkinEditingAvailabilityUI();
+                return;
+            }
 
             const keys = activeEditorKeyCount;
             const cfg = maniaSkinConfigurations.get(keys) || maniaSkinConfigurations.get(4) || {};
             const q = paramSearchQuery.trim().toLowerCase();
 
-            // 若在 Mania / 贴图 标签页但未读取到任何 Mania 键位配置
-            if ((activeEditorTab === 'mania' || activeEditorTab === 'textures') && maniaSkinConfigurations.size === 0) {
+            // 若在 Mania 标签页但未读取到任何 Mania 键位配置
+            if (activeEditorTab === 'mania' && maniaSkinConfigurations.size === 0) {
                 container.innerHTML = `
                     <div style="text-align:center; padding: 48px 20px; color: rgba(255,255,255,0.65); font-size: 0.88rem;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="36" height="36" style="margin-bottom: 12px; opacity: 0.45;">

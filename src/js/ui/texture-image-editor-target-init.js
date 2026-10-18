@@ -35,12 +35,20 @@
             state.selected = target;
             const session = longBodyComposerSessions.get(getLongBodySessionKey(target));
             const savedRecipe = session ? null : getStoredTextureEditRecipe(target);
+            const targetRecipe = target.kind === 'library' && target.generalEditParams
+                ? {
+                    params: JSON.parse(JSON.stringify(target.generalEditParams))
+                }
+                : null;
+            const effectiveRecipe = targetRecipe || savedRecipe;
             const sourceFrames = session && session.baseFrames
                 ? session.baseFrames
-                : (savedRecipe ? savedRecipe.sourceFrames : target.frames);
+                : (target.kind === 'library'
+                    ? target.frames
+                    : (savedRecipe ? savedRecipe.sourceFrames : target.frames));
             state.originalFrames = sourceFrames.map(cloneFrame);
             state.originalReference = normalizeSkinKey(
-                (savedRecipe && savedRecipe.originalReference) ||
+                (effectiveRecipe && effectiveRecipe.originalReference) ||
                 (target.resolved && target.resolved.name) ||
                 target.base ||
                 target.p.key
@@ -53,7 +61,9 @@
             state.snapGuides = null;
             state.contentBoundsCache = null;
             state.longBodyComposer.active = false;
-            state.previewSnapshot = editorBaseSnapshot || createSkinSnapshot('贴图编辑基线');
+            state.previewSnapshot = target.kind === 'library'
+                ? createSkinSnapshot('贴图编辑基线')
+                : (editorBaseSnapshot || createSkinSnapshot('贴图编辑基线'));
             const pairOriginalSources = captureKeyImagePairOriginalSources(target);
             state.keyImageOriginalSources = savedRecipe
                 ? {
@@ -61,11 +71,12 @@
                     ...cloneKeyImageEditSources(savedRecipe.keyImageOriginalSources)
                 }
                 : pairOriginalSources;
-            const restored = savedRecipe &&
-                applyStoredTextureEditRecipe(state, savedRecipe);
+            const restored = effectiveRecipe &&
+                applyStoredTextureEditRecipe(state, effectiveRecipe);
             if (!restored) {
                 if (savedRecipe) removeTextureEditRecipe(target);
                 resetTransformInputs();
+                resetRgbAdjustmentInputs();
             }
             state.keyImageEditRecipe = restored && isEditingKeyImageParam(target.p)
                 ? captureTextureEditRecipe(state, target)

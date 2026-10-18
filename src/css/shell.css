@@ -65,6 +65,18 @@
             display: none;
         }
 
+        .topbar-file-dropdown .dropdown-menu {
+            min-width: 282px;
+        }
+
+        .topbar-file-dropdown input[type="file"] {
+            display: none;
+        }
+
+        .topbar-file-dropdown .topbar-file-item {
+            width: 100%;
+        }
+
         .topbar-file-item.disabled {
             opacity: 0.5;
             pointer-events: none;
@@ -232,6 +244,20 @@
             flex: 0 0 auto;
             position: relative;
             z-index: 101;
+        }
+
+        .canvas-top-tools-right .dropdown-menu {
+            left: auto;
+            right: 0;
+        }
+
+        .dropdown-item.is-danger .icon,
+        .dropdown-item.is-danger .title {
+            color: #ff5d73;
+        }
+
+        .dropdown-item.is-danger:hover {
+            background: rgba(255, 77, 109, 0.16);
         }
 
         .canvas-top-switch {
@@ -462,6 +488,256 @@
             box-shadow: none;
             background: #000;
             z-index: 99999;
+        }
+
+        /* ===== 启动选择面板 (谱面 / 皮肤来源) ===== */
+        .startup-actions {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 28px;
+            box-sizing: border-box;
+            overflow: auto;
+            background: rgba(8, 7, 12, 0.48);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+        }
+
+        .startup-actions[hidden] {
+            display: none !important;
+        }
+
+        .startup-actions-content {
+            width: min(500px, 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            transition: transform 0.18s ease;
+        }
+
+        .startup-action {
+            width: 100%;
+            min-height: 86px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 8px;
+            background: rgba(23, 20, 31, 0.84);
+            color: #ffffff;
+            text-align: left;
+            cursor: pointer;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+            transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+            box-sizing: border-box;
+        }
+
+        .startup-action:hover {
+            transform: translateY(-2px);
+            background: rgba(35, 31, 46, 0.94);
+            border-color: rgba(255, 255, 255, 0.34);
+            box-shadow: 0 16px 38px rgba(0, 0, 0, 0.44);
+        }
+
+        .startup-action:active {
+            transform: translateY(0) scale(0.99);
+        }
+
+        .startup-action-beatmap {
+            border-color: rgba(255, 102, 170, 0.42);
+        }
+
+        .startup-action-separator {
+            height: 28px;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            padding: 0 28px;
+        }
+
+        .startup-action-separator span {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(
+                to right,
+                transparent,
+                rgba(255, 255, 255, 0.28) 18%,
+                rgba(255, 255, 255, 0.28) 82%,
+                transparent
+            );
+        }
+
+        .startup-action-skin {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .startup-action-default {
+            margin-top: 10px;
+            border-color: rgba(255, 255, 255, 0.14);
+            background: rgba(18, 17, 24, 0.78);
+        }
+
+        .startup-action-icon {
+            width: 46px;
+            height: 46px;
+            flex: 0 0 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #ff8fc0;
+        }
+
+        .startup-action-skin .startup-action-icon {
+            color: #ffffff;
+        }
+
+        .startup-action-default .startup-action-icon {
+            color: #a9d7ff;
+        }
+
+        .startup-action-icon svg {
+            width: 25px;
+            height: 25px;
+        }
+
+        .startup-action-copy {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .startup-action-title {
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .startup-action-desc {
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: rgba(255, 255, 255, 0.62);
+        }
+
+        .startup-actions.is-dragging .startup-actions-content {
+            transform: scale(1.015);
+        }
+
+        .startup-actions.is-dragging .startup-action {
+            border-color: rgba(255, 102, 170, 0.68);
+        }
+
+        /* 尚未选择皮肤来源时，详细设置与贴图编辑共用的提示状态 */
+        .skin-source-required-state {
+            display: none;
+            width: 100%;
+            min-height: 280px;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 36px 24px;
+            text-align: center;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.035);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+        }
+
+        .skin-source-required-state.is-visible {
+            display: flex;
+        }
+
+        .skin-source-required-icon {
+            width: 58px;
+            height: 58px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            color: rgba(255, 255, 255, 0.65);
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 50%;
+        }
+
+        .skin-source-required-title {
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .skin-source-required-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 9px;
+            margin-top: 20px;
+        }
+
+        .skin-source-required-actions [hidden] {
+            display: none !important;
+        }
+
+        @media (max-width: 640px) {
+            .startup-actions {
+                align-items: flex-start;
+                padding: 12px;
+            }
+
+            .startup-action {
+                min-height: 74px;
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .startup-action-separator {
+                height: 18px;
+                padding: 0 18px;
+            }
+
+            .startup-action-icon {
+                width: 38px;
+                height: 38px;
+                flex-basis: 38px;
+            }
+
+            .startup-action-icon svg {
+                width: 21px;
+                height: 21px;
+            }
+
+            .startup-action-title {
+                font-size: 0.9rem;
+            }
+
+            .startup-action-desc {
+                font-size: 0.7rem;
+            }
+
+            .skin-source-required-state {
+                min-height: 240px;
+                padding: 28px 18px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .player-main-area:has(.startup-actions:not([hidden])) .left-info-panel {
+                display: none;
+            }
+
+            .player-main-area:has(.startup-actions:not([hidden])) .canvas-wrapper {
+                width: calc(100vw - 16px);
+                max-width: calc(100vw - 16px);
+                height: auto;
+                margin: 8px;
+            }
         }
 
         /* ===== 全屏悬浮按钮 ===== */

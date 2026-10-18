@@ -36,15 +36,41 @@
 
                     <div class="texture-image-tabs">
                         <div class="texture-image-tab-list" id="textureImageTabList" role="tablist" aria-label="贴图编辑标签"></div>
+                        <button type="button" class="texture-image-tab-add" id="textureImageCreateOpenBtn" title="创建贴图" aria-label="创建贴图">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="15" height="15" aria-hidden="true">
+                                <path d="M12 5v14"></path>
+                                <path d="M5 12h14"></path>
+                            </svg>
+                        </button>
                     </div>
 
                     <div class="texture-image-body">
+                        <div class="skin-source-required-state texture-image-skin-required" id="textureImageSkinRequired" role="status" aria-live="polite" aria-hidden="true">
+                            <div class="skin-source-required-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="34" height="34">
+                                    <path d="M21 15V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10"></path>
+                                    <path d="m3 16 5-5 4 4 2-2 3 3"></path>
+                                    <circle cx="9" cy="7" r="1.5"></circle>
+                                    <path d="M19 16v6"></path>
+                                    <path d="m16 19 3-3 3 3"></path>
+                                </svg>
+                            </div>
+                            <div class="skin-source-required-title">请导入谱面和皮肤</div>
+                            <div class="skin-source-required-actions">
+                                <button type="button" class="btn btn-secondary" data-startup-required-action="beatmap">导入谱面</button>
+                                <button type="button" class="btn btn-secondary" data-skin-source-action="import" data-startup-required-action="skin">导入皮肤</button>
+                                <button type="button" class="btn btn-primary" data-skin-source-action="default" data-startup-required-action="skin">从默认皮肤开始</button>
+                            </div>
+                        </div>
+
                         <div class="texture-image-picker-view" id="textureImagePickerView">
                             <div class="texture-image-picker-head">
                                 <div>
                                     <div class="texture-image-picker-title">选择要编辑的贴图</div>
                                 </div>
-                                <span class="texture-image-picker-count" id="textureImagePickerCount">0 项</span>
+                                <div class="texture-image-picker-head-actions">
+                                    <span class="texture-image-picker-count" id="textureImagePickerCount">0 项</span>
+                                </div>
                             </div>
                             <div class="texture-image-picker-grid" id="textureImagePickerGrid"></div>
                         </div>
@@ -65,7 +91,7 @@
                                                 <line x1="5" y1="12" x2="19" y2="12"></line>
                                             </svg>
                                         </button>
-                                        <input type="range" id="textureImagePreviewZoom" min="0.1" max="4" step="0.1" value="1" aria-label="预览缩放">
+                                        <input type="range" id="textureImagePreviewZoom" min="0.1" max="4" step="0.1" value="1" class="texture-image-range" aria-label="预览缩放">
                                         <button type="button" class="btn-icon texture-image-zoom-btn" id="textureImagePreviewZoomIn" title="放大预览" aria-label="放大预览">
                                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14" aria-hidden="true">
                                                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -87,19 +113,19 @@
                                     <div class="texture-image-number-grid">
                                         <label>
                                             <span>左边界</span>
-                                            <input type="number" id="textureImageCropX" min="-8192" step="1" value="0">
+                                            <input type="number" id="textureImageCropLeft" min="-8192" step="1" value="0">
+                                        </label>
+                                        <label>
+                                            <span>右边界</span>
+                                            <input type="number" id="textureImageCropRight" min="-8192" step="1" value="0">
                                         </label>
                                         <label>
                                             <span>上边界</span>
-                                            <input type="number" id="textureImageCropY" min="-8192" step="1" value="0">
+                                            <input type="number" id="textureImageCropTop" min="-8192" step="1" value="0">
                                         </label>
                                         <label>
-                                            <span>宽度变化</span>
-                                            <input type="number" id="textureImageCropWidth" step="1" value="0">
-                                        </label>
-                                        <label>
-                                            <span>高度变化</span>
-                                            <input type="number" id="textureImageCropHeight" step="1" value="0">
+                                            <span>下边界</span>
+                                            <input type="number" id="textureImageCropBottom" min="-8192" step="1" value="0">
                                         </label>
                                     </div>
                                 </section>
@@ -150,7 +176,7 @@
                                         </div>
                                         <label class="texture-image-long-body-fade">
                                             <span>淡化范围</span>
-                                            <input type="range" id="textureImageLongBodyFade" min="0" max="100" step="1" value="0">
+                                            <input type="range" id="textureImageLongBodyFade" min="0" max="100" step="1" value="0" class="texture-image-range">
                                             <span id="textureImageLongBodyFadeValue">0%</span>
                                         </label>
                                         <div class="texture-image-long-body-progress" id="textureImageLongBodyProgress" style="display: none;">
@@ -161,6 +187,32 @@
                                             <div class="texture-image-long-body-progress-track">
                                                 <div class="texture-image-long-body-progress-bar" id="textureImageLongBodyProgressBar"></div>
                                             </div>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section" id="textureImageRgbSection">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">RGB 通道调整</div>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary texture-image-small-btn" id="textureImageRgbResetBtn" disabled>重置通道</button>
+                                    </div>
+                                    <div class="texture-image-rgb-grid">
+                                        <div class="texture-image-rgb-row">
+                                            <span class="texture-image-rgb-channel is-r">R</span>
+                                            <input type="range" id="textureImageRgbR" min="0" max="200" step="1" value="100" class="texture-image-range" disabled>
+                                            <input type="number" id="textureImageRgbRValue" min="0" max="200" step="1" value="100" disabled>
+                                        </div>
+                                        <div class="texture-image-rgb-row">
+                                            <span class="texture-image-rgb-channel is-g">G</span>
+                                            <input type="range" id="textureImageRgbG" min="0" max="200" step="1" value="100" class="texture-image-range" disabled>
+                                            <input type="number" id="textureImageRgbGValue" min="0" max="200" step="1" value="100" disabled>
+                                        </div>
+                                        <div class="texture-image-rgb-row">
+                                            <span class="texture-image-rgb-channel is-b">B</span>
+                                            <input type="range" id="textureImageRgbB" min="0" max="200" step="1" value="100" class="texture-image-range" disabled>
+                                            <input type="number" id="textureImageRgbBValue" min="0" max="200" step="1" value="100" disabled>
                                         </div>
                                     </div>
                                 </section>
@@ -176,14 +228,237 @@
                                 </section>
                             </div>
                         </div>
+
+                        <div class="texture-image-creator-view" id="textureImageCreatorView" style="display: none;">
+                            <div class="texture-image-creator-preview-panel">
+                                <div class="texture-image-preview-wrap">
+                                    <canvas id="textureImageCreatePreviewCanvas" width="360" height="280"></canvas>
+                                </div>
+                                <div class="texture-image-preview-meta">
+                                    <div class="texture-image-preview-sizes">
+                                        <span id="textureImageCreatePreviewSize">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="texture-image-creator-controls">
+                                <section class="texture-image-control-section" id="textureImageCreateNameSection">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">贴图名称</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-creator-name-row">
+                                        <input type="text" id="textureImageCreateName" class="texture-image-text-input" placeholder="输入贴图名称（例如 custom-texture）" spellcheck="false" autocomplete="off">
+                                        <span class="texture-image-creator-name-suffix">.png</span>
+                                    </div>
+                                    <div class="texture-image-creator-name-error" id="textureImageCreateNameError" style="display: none;"></div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head" style="margin-bottom: 0;">
+                                        <div>
+                                            <div class="texture-image-control-title">规格</div>
+                                        </div>
+                                        <div class="texture-image-segmented" role="radiogroup" aria-labelledby="textureImageCreateSpecLabel">
+                                            <span id="textureImageCreateSpecLabel" style="display: none;">规格</span>
+                                            <label>
+                                                <input type="radio" name="textureImageCreateSpec" value="1x" checked>
+                                                <span>1x</span>
+                                            </label>
+                                            <label>
+                                                <input type="radio" name="textureImageCreateSpec" value="2x">
+                                                <span>@2x</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">基础尺寸</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-number-grid texture-image-creator-size-grid" style="margin-bottom: 0;">
+                                        <label>
+                                            <span>宽度 (px)</span>
+                                            <input type="number" id="textureImageCreateWidth" min="1" max="50000" step="1" value="256">
+                                        </label>
+                                        <label>
+                                            <span>高度 (px)</span>
+                                            <input type="number" id="textureImageCreateHeight" min="1" max="50000" step="1" value="256">
+                                        </label>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">填充颜色与透明度</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-creator-color-row">
+                                        <label class="texture-image-creator-color">
+                                            <span>颜色选择</span>
+                                            <input type="color" id="textureImageCreateColor" value="#ffffff">
+                                        </label>
+                                        <label class="texture-image-creator-hex">
+                                            <span>Hex 数值</span>
+                                            <input type="text" id="textureImageCreateColorHex" value="#ffffff" spellcheck="false">
+                                        </label>
+                                    </div>
+                                    <div class="texture-image-creator-alpha">
+                                        <span>透明度</span>
+                                        <input type="range" id="textureImageCreateAlpha" min="0" max="100" step="1" value="100" class="texture-image-range">
+                                        <input type="number" id="textureImageCreateAlphaValue" min="0" max="100" step="1" value="100">
+                                        <span>%</span>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">描边设置</div>
+                                        </div>
+                                        <input type="checkbox" id="textureImageCreateStrokeEnabled" style="display: none;">
+                                    </div>
+                                    <div id="textureImageCreateStrokeControls">
+                                        <div class="texture-image-creator-color-row">
+                                            <label class="texture-image-creator-color">
+                                                <span>描边颜色</span>
+                                                <input type="color" id="textureImageCreateStrokeColor" value="#000000">
+                                            </label>
+                                            <label class="texture-image-creator-hex">
+                                                <span>Hex 数值</span>
+                                                <input type="text" id="textureImageCreateStrokeColorHex" value="#000000" spellcheck="false">
+                                            </label>
+                                        </div>
+                                        <div class="texture-image-creator-radius" style="margin-top: 0; margin-bottom: 9px;">
+                                            <span>描边宽度</span>
+                                            <input type="range" id="textureImageCreateStrokeWidth" min="0" max="64" step="1" value="0" class="texture-image-range">
+                                            <input type="number" id="textureImageCreateStrokeWidthValue" min="0" max="64" step="1" value="0">
+                                            <span>px</span>
+                                        </div>
+                                        <div class="texture-image-creator-alpha texture-image-creator-stroke-alpha" style="margin-top: 0;">
+                                            <span>透明度</span>
+                                            <input type="range" id="textureImageCreateStrokeAlpha" min="0" max="100" step="1" value="100" class="texture-image-range">
+                                            <input type="number" id="textureImageCreateStrokeAlphaValue" min="0" max="100" step="1" value="100">
+                                            <span>%</span>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="texture-image-control-section">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">形状类型</div>
+                                        </div>
+                                    </div>
+                                    <div class="texture-image-shape-grid" id="textureImageCreateShapeGrid" role="radiogroup">
+                                        <button type="button" class="texture-image-shape-btn is-active" data-shape="rectangle" role="radio" aria-checked="true">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>矩形</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="rounded-rectangle" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>圆角矩形</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="circle" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>圆形</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="rotated-square" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>菱形</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="arrow-up" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>上箭头</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="arrow-down" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>下箭头</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="arrow-left" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>左箭头</span>
+                                        </button>
+                                        <button type="button" class="texture-image-shape-btn" data-shape="arrow-right" role="radio" aria-checked="false">
+                                            <canvas width="48" height="34"></canvas>
+                                            <span>右箭头</span>
+                                        </button>
+                                    </div>
+
+                                    <div class="texture-image-creator-radius" id="textureImageCreateCornerRow" style="display: none;">
+                                        <span>圆角</span>
+                                        <input type="range" id="textureImageCreateCornerRadiusRange" min="0" max="128" step="1" value="24" class="texture-image-range">
+                                        <input type="number" id="textureImageCreateCornerRadius" min="0" max="128" step="1" value="24">
+                                        <span>px</span>
+                                    </div>
+
+                                    <div class="texture-image-creator-radius" id="textureImageCreateArrowThicknessRow" style="display: none;">
+                                        <span>粗细</span>
+                                        <input type="range" id="textureImageCreateArrowThickness" min="8" max="50" step="1" value="20" class="texture-image-range">
+                                        <input type="number" id="textureImageCreateArrowThicknessValue" min="8" max="50" step="1" value="20">
+                                        <span>%</span>
+                                    </div>
+
+                                    <div class="texture-image-creator-radius" id="textureImageCreateArrowRoundnessRow" style="display: none;">
+                                        <span>圆滑度</span>
+                                        <input type="range" id="textureImageCreateArrowRoundness" min="0" max="100" step="1" value="50" class="texture-image-range">
+                                        <input type="number" id="textureImageCreateArrowRoundnessValue" min="0" max="100" step="1" value="50">
+                                        <span>%</span>
+                                    </div>
+                                </section>
+
+                                <div class="texture-image-creator-footer" id="textureImageCreatorFooter" style="margin-top: 6px;">
+                                    <button type="button" class="btn btn-secondary" id="textureImageCreateCancelBtn">取消</button>
+                                    <button type="button" class="btn btn-primary" id="textureImageCreateConfirmBtn">确认创建</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="texture-image-library-view" id="textureImageLibraryView" style="display: none;">
+                            <div class="texture-existing-toolbar">
+                                <label class="texture-existing-search">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+                                        <circle cx="11" cy="11" r="7"></circle>
+                                        <path d="m20 20-3.5-3.5"></path>
+                                    </svg>
+                                    <input type="search" id="textureImageLibrarySearch" placeholder="搜索贴图名或路径" autocomplete="off" aria-label="搜索全部贴图">
+                                </label>
+                                <span class="texture-existing-count" id="textureImageLibraryCount">0 项</span>
+                            </div>
+
+                            <div class="texture-existing-grid" id="textureImageLibraryGrid" role="listbox" aria-label="当前皮肤全部贴图"></div>
+                            <div class="texture-existing-empty" id="textureImageLibraryEmpty" style="display: none;">
+                                当前皮肤中没有读取到贴图
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="texture-image-footer">
+                    <div class="texture-image-footer" id="textureImageFooter" style="display: none;">
                         <button type="button" class="btn btn-secondary" id="textureImageResetBtn" disabled>重置当前贴图</button>
                         <button type="button" class="btn btn-secondary" id="textureImageBlankBtn" title="将当前贴图直接替换为 1×1 全透明 PNG" disabled>设为空白</button>
                         <div class="texture-image-footer-right">
                             <button type="button" class="btn btn-secondary" id="textureImageCancelBtn">不保存</button>
-                            <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
+                            <div class="texture-image-save-actions">
+                                <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
+                                <button type="button" class="texture-image-save-menu-btn" id="textureImageApplyMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-label="更多保存方式" title="更多保存方式" disabled>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
+                                        <path d="m6 9 6 6 6-6"></path>
+                                    </svg>
+                                </button>
+                                <div class="texture-image-save-menu" id="textureImageApplyMenu" role="menu" aria-label="保存方式" style="display: none;">
+                                    <button type="button" class="texture-image-save-menu-item" id="textureImageApplyCurrentBtn" role="menuitem">保存当前轨道</button>
+                                    <button type="button" class="texture-image-save-menu-item" id="textureImageApplyAllBtn" role="menuitem">应用到全部轨道</button>
+                                    <div class="texture-image-save-menu-divider" role="separator"></div>
+                                    <div class="texture-image-save-menu-label">高级应用</div>
+                                    <button type="button" class="texture-image-save-menu-item" id="textureImageApplyCurrentOnlyBtn" role="menuitem">仅更新当前 KeyImage</button>
+                                    <button type="button" class="texture-image-save-menu-item" id="textureImageApplyAllOnlyBtn" role="menuitem">全部轨道仅更新 KeyImage</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -224,6 +499,29 @@
                             <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCancelBtn">取消</button>
                             <button type="button" class="btn btn-secondary" id="textureImageApplyScopeCurrentBtn">仅当前轨道</button>
                             <button type="button" class="btn btn-primary" id="textureImageApplyScopeAllBtn">应用到全部轨道</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="texture-image-scope-modal" id="textureImageLibraryActionModal" style="display: none;">
+                    <div class="texture-image-scope-backdrop" id="textureImageLibraryActionBackdrop"></div>
+                    <div class="texture-image-scope-dialog" role="dialog" aria-modal="true" aria-labelledby="textureImageLibraryActionTitle">
+                        <div class="texture-image-scope-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="22" height="22">
+                                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </div>
+                        <h3 id="textureImageLibraryActionTitle">复制贴图</h3>
+                        <p id="textureImageLibraryActionText">请输入副本名称。</p>
+                        <div class="texture-library-action-source" id="textureImageLibraryActionSource"></div>
+                        <div class="texture-library-action-field" id="textureImageLibraryCopyField">
+                            <input type="text" id="textureImageLibraryCopyName" class="param-text-input" placeholder="输入新贴图名称...">
+                            <span class="texture-library-action-error" id="textureImageLibraryCopyError"></span>
+                        </div>
+                        <div class="texture-image-scope-actions">
+                            <button type="button" class="btn btn-secondary" id="textureImageLibraryActionCancelBtn">取消</button>
+                            <button type="button" class="btn btn-primary" id="textureImageLibraryActionConfirmBtn">复制贴图</button>
                         </div>
                     </div>
                 </div>

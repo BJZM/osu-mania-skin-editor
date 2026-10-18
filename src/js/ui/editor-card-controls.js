@@ -515,7 +515,11 @@
                     // 因此点击后不再弹出选取文件的窗口，而是定位到 skin.ini 贴图参数区域，
                     // 一次性高亮全部判定贴图 (彩300g / 黄300 / 绿200 / 蓝100 / 灰50 / Miss)。
                     if (selectedCanvasElement.id === 'judgement') {
-                        focusParameter(JUDGEMENT_TEXTURE_PARAM_KEYS);
+                        const located = focusParameter(JUDGEMENT_TEXTURE_PARAM_KEYS);
+                        if (located === false) {
+                            showToast('无法定位判定贴图', '请先确认谱面和皮肤均已载入。');
+                            return;
+                        }
                         showToast(
                             '已定位判定贴图',
                             '参数面板已高亮全部判定贴图：' + JUDGEMENT_TEXTURE_PARAM_KEYS.join(' / ')
@@ -528,7 +532,11 @@
                         const col = selectedCanvasElement.colIndex;
                         const keyImageParam = `KeyImage${col}`;
                         const keyImageDownParam = `KeyImage${col}D`;
-                        focusParameter([keyImageParam, keyImageDownParam]);
+                        const located = focusParameter([keyImageParam, keyImageDownParam]);
+                        if (located === false) {
+                            showToast('无法定位按键贴图', `未找到 ${keyImageParam} 或 ${keyImageDownParam}。`);
+                            return;
+                        }
                         showToast(
                             '已定位按键贴图',
                             `参数面板已高亮 ${keyImageParam} 与 ${keyImageDownParam}`

@@ -27,6 +27,13 @@
             try {
                 let zip = currentSkinZip ? currentSkinZip : new JSZip();
                 stripUnsafeSkinArchiveEntries(zip);
+                if (deletedSkinTexturePaths.size > 0) {
+                    for (const filename of Object.keys(zip.files)) {
+                        if (deletedSkinTexturePaths.has(filename.replace(/\\/g, '/').toLowerCase())) {
+                            zip.remove(filename);
+                        }
+                    }
+                }
 
                 // 1. 生成最新完整 skin.ini 文本并覆盖写入
                 const newIniText = generateSkinIniText();

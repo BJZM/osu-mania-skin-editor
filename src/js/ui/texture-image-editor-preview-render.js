@@ -3,27 +3,108 @@
 // 由 texture-image-editor.js 按职责拆分；所有脚本共享既有经典脚本作用域。
 // ============================================================================
 
-        function setViews(showPicker) {
+        function setViews(mode) {
             const picker = byId('textureImagePickerView');
             const editor = byId('textureImageEditorView');
-            if (picker) picker.style.display = showPicker ? 'flex' : 'none';
-            if (editor) editor.style.display = showPicker ? 'none' : 'flex';
+            const creator = byId('textureImageCreatorView');
+            const library = byId('textureImageLibraryView');
+            const footer = byId('textureImageFooter') || byId('textureImageEditorDialog')?.querySelector('.texture-image-footer');
+
+            const isPicker = mode === true || mode === 'picker';
+            const isCreator = mode === 'creator';
+            const isLibrary = mode === 'library';
+            const isEditor = mode === false || mode === 'editor';
+            if (typeof closeActiveTextureEditModeMenu === 'function') {
+                closeActiveTextureEditModeMenu();
+            }
+            if (typeof closeTextureImageSaveMenu === 'function') {
+                closeTextureImageSaveMenu();
+            }
+
+            if (picker) picker.style.display = isPicker ? 'flex' : 'none';
+            if (editor) editor.style.display = isEditor ? 'flex' : 'none';
+            if (creator) creator.style.display = isCreator ? 'flex' : 'none';
+            if (library) library.style.display = isLibrary ? 'flex' : 'none';
+            if (footer) footer.style.display = isEditor ? 'flex' : 'none';
+        }
+
+        function isKeyImageSaveMenuAvailable() {
+            return !!(
+                state.selected &&
+                state.selected.kind !== 'library' &&
+                state.selected.p &&
+                !state.longBodyComposer.active &&
+                isEditingKeyImageParam(state.selected.p)
+            );
+        }
+
+        function closeTextureImageSaveMenu() {
+            const menu = byId('textureImageApplyMenu');
+            const menuBtn = byId('textureImageApplyMenuBtn');
+            if (menu) menu.style.display = 'none';
+            if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+        }
+
+        function toggleTextureImageSaveMenu(forceOpen) {
+            const menu = byId('textureImageApplyMenu');
+            const menuBtn = byId('textureImageApplyMenuBtn');
+            if (!menu || !menuBtn || menuBtn.disabled || !isKeyImageSaveMenuAvailable()) {
+                closeTextureImageSaveMenu();
+                return false;
+            }
+            const shouldOpen = forceOpen == null
+                ? menu.style.display === 'none'
+                : !!forceOpen;
+            menu.style.display = shouldOpen ? 'block' : 'none';
+            menuBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+            return shouldOpen;
         }
 
         function updateSelectionSummary() {
             const applyBtn = byId('textureImageApplyBtn');
+            const applyMenuBtn = byId('textureImageApplyMenuBtn');
             const resetBtn = byId('textureImageResetBtn');
             const blankBtn = byId('textureImageBlankBtn');
+            const cancelBtn = byId('textureImageCancelBtn');
             if (!state.selected) {
                 if (applyBtn) applyBtn.disabled = true;
+                if (applyMenuBtn) {
+                    applyMenuBtn.disabled = true;
+                    applyMenuBtn.style.display = 'none';
+                }
                 if (resetBtn) resetBtn.disabled = true;
                 if (blankBtn) blankBtn.disabled = true;
+                if (cancelBtn) cancelBtn.disabled = true;
+                closeTextureImageSaveMenu();
                 return;
             }
 
             if (applyBtn) applyBtn.disabled = false;
             if (resetBtn) resetBtn.disabled = false;
             if (blankBtn) blankBtn.disabled = false;
+            if (cancelBtn) cancelBtn.disabled = false;
+
+            const keyImageMenuAvailable = isKeyImageSaveMenuAvailable();
+            if (applyBtn) {
+                applyBtn.textContent = keyImageMenuAvailable
+                    ? '保存当前轨道'
+                    : '保存到皮肤';
+            }
+            if (applyMenuBtn) {
+                applyMenuBtn.disabled = !keyImageMenuAvailable;
+                applyMenuBtn.style.display = keyImageMenuAvailable ? 'inline-flex' : 'none';
+            }
+            if (!keyImageMenuAvailable) {
+                closeTextureImageSaveMenu();
+                return;
+            }
+
+            const kind = getKeyImageParamKind(state.selected.p);
+            const stateLabel = kind === 'down' ? 'KeyImageD' : 'KeyImage';
+            const currentOnlyBtn = byId('textureImageApplyCurrentOnlyBtn');
+            const allOnlyBtn = byId('textureImageApplyAllOnlyBtn');
+            if (currentOnlyBtn) currentOnlyBtn.textContent = `仅更新当前 ${stateLabel}`;
+            if (allOnlyBtn) allOnlyBtn.textContent = `全部轨道仅更新 ${stateLabel}`;
         }
 
         function resetTransformInputs() {
@@ -290,57 +371,169 @@
             const count = byId('textureImagePickerCount');
             if (!grid) return;
             grid.innerHTML = '';
-            const targets = getTextureTabParams().map(buildEditorTarget);
-            if (count) count.textContent = `${targets.length} 项`;
+            const keys = getActiveKeyCount();
+            const items = getTextureTabParams();
+            if (count) count.textContent = `${items.length} 项`;
 
-            for (const target of targets) {
-                const item = document.createElement('button');
-                item.type = 'button';
-                item.className = 'texture-image-picker-item';
-                item.dataset.paramKey = target.p.key;
-                item.disabled = !target.selectable;
-                if (state.selected && state.selected.p.key === target.p.key) {
-                    item.classList.add('selected');
-                }
-
-                const preview = document.createElement('div');
-                preview.className = 'texture-image-picker-preview';
-                renderTextureThumbnail(
-                    preview,
-                    target.frames[0] || null,
-                    target.state === 'missing' ? '未找到' : '未配置',
-                    48,
-                    36,
-                    target.frames.length > 1 ? target.frames : null
-                );
-
-                const meta = document.createElement('div');
-                meta.className = 'texture-image-picker-meta';
-                const name = document.createElement('span');
-                name.className = 'texture-image-picker-name';
-                name.textContent = target.p.zhName;
-                const file = document.createElement('span');
-                file.className = 'texture-image-picker-file';
-                file.textContent = target.resolved && target.resolved.name ? target.resolved.name : target.p.default;
-                meta.appendChild(name);
-                meta.appendChild(file);
-
-                const badge = document.createElement('span');
-                badge.className = 'texture-image-picker-badge';
-                if (!target.selectable) {
-                    badge.textContent = target.state === 'missing' ? '缺失' : '不可用';
-                } else if (target.frames.length > 1) {
-                    badge.textContent = `${target.frames.length} 帧`;
-                } else {
-                    badge.textContent = target.frames[0]._is2x ? '@2x' : '1x';
-                }
-
-                item.appendChild(preview);
-                item.appendChild(meta);
-                item.appendChild(badge);
-                if (target.selectable) {
-                    item.onclick = () => selectTarget(target);
-                }
-                grid.appendChild(item);
+            const groups = new Map();
+            for (const item of items) {
+                if (!groups.has(item.category)) groups.set(item.category, []);
+                groups.get(item.category).push(item);
             }
+
+            for (const [catName, catItems] of groups.entries()) {
+                const block = document.createElement('div');
+                block.className = 'param-category-block';
+
+                const collapseKey = 'textures::' + catName;
+                const isCollapsed = collapsedParamCategories.has(collapseKey);
+                block.dataset.categoryKey = collapseKey;
+                if (isCollapsed) block.classList.add('collapsed');
+
+                const title = document.createElement('button');
+                title.type = 'button';
+                title.className = 'param-category-title param-category-toggle';
+                title.title = '点击折叠 / 展开该分类';
+                title.innerHTML = `
+                    <svg class="cat-toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    <span>${catName}</span><span class="count-badge">${catItems.length}</span>
+                `;
+                title.onclick = () => {
+                    const nowCollapsed = !block.classList.contains('collapsed');
+                    block.classList.toggle('collapsed', nowCollapsed);
+                    if (nowCollapsed) collapsedParamCategories.add(collapseKey);
+                    else collapsedParamCategories.delete(collapseKey);
+                };
+                block.appendChild(title);
+
+                const cardsGrid = document.createElement('div');
+                cardsGrid.className = 'param-cards-grid';
+
+                const renderUnits = [];
+                for (const item of catItems) {
+                    if (item._trackGroupKey) {
+                        const last = renderUnits[renderUnits.length - 1];
+                        if (last && last.kind === 'trackGroup' && last.groupKey === item._trackGroupKey) {
+                            last.items.push(item);
+                        } else {
+                            renderUnits.push({
+                                kind: 'trackGroup',
+                                groupKey: item._trackGroupKey,
+                                groupName: item._trackGroupZhName || item._trackGroupName || item._trackGroupKey,
+                                groupEnName: item._trackGroupEnName,
+                                desc: item._trackGroupDesc,
+                                items: [item],
+                            });
+                        }
+                    } else {
+                        renderUnits.push({ kind: 'card', p: item });
+                    }
+                }
+
+                for (const unit of renderUnits) {
+                    if (unit.kind === 'trackGroup') {
+                        cardsGrid.appendChild(buildPerTrackTextureGroup(unit, keys, { pickerMode: true }));
+                        continue;
+                    }
+                    const p = unit.p;
+                    const target = buildEditorTarget(p);
+                    const canEdit = !!(target && target.selectable);
+
+                    const card = document.createElement('div');
+                    card.className = 'param-card texture-image-picker-item';
+                    card.id = `param-card-${p.key}`;
+                    card.dataset.paramKey = p.key;
+
+                    if (state.selected && state.selected.p.key === p.key) {
+                        card.classList.add('selected');
+                    }
+
+                    const header = document.createElement('div');
+                    header.className = 'param-card-header';
+
+                    const names = document.createElement('div');
+                    names.className = 'param-names';
+
+                    const zhName = document.createElement('span');
+                    zhName.className = 'param-zh-name';
+                    zhName.textContent = p.zhName;
+                    names.appendChild(zhName);
+
+                    if (p.desc) {
+                        const info = document.createElement('span');
+                        info.className = 'param-info-trigger';
+                        info.tabIndex = 0;
+                        info.innerHTML = `<span class="param-info-icon">ⓘ</span><div class="param-desc-tooltip">${p.desc}</div>`;
+                        names.appendChild(info);
+                    }
+
+                    const enName = document.createElement('span');
+                    enName.className = 'param-en-name';
+                    enName.textContent = p.key;
+                    names.appendChild(enName);
+
+                    header.appendChild(names);
+                    card.appendChild(header);
+
+                    const controlRow = document.createElement('div');
+                    controlRow.className = 'param-control-row';
+                    controlRow.appendChild(buildTextureParamControl(p, keys, card, {
+                        onEdit: () => {
+                            if (canEdit) selectTarget(target);
+                        },
+                        editDisabled: !canEdit,
+                        editTitle: canEdit
+                            ? `编辑 ${p.zhName}`
+                            : '当前没有可编辑的图片'
+                    }));
+                    card.appendChild(controlRow);
+                    card.onclick = (e) => {
+                        if (e.target.closest('.texture-upload-dropdown') || e.target.closest('input')) return;
+                        if (canEdit) selectTarget(target);
+                    };
+
+                    cardsGrid.appendChild(card);
+                }
+
+                block.appendChild(cardsGrid);
+                grid.appendChild(block);
+            }
+        }
+
+        function focusTexturePickerParams(paramKeys) {
+            if (!isSkinEditingWorkspaceReady()) return false;
+            const keys = Array.from(new Set(
+                (Array.isArray(paramKeys) ? paramKeys : [paramKeys])
+                    .filter((key) => typeof key === 'string' && key)
+            ));
+            if (keys.length === 0 || !open()) return false;
+
+            activateTab('menu', { force: true });
+            renderPicker();
+
+            const cards = [];
+            for (const key of keys) {
+                const card = byId(`param-card-${key}`);
+                if (!card) continue;
+                const category = card.closest('.param-category-block');
+                if (category) {
+                    category.classList.remove('collapsed');
+                    if (category.dataset.categoryKey) {
+                        collapsedParamCategories.delete(category.dataset.categoryKey);
+                    }
+                }
+                cards.push(card);
+            }
+            if (cards.length !== keys.length) return false;
+
+            for (const card of cards) {
+                if (card._textureFocusTimer) clearTimeout(card._textureFocusTimer);
+                card.classList.add('highlight-pulse');
+                card._textureFocusTimer = setTimeout(() => {
+                    card.classList.remove('highlight-pulse');
+                    card._textureFocusTimer = null;
+                }, 3500);
+            }
+            cards[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return true;
         }

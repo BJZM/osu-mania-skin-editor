@@ -19,9 +19,14 @@
             ui.diff.value = diffIdx;
             updateStatsDisplay();
             renderDiffDropdownMenu();
-            if (keys && maniaSkinConfigurations.has(keys)) {
-                activeEditorKeyCount = keys;
-                updateSkinEditorKeyPills();
+            if (keys) {
+                if (isEditableDefaultSkinWorkspaceActive()) {
+                    activateEditableDefaultSkinWorkspace(keys);
+                }
+                if (maniaSkinConfigurations.has(keys)) {
+                    activeEditorKeyCount = keys;
+                    updateSkinEditorKeyPills();
+                }
             }
 
             // 1. 加载音频文件
@@ -173,11 +178,15 @@
             updateTimeLabels(0, totalDurationSec);
             updateProgressFill(0, totalDurationSec);
 
-            // 6. 解锁播放控制器并更新 UI 状态
-            ui.playerControls.classList.remove('disabled');
-            ui.progressRange.disabled = false;
-            ui.playPauseBtn.disabled = false;
+            // 6. 根据启动流程状态同步播放控制器
             setPlayPauseUi(false);
+            if (typeof syncStartupPlayerControls === 'function') {
+                syncStartupPlayerControls();
+            } else {
+                ui.playerControls.classList.remove('disabled');
+                ui.progressRange.disabled = false;
+                ui.playPauseBtn.disabled = false;
+            }
 
             // 7. 绘制初始静止预览帧
             drawFrame();

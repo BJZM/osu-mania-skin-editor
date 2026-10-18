@@ -6,6 +6,8 @@ const SKIN = path.join(ROOT, 'samples', 'skins', 'Kumakalerki.osk');
 const KEY_IMAGE_CONTENT_HEIGHTS = [60, 90, 70, 80];
 const KEY_IMAGE_DOWN_CONTENT_HEIGHTS = [50, 75, 65, 55];
 
+const BEATMAP = path.join(ROOT, 'samples', 'beatmaps', '1790742 MIMI - Kuu ni Naru.osz');
+
 async function boot(page) {
   const errors = [];
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
@@ -14,8 +16,14 @@ async function boot(page) {
   });
   await page.goto('/index.html');
   await page.waitForFunction(() => typeof collectKeyImageHeightTarget === 'function');
+  await page.setInputFiles('#oszInput', BEATMAP);
+  await page.waitForFunction(
+    () => isStartupBeatmapReady() && beatmaps.length > 0,
+    null,
+    { timeout: 60000 }
+  );
   await page.setInputFiles('#oskInput', SKIN);
-  await page.waitForFunction(() => isSkinLoading === false, null, { timeout: 60000 });
+  await page.waitForFunction(() => isSkinLoading === false && isStartupWorkspaceReady(), null, { timeout: 60000 });
   await page.waitForTimeout(300);
   return errors;
 }
@@ -178,20 +186,26 @@ test('选中 KeyImage 后点击更换贴图会定位并高亮同轨 KeyImage 与
   await page.waitForFunction(() => {
     const normal = document.getElementById('param-card-KeyImage0');
     const down = document.getElementById('param-card-KeyImage0D');
-    return activeEditorTab === 'textures' &&
+    const picker = document.getElementById('textureImagePickerView');
+    return document.getElementById('textureImageEditorModal').classList.contains('active') &&
+      picker && getComputedStyle(picker).display !== 'none' &&
       normal && down &&
       normal.classList.contains('highlight-pulse') &&
       down.classList.contains('highlight-pulse');
   });
 
   const state = await page.evaluate(() => ({
-    modalActive: document.getElementById('skinEditorModal').classList.contains('active'),
+    textureEditorActive: document.getElementById('textureImageEditorModal').classList.contains('active'),
+    detailedSettingsActive: document.getElementById('skinEditorModal').classList.contains('active'),
+    pickerVisible: getComputedStyle(document.getElementById('textureImagePickerView')).display !== 'none',
     highlightedIds: Array.from(document.querySelectorAll('.highlight-pulse')).map((el) => el.id),
-    activeTab: activeEditorTab
+    activeTab: textureImageEditorUi.getState().activeTabId
   }));
 
-  expect(state.modalActive).toBe(true);
-  expect(state.activeTab).toBe('textures');
+  expect(state.textureEditorActive).toBe(true);
+  expect(state.detailedSettingsActive).toBe(false);
+  expect(state.pickerVisible).toBe(true);
+  expect(state.activeTab).toBe('menu');
   expect(state.highlightedIds).toEqual(expect.arrayContaining([
     'param-card-KeyImage0',
     'param-card-KeyImage0D'
@@ -259,14 +273,12 @@ test('贴图编辑器保存 KeyImage 后，画布高度不再复用旧基准', a
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
 
   const editorBefore = await page.evaluate(() => textureImageEditorUi.getState());
-  await page.fill('#textureImageCropHeight', '-5');
+  await page.fill('#textureImageCropBottom', '-5');
   await page.waitForFunction(
     (height) => textureImageEditorUi.getState().previewSize.height === height,
     editorBefore.workingSize.height - 5
   );
   await page.click('#textureImageApplyBtn');
-  await page.waitForFunction(() => document.getElementById('textureImageApplyScopeModal').style.display === 'flex');
-  await page.click('#textureImageApplyScopeCurrentBtn');
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
 
   const saved = await keyImageSizes(page);

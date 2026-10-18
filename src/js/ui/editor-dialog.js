@@ -3,6 +3,25 @@
 // 依赖：ui/param-render.js、ui/param-core.js
 // ============================================================================
 
+        function openSkinEditorDialog() {
+            const modal = document.getElementById('skinEditorModal');
+            if (!modal) return false;
+            syncSkinEditingAvailabilityUI();
+            modal.classList.add('active');
+            if (!isSkinEditingWorkspaceReady()) return true;
+            updateSkinEditorKeyPills();
+            renderSkinEditorParams();
+            return true;
+        }
+
+        async function openSkinEditorDialogFromToolbar() {
+            if (textureImageEditorUi) {
+                const closed = await textureImageEditorUi.close();
+                if (closed === false) return false;
+            }
+            return openSkinEditorDialog();
+        }
+
         function initSkinEditorDialogUI() {
             // 打开 / 关闭弹窗
             const openBtn = document.getElementById('openSkinEditorBtn');
@@ -11,15 +30,7 @@
             const modal = document.getElementById('skinEditorModal');
 
             if (openBtn && modal) {
-                openBtn.onclick = async () => {
-                    if (textureImageEditorUi) {
-                        const closed = await textureImageEditorUi.close();
-                        if (closed === false) return;
-                    }
-                    modal.classList.add('active');
-                    updateSkinEditorKeyPills();
-                    renderSkinEditorParams();
-                };
+                openBtn.onclick = openSkinEditorDialogFromToolbar;
             }
             if (closeBtn && modal) {
                 closeBtn.onclick = () => modal.classList.remove('active');
@@ -124,21 +135,6 @@
                 }
             }
 
-            // 画布直接编辑开关
-            const editToggle = document.getElementById('canvasEditModeToggle');
-            if (editToggle) {
-                editToggle.checked = canvasEditMode;
-                editToggle.onchange = (e) => {
-                    canvasEditMode = e.target.checked;
-                    if (!canvasEditMode) {
-                        selectedCanvasElement = null;
-                        const card = document.getElementById('canvasSelectedCard');
-                        if (card) card.style.display = 'none';
-                    }
-                    drawFrame();
-                };
-            }
-
             // 判定提示动态演示开关
             const previewJudgementToggle = document.getElementById('previewJudgementToggle');
             if (previewJudgementToggle) {
@@ -180,49 +176,41 @@
                 };
             }
 
-            // 编辑、导出与难度选择下拉菜单与按钮
-            const editDropdown = document.getElementById('editDropdownWrapper');
-            const editMenuBtn = document.getElementById('editMenuBtn');
+            // 顶部菜单按钮与下拉容器
+            const fileDropdown = document.getElementById('fileDropdownWrapper');
+            const fileMenuBtn = document.getElementById('fileMenuBtn');
             const exportDropdown = document.getElementById('exportDropdownWrapper');
             const exportSkinBtn = document.getElementById('exportSkinBtn');
+            const otherDropdown = document.getElementById('otherDropdownWrapper');
+            const otherMenuBtn = document.getElementById('otherMenuBtn');
             const exportOskBtn = document.getElementById('exportOskBtn');
             const exportZipBtn = document.getElementById('exportZipBtn');
             const modalExportOskBtn = document.getElementById('modalExportOskBtn');
             const modalExportZipBtn = document.getElementById('modalExportZipBtn');
 
-            // 谱面难度选择下拉菜单
-            if (ui.diffBtn && ui.diffDropdown) {
-                ui.diffBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    if (editDropdown) editDropdown.classList.remove('open');
-                    if (exportDropdown) exportDropdown.classList.remove('open');
-                    ui.diffDropdown.classList.toggle('open');
-                };
-            }
+            const topbarDropdowns = [
+                { button: fileMenuBtn, wrapper: fileDropdown },
+                { button: ui.diffBtn, wrapper: ui.diffDropdown },
+                { button: exportSkinBtn, wrapper: exportDropdown },
+                { button: otherMenuBtn, wrapper: otherDropdown }
+            ].filter(item => item.button && item.wrapper);
 
-            if (editMenuBtn && editDropdown) {
-                editMenuBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    if (ui.diffDropdown) ui.diffDropdown.classList.remove('open');
-                    if (exportDropdown) exportDropdown.classList.remove('open');
-                    editDropdown.classList.toggle('open');
-                };
-            }
+            const closeTopbarDropdowns = (exceptWrapper = null) => {
+                topbarDropdowns.forEach(({ wrapper }) => {
+                    if (wrapper !== exceptWrapper) wrapper.classList.remove('open');
+                });
+            };
 
-            if (exportSkinBtn && exportDropdown) {
-                exportSkinBtn.onclick = (e) => {
+            topbarDropdowns.forEach(({ button, wrapper }) => {
+                button.onclick = (e) => {
                     e.stopPropagation();
-                    if (ui.diffDropdown) ui.diffDropdown.classList.remove('open');
-                    if (editDropdown) editDropdown.classList.remove('open');
-                    exportDropdown.classList.toggle('open');
+                    const shouldOpen = !wrapper.classList.contains('open');
+                    closeTopbarDropdowns();
+                    wrapper.classList.toggle('open', shouldOpen);
                 };
-            }
-
-            window.addEventListener('click', () => {
-                if (editDropdown) editDropdown.classList.remove('open');
-                if (exportDropdown) exportDropdown.classList.remove('open');
-                if (ui.diffDropdown) ui.diffDropdown.classList.remove('open');
             });
+
+            window.addEventListener('click', () => closeTopbarDropdowns());
 
             // 初始化谱面难度下拉列表
             renderDiffDropdownMenu();
@@ -231,6 +219,8 @@
             if (exportZipBtn) exportZipBtn.onclick = () => exportSkin('zip');
             if (modalExportOskBtn) modalExportOskBtn.onclick = () => exportSkin('osk');
             if (modalExportZipBtn) modalExportZipBtn.onclick = () => exportSkin('zip');
+            const useDefaultSkinBtn = document.getElementById('useDefaultSkinBtn');
+            if (useDefaultSkinBtn) useDefaultSkinBtn.onclick = () => startFromDefaultSkin();
 
             // 搜索过滤与清空
             const searchInput = document.getElementById('paramSearchInput');
@@ -308,6 +298,7 @@
             initSkinEditorDialogUI();
             initAnimationTextureEditorUI();
             initTextureUploadUI();
+            initTextureExistingPickerUI();
             initTextureImageEditorUI();
             initCanvasEditorUI();
             initSkinEditorShortcutsUI();

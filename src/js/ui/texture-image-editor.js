@@ -8,11 +8,16 @@
         function initTextureImageEditorUI() {
         const openBtn = byId('openTextureImageEditorBtn');
         const closeBtn = byId('textureImageEditorCloseBtn');
-        const cancelBtn = byId('textureImageCancelBtn');
         const backdrop = byId('textureImageEditorBackdrop');
+        const cancelBtn = byId('textureImageCancelBtn');
         const resetBtn = byId('textureImageResetBtn');
         const blankBtn = byId('textureImageBlankBtn');
         const applyBtn = byId('textureImageApplyBtn');
+        const applyMenuBtn = byId('textureImageApplyMenuBtn');
+        const applyCurrentBtn = byId('textureImageApplyCurrentBtn');
+        const applyAllBtn = byId('textureImageApplyAllBtn');
+        const applyCurrentOnlyBtn = byId('textureImageApplyCurrentOnlyBtn');
+        const applyAllOnlyBtn = byId('textureImageApplyAllOnlyBtn');
         const stretchFixBtn = byId('textureImageStretchFixBtn');
         const previewZoomRange = byId('textureImagePreviewZoom');
         const previewZoomOut = byId('textureImagePreviewZoomOut');
@@ -24,6 +29,10 @@
         const longBodyTargetHeight = byId('textureImageLongBodyTargetHeight');
         const longBodyFade = byId('textureImageLongBodyFade');
         const liveInputIds = [
+            'textureImageCropLeft',
+            'textureImageCropRight',
+            'textureImageCropTop',
+            'textureImageCropBottom',
             'textureImageCropX',
             'textureImageCropY',
             'textureImageCropWidth',
@@ -34,6 +43,42 @@
             'textureImageStretchX',
             'textureImageStretchY'
         ];
+        const undoTextureEditorAction = () => {
+            if (undoEditorHistory()) return true;
+            if (typeof undoStack === 'undefined' || undoStack.length === 0 ||
+                typeof performSkinUndo !== 'function') {
+                return false;
+            }
+            performSkinUndo();
+            updateEditorHistoryButtons();
+            return true;
+        };
+        const redoTextureEditorAction = () => {
+            if (redoEditorHistory()) return true;
+            if (typeof redoStack === 'undefined' || redoStack.length === 0 ||
+                typeof performSkinRedo !== 'function') {
+                return false;
+            }
+            performSkinRedo();
+            updateEditorHistoryButtons();
+            return true;
+        };
+        const applyCurrentTrack = () => applySelectedTexture({
+            keyImageScope: 'current',
+            syncKeyImagePair: true
+        });
+        const applyAllTracks = () => applySelectedTexture({
+            keyImageScope: 'all',
+            syncKeyImagePair: true
+        });
+        const applyCurrentTrackOnly = () => applySelectedTexture({
+            keyImageScope: 'current',
+            syncKeyImagePair: false
+        });
+        const applyAllTracksOnly = () => applySelectedTexture({
+            keyImageScope: 'all',
+            syncKeyImagePair: false
+        });
 
         if (openBtn) openBtn.onclick = open;
         if (closeBtn) closeBtn.onclick = close;
@@ -41,7 +86,26 @@
         if (backdrop) backdrop.onclick = close;
         if (resetBtn) resetBtn.onclick = resetCurrentTexture;
         if (blankBtn) blankBtn.onclick = setCurrentTextureBlank;
-        if (applyBtn) applyBtn.onclick = applySelectedTexture;
+        if (applyBtn) applyBtn.onclick = applyCurrentTrack;
+        if (applyCurrentBtn) applyCurrentBtn.onclick = applyCurrentTrack;
+        if (applyAllBtn) applyAllBtn.onclick = applyAllTracks;
+        if (applyCurrentOnlyBtn) applyCurrentOnlyBtn.onclick = applyCurrentTrackOnly;
+        if (applyAllOnlyBtn) applyAllOnlyBtn.onclick = applyAllTracksOnly;
+        if (applyMenuBtn) {
+            applyMenuBtn.onclick = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                toggleTextureImageSaveMenu();
+            };
+        }
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (target && target.closest && target.closest('.texture-image-save-actions')) return;
+            closeTextureImageSaveMenu();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeTextureImageSaveMenu();
+        });
         if (stretchFixBtn) stretchFixBtn.onclick = applyStretchFix;
         if (previewZoomRange) {
             previewZoomRange.addEventListener('input', () => setPreviewZoom(previewZoomRange.value));
@@ -52,8 +116,8 @@
         if (previewZoomIn) {
             previewZoomIn.onclick = () => setPreviewZoom(state.previewZoom + PREVIEW_ZOOM_STEP);
         }
-        if (editorUndoBtn) editorUndoBtn.onclick = undoEditorHistory;
-        if (editorRedoBtn) editorRedoBtn.onclick = redoEditorHistory;
+        if (editorUndoBtn) editorUndoBtn.onclick = undoTextureEditorAction;
+        if (editorRedoBtn) editorRedoBtn.onclick = redoTextureEditorAction;
         if (longBodyToggle) {
             longBodyToggle.onchange = () => {
                 if (longBodyToggle.checked) enableLongBodyComposer();
@@ -129,19 +193,76 @@
                     });
                 }
             }
+            for (const channel of ['r', 'g', 'b']) {
+                const range = byId(`textureImageRgb${channel.toUpperCase()}`);
+                const number = byId(`textureImageRgb${channel.toUpperCase()}Value`);
+                const onInput = (rawValue) => {
+                    if (rawValue === '') return;
+                    const value = normalizeRgbAdjustmentChannel(rawValue);
+                    beginEditorHistory('调整贴图RGB通道', {
+                        group: 'rgb-adjustment-input',
+                        autoCommitMs: 140
+                    });
+                    state.rgbAdjustment[channel] = value;
+                    if (range && range.value !== String(value)) {
+                        range.value = String(value);
+                        updateTextureRangeFill(range);
+                    }
+                    if (number && number.value !== String(value)) {
+                        number.value = String(value);
+                    }
+                    scheduleLivePreview();
+                };
+                if (range) {
+                    range.addEventListener('input', () => onInput(range.value));
+                    range.addEventListener('change', () => commitEditorHistory());
+                }
+                if (number) {
+                    number.addEventListener('input', () => onInput(number.value));
+                    number.addEventListener('change', () => commitEditorHistory());
+                    number.addEventListener('blur', () => commitEditorHistory());
+                }
+            }
+            const rgbResetBtn = byId('textureImageRgbResetBtn');
+            if (rgbResetBtn) {
+                rgbResetBtn.onclick = () => {
+                    beginEditorHistory('重置贴图RGB通道', { group: 'rgb-adjustment-reset' });
+                    resetRgbAdjustmentInputs();
+                    scheduleLivePreview();
+                };
+            }
+
             updateImageTransformInputs();
             updateImageTransformControlAvailability();
+            updateRgbAdjustmentInputs();
+            updateRgbAdjustmentControlAvailability();
             updatePreviewZoomControls();
             updateLongBodyComposerUI();
             updateEditorHistoryButtons();
             initCropCanvasInteractions();
+            if (typeof initTextureCreatorUI === 'function') {
+                initTextureCreatorUI();
+            }
+            if (typeof initTextureLibraryUI === 'function') {
+                initTextureLibraryUI();
+            }
 
             textureImageEditorUi = {
                 open,
                 close,
                 closeTab,
-                undo: undoEditorHistory,
-                redo: redoEditorHistory,
+                openCreator: typeof openTextureCreator === 'function' ? openTextureCreator : () => {},
+                openLibraryEditor: typeof openTextureLibraryGeneralEditor === 'function'
+                    ? openTextureLibraryGeneralEditor
+                    : () => false,
+                undo: undoTextureEditorAction,
+                redo: redoTextureEditorAction,
+                canUndo: () => (state && Array.isArray(state.editorUndoStack) && state.editorUndoStack.length > 0) ||
+                    (typeof undoStack !== 'undefined' && undoStack.length > 0),
+                canRedo: () => (state && Array.isArray(state.editorRedoStack) && state.editorRedoStack.length > 0) ||
+                    (typeof redoStack !== 'undefined' && redoStack.length > 0),
+                refreshAfterSkinImport: refreshTextureImageEditorAfterSkinImport,
+                focusParams: focusTexturePickerParams,
                 syncExternalFrames,
                 commitExternalChanges: absorbExternalChanges,
                 getLongBodyPreviewCanvas: () => state.longBodyComposer.active
@@ -159,7 +280,11 @@
                     tabCount: tabs.length,
                     dirtyTabCount: tabs.filter(isTabDirty).length,
                     selectedKey: state.selected ? state.selected.p.key : null,
+                    selectedKind: state.selected ? (state.selected.kind || 'param') : null,
                     selectedBase: state.selected ? state.selected.base : null,
+                    selectedLibraryPath: state.selected && state.selected.kind === 'library'
+                        ? state.selected.libraryPath
+                        : null,
                     frameCount: state.workingFrames.length,
                     sourceSize: state.originalFrames[0]
                         ? { width: state.originalFrames[0].width, height: state.originalFrames[0].height }
@@ -170,6 +295,7 @@
                     previewSize: state.previewFrames[0]
                         ? { width: state.previewFrames[0].width, height: state.previewFrames[0].height }
                         : null,
+                    previewIs2x: !!(state.previewFrames[0] && state.previewFrames[0]._is2x),
                     cropRect: state.cropRect ? { ...state.cropRect } : null,
                     imageTransform: cloneImageTransform(state.imageTransform),
                     transformRect: (() => {
@@ -183,15 +309,45 @@
                         return bounds ? { ...bounds } : null;
                     })(),
                     inputValues: {
-                        x: Number((byId('textureImageCropX') || {}).value || 0),
-                        y: Number((byId('textureImageCropY') || {}).value || 0),
-                        width: Number((byId('textureImageCropWidth') || {}).value || 0),
-                        height: Number((byId('textureImageCropHeight') || {}).value || 0)
+                        left: Number((byId('textureImageCropLeft') || byId('textureImageCropX') || {}).value || 0),
+                        right: Number((byId('textureImageCropRight') || {}).value || 0),
+                        top: Number((byId('textureImageCropTop') || byId('textureImageCropY') || {}).value || 0),
+                        bottom: Number((byId('textureImageCropBottom') || {}).value || 0),
+                        x: Number((byId('textureImageCropLeft') || byId('textureImageCropX') || {}).value || 0),
+                        y: Number((byId('textureImageCropTop') || byId('textureImageCropY') || {}).value || 0),
+                        width: Number((byId('textureImageCropWidth') || {}).value || (
+                            Number((byId('textureImageCropLeft') || {}).value || 0) +
+                            Number((byId('textureImageCropRight') || {}).value || 0)
+                        )),
+                        height: Number((byId('textureImageCropHeight') || {}).value || (
+                            Number((byId('textureImageCropTop') || {}).value || 0) +
+                            Number((byId('textureImageCropBottom') || {}).value || 0)
+                        ))
                     },
                     transformInputValues: {
                         scalePercent: Number((byId('textureImageScalePercent') || {}).value || 0),
                         stretchX: Number((byId('textureImageStretchX') || {}).value || 0),
                         stretchY: Number((byId('textureImageStretchY') || {}).value || 0)
+                    },
+                    rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment),
+                    creator: {
+                        active: tabs.some((tab) => tab.id === activeTabId && tab.kind === 'creator'),
+                        targetKey: typeof textureCreatorState !== 'undefined' ? textureCreatorState.targetKey : '',
+                        name: typeof textureCreatorState !== 'undefined' ? (textureCreatorState.name || '') : '',
+                        editPath: typeof textureCreatorState !== 'undefined' ? textureCreatorState.editPath : null,
+                        width: typeof textureCreatorState !== 'undefined' ? textureCreatorState.width : 256,
+                        height: typeof textureCreatorState !== 'undefined' ? textureCreatorState.height : 256,
+                        shape: typeof textureCreatorState !== 'undefined' ? textureCreatorState.shape : 'rectangle',
+                        arrowThickness: typeof textureCreatorState !== 'undefined' ? textureCreatorState.arrowThickness : 20,
+                        arrowRoundness: typeof textureCreatorState !== 'undefined' ? textureCreatorState.arrowRoundness : 50,
+                        cornerRadius: typeof textureCreatorState !== 'undefined' ? textureCreatorState.cornerRadius : 24,
+                        color: typeof textureCreatorState !== 'undefined' ? textureCreatorState.color : '#ffffff',
+                        alpha: typeof textureCreatorState !== 'undefined' ? textureCreatorState.alpha : 100,
+                        strokeEnabled: typeof textureCreatorState !== 'undefined' ? (textureCreatorState.strokeWidth > 0 && !!textureCreatorState.strokeEnabled) : false,
+                        strokeWidth: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeWidth : 0,
+                        strokeColor: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeColor : '#000000',
+                        strokeAlpha: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeAlpha : 100,
+                        spec: typeof textureCreatorState !== 'undefined' ? textureCreatorState.spec : '1x'
                     },
                     longBody: {
                         active: state.longBodyComposer.active,

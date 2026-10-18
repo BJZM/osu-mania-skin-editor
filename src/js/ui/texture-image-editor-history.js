@@ -7,7 +7,8 @@
             return {
                 workingFrames: state.workingFrames.slice(),
                 cropRect: state.cropRect ? { ...state.cropRect } : null,
-                imageTransform: cloneImageTransform(state.imageTransform)
+                imageTransform: cloneImageTransform(state.imageTransform),
+                rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
             };
         }
 
@@ -24,6 +25,7 @@
             );
             if (!rectsEqual) return false;
             if (!imageTransformsEqual(a.imageTransform, b.imageTransform)) return false;
+            if (!rgbAdjustmentsEqual(a.rgbAdjustment, b.rgbAdjustment)) return false;
             if (a.workingFrames.length !== b.workingFrames.length) return false;
             return a.workingFrames.every((frame, index) => frame === b.workingFrames[index]);
         }
@@ -33,18 +35,28 @@
             const redoBtn = byId('textureImageRedoBtn');
             const undoEntry = state.editorUndoStack[state.editorUndoStack.length - 1];
             const redoEntry = state.editorRedoStack[state.editorRedoStack.length - 1];
+            const globalUndoEntry = (typeof undoStack !== 'undefined' && undoStack.length > 0)
+                ? undoStack[undoStack.length - 1]
+                : null;
+            const globalRedoEntry = (typeof redoStack !== 'undefined' && redoStack.length > 0)
+                ? redoStack[redoStack.length - 1]
+                : null;
 
             if (undoBtn) {
-                undoBtn.disabled = state.editorUndoStack.length === 0;
+                undoBtn.disabled = !undoEntry && !globalUndoEntry;
                 undoBtn.title = undoEntry
                     ? `撤回: ${undoEntry.desc} (Ctrl+Z)`
-                    : '暂无可撤回的贴图编辑 (Ctrl+Z)';
+                    : (globalUndoEntry
+                        ? `撤回: ${globalUndoEntry.desc} (Ctrl+Z)`
+                        : '暂无可撤回的贴图编辑 (Ctrl+Z)');
             }
             if (redoBtn) {
-                redoBtn.disabled = state.editorRedoStack.length === 0;
+                redoBtn.disabled = !redoEntry && !globalRedoEntry;
                 redoBtn.title = redoEntry
                     ? `重做: ${redoEntry.desc} (Ctrl+Y / Ctrl+Shift+Z)`
-                    : '暂无可重做的贴图编辑 (Ctrl+Y / Ctrl+Shift+Z)';
+                    : (globalRedoEntry
+                        ? `重做: ${globalRedoEntry.desc} (Ctrl+Y / Ctrl+Shift+Z)`
+                        : '暂无可重做的贴图编辑 (Ctrl+Y / Ctrl+Shift+Z)');
             }
             renderTabs();
         }
@@ -122,22 +134,29 @@
             state.workingFrames = snapshot.workingFrames.slice();
             state.cropRect = snapshot.cropRect ? { ...snapshot.cropRect } : null;
             state.imageTransform = cloneImageTransform(snapshot.imageTransform);
+            state.rgbAdjustment = cloneRgbAdjustment(snapshot.rgbAdjustment);
             updateCropInputs(state.cropRect);
             updateImageTransformInputs();
+            updateRgbAdjustmentInputs();
             state.previewBaseViewport = null;
             state.previewViewport = null;
             state.snapGuides = null;
             state.contentBoundsCache = null;
-            state.previewFrames = buildPreviewFrames();
+            state.previewFrames = buildPreviewFrames().map((frame) =>
+                applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
+            );
             installFramesToStores(state.previewFrames, state.selected, { persist: false });
             updateMeta();
         }
 
         function undoEditorHistory() {
+            const currentTab = typeof getActiveTab === 'function' ? getActiveTab() : null;
+            if (!currentTab || currentTab.kind !== 'texture') {
+                return false;
+            }
             const hadTransaction = !!state.editorHistoryTransaction;
             commitEditorHistory();
             if (state.editorUndoStack.length === 0) {
-                if (!hadTransaction) showToast('提示', '贴图编辑没有可撤回的操作');
                 return false;
             }
             const entry = state.editorUndoStack.pop();
@@ -152,9 +171,12 @@
         }
 
         function redoEditorHistory() {
+            const currentTab = typeof getActiveTab === 'function' ? getActiveTab() : null;
+            if (!currentTab || currentTab.kind !== 'texture') {
+                return false;
+            }
             commitEditorHistory();
             if (state.editorRedoStack.length === 0) {
-                showToast('提示', '贴图编辑没有可重做的操作');
                 return false;
             }
             const entry = state.editorRedoStack.pop();

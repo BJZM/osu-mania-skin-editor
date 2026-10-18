@@ -5,16 +5,21 @@
 
         function installFramesToStores(frames, selected, options = {}) {
             if (!selected || !frames || frames.length === 0) return null;
+            if (selected.kind === 'library') {
+                return installTextureLibraryFramesToStores(frames, selected, options);
+            }
             const p = selected.p;
             const is2x = !!frames[0]._is2x;
             const base = stripTextureName(selected.base) || 'texture';
             const fallbackBase = base.split('/').pop();
             const { aliases, isPerTrack } = getSelectedAliases(selected);
+            const keys = selected.keys || getActiveKeyCount();
 
             if (options.persist) {
                 recordSkinUndoBeforeChange(`编辑贴图: ${base} (${frames.length} 帧)`);
                 continuousActionActive = false;
             }
+            preserveHoldHeadsBeforeNoteEdit(keys, p, { syncInput: !!options.persist });
 
             for (const alias of aliases) {
                 const entry = getOrCreateSkinAssetEntry(skinImageStore, alias);
@@ -66,7 +71,6 @@
                 fallbackEntry.anim1x = frames.slice();
             }
 
-            const keys = selected.keys || getActiveKeyCount();
             let primaryCfg = maniaSkinConfigurations.get(keys);
             if (!primaryCfg) {
                 primaryCfg = ensureManiaConfigForKeys(keys);
@@ -104,10 +108,180 @@
             return base;
         }
 
+        function clearTextureLibraryFrameKeys(store, frameBase) {
+            if (!store || !frameBase) return;
+            const normalized = normalizeSkinKey(frameBase);
+            store.delete(normalized);
+            for (let index = 0; index < 64; index++) {
+                store.delete(`${normalized}-${index}`);
+            }
+        }
+
+        function installTextureLibraryFramesToStores(frames, selected, options = {}) {
+            if (!selected || selected.kind !== 'library' || !frames || frames.length === 0) {
+                return null;
+            }
+            const path = normalizeTextureLookupPath(selected.libraryPath || selected.base) || 'texture';
+            const fallbackBase = path.split('/').pop() || path;
+            const is2x = !!frames[0]._is2x;
+            const rootLevel = !path.includes('/');
+
+            if (options.persist) {
+                recordSkinUndoBeforeChange(
+                    `编辑贴图: ${path} (${frames.length} 帧)`,
+                    { force: true }
+                );
+            }
+
+            clearTextureLibraryFrameKeys(skinImageStore, path);
+            clearTextureLibraryFrameKeys(skinFallbackImageStore, fallbackBase);
+
+            frames.forEach((frame, index) => {
+                frame._is2x = is2x;
+                frame._isRootLevel = rootLevel;
+                const frameKey = frames.length > 1 ? `${path}-${index}` : path;
+                const fallbackFrameKey = frames.length > 1
+                    ? `${fallbackBase}-${index}`
+                    : fallbackBase;
+                saveSkinAssetToStore(
+                    skinImageStore,
+                    frameKey,
+                    frame,
+                    is2x,
+                    rootLevel,
+                    true,
+                    { isAnimFrame: frames.length > 1 }
+                );
+                saveSkinAssetToStore(
+                    skinFallbackImageStore,
+                    fallbackFrameKey,
+                    frame,
+                    is2x,
+                    true,
+                    true,
+                    { isAnimFrame: frames.length > 1 }
+                );
+            });
+
+            if (options.draw !== false) drawFrame();
+            return path;
+        }
+
+        function installTextureFramesAtPath(frames, path, options = {}) {
+            const normalizedPath = normalizeTextureLookupPath(path) || 'texture';
+            return installTextureLibraryFramesToStores(frames, {
+                kind: 'library',
+                base: normalizedPath,
+                libraryPath: normalizedPath
+            }, options);
+        }
+
+        function removeTextureLibraryFrameReplacementVariants(frameBase) {
+            if (!frameBase) return;
+            const variants = new Set([
+                `${frameBase}.png`,
+                `${frameBase}@2x.png`,
+                `${frameBase}.jpg`,
+                `${frameBase}@2x.jpg`,
+                `${frameBase}.jpeg`,
+                `${frameBase}@2x.jpeg`
+            ].map((name) => name.toLowerCase()));
+            for (const key of Array.from(userReplacedTextures.keys())) {
+                if (variants.has(String(key).replace(/\\/g, '/').toLowerCase())) {
+                    userReplacedTextures.delete(key);
+                }
+            }
+        }
+
+        function persistTextureFramesAtPath(serialized, path, options = {}) {
+            if (!serialized || serialized.length === 0) {
+                throw new Error('缺少要保存的贴图帧');
+            }
+            const normalizedPath = normalizeTextureLookupPath(path) || 'texture';
+            const fallbackBase = normalizedPath.split('/').pop() || normalizedPath;
+            const is2x = !!serialized[0].img._is2x;
+            const currentSuffix = is2x ? '@2x.png' : '.png';
+            const oppositeSuffix = is2x ? '.png' : '@2x.png';
+            const imageFrames = serialized.map((frame) => frame.img);
+
+            recordSkinUndoBeforeChange(
+                `编辑贴图: ${path} (${serialized.length} 帧)`,
+                { force: true }
+            );
+            installTextureLibraryFramesToStores(imageFrames, {
+                kind: 'library',
+                base: normalizedPath,
+                libraryPath: normalizedPath
+            }, {
+                persist: false,
+                draw: false
+            });
+
+            removeTextureLibraryFrameReplacementVariants(normalizedPath);
+            removeTextureLibraryFrameReplacementVariants(fallbackBase);
+            for (let index = 0; index < 64; index++) {
+                removeTextureLibraryFrameReplacementVariants(`${normalizedPath}-${index}`);
+                removeTextureLibraryFrameReplacementVariants(`${fallbackBase}-${index}`);
+            }
+
+            serialized.forEach((frame, index) => {
+                const frameBase = serialized.length > 1
+                    ? `${normalizedPath}-${index}`
+                    : normalizedPath;
+                const fileName = `${frameBase}${currentSuffix}`;
+                userReplacedTextures.set(fileName, frame.arrayBuffer);
+                userReplacedTextures.delete(`${frameBase}${oppositeSuffix}`);
+                deletedSkinTexturePaths.delete(fileName.toLowerCase());
+            });
+
+            if (currentSkinZip) {
+                for (let index = 0; index < 64; index++) {
+                    const staleBase = index === 0 && serialized.length === 1
+                        ? null
+                        : `${normalizedPath}-${index}`;
+                    if (!staleBase || index < serialized.length) continue;
+                    currentSkinZip.remove(`${staleBase}.png`);
+                    currentSkinZip.remove(`${staleBase}@2x.png`);
+                }
+            }
+
+            if (options.refresh !== false) {
+                drawFrame();
+                renderSkinEditorParams();
+                if (typeof renderPicker === 'function') renderPicker();
+                if (typeof renderTextureLibrary === 'function') renderTextureLibrary();
+            }
+            if (options.showToast !== false) {
+                showToast(
+                    '贴图编辑成功',
+                    `已更新 ${normalizedPath}，共 ${serialized.length} 帧`
+                );
+            }
+            return normalizedPath;
+        }
+
+        function persistTextureLibraryEditedFrames(serialized, selected) {
+            if (!selected || selected.kind !== 'library') {
+                throw new Error('缺少要保存的贴图目标');
+            }
+            return persistTextureFramesAtPath(
+                serialized,
+                selected.libraryPath || selected.base
+            );
+        }
+
         function refreshLivePreview(options = {}) {
             if (!state.selected || state.workingFrames.length === 0) return false;
             try {
-                state.previewFrames = buildPreviewFrames();
+                if (state.longBodyComposer.active) {
+                    state.previewFrames = state.workingFrames.map((frame) =>
+                        applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
+                    );
+                } else {
+                    state.previewFrames = buildPreviewFrames().map((frame) =>
+                        applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
+                    );
+                }
                 installFramesToStores(state.previewFrames, state.selected, {
                     persist: false,
                     draw: options.draw !== false
@@ -162,6 +336,9 @@
                 const arrayBuffer = await blob.arrayBuffer();
                 const img = await loadImageFromBlob(blob);
                 img._is2x = !!canvas._is2x;
+                img._isRootLevel = !!canvas._isRootLevel;
+                img._isTransparent1x1 = !!canvas._isTransparent1x1;
+                img._isBlankPlaceholder = !!canvas._isBlankPlaceholder;
                 img._keyImageHeightOffset1x = Number(canvas._keyImageHeightOffset1x) || 0;
                 img._keyImageHeightPadding1x = Number(canvas._keyImageHeightPadding1x) || 0;
                 const plainName = String(baseName || 'texture').split('/').pop();
@@ -236,18 +413,13 @@
             return frame;
         }
 
-        async function setCurrentTextureBlank() {
+        function setCurrentTextureBlank() {
             const blankTab = getActiveTab();
             if (!state.selected || !blankTab || blankTab.kind !== 'texture') return false;
-            if (!textureUploadUi || typeof textureUploadUi.applyEditedTexture !== 'function') {
-                showToast('无法设为空白', '贴图替换模块尚未初始化');
-                return false;
-            }
 
             const blankBtn = byId('textureImageBlankBtn');
             if (blankBtn) {
                 blankBtn.disabled = true;
-                blankBtn.textContent = '正在设为空白...';
             }
 
             try {
@@ -258,49 +430,31 @@
                     disableLongBodyComposer();
                 }
 
-                const serialized = await serializeFrames(
-                    state.selected.base,
-                    [createBlankTextureFrame()]
-                );
-                const frame = serialized[0];
-                frame.img._is2x = false;
-                frame.img._isRootLevel = true;
-                frame.img._isTransparent1x1 = true;
-                frame.img._isBlankPlaceholder = true;
+                beginEditorHistory('设为空白', { group: 'set-texture-blank' });
 
-                const applied = await textureUploadUi.applyEditedTexture(
-                    frame.file,
-                    frame.arrayBuffer,
-                    frame.img,
-                    false,
-                    state.selected.base,
-                    state.selected.p.key,
-                    state.selected.p.key,
-                    state.selected.p._trackCol,
-                    { notify: false }
-                );
-                if (!applied) throw new Error('贴图未能写入皮肤');
-
-                state.originalFrames = [createBlankTextureFrame()];
                 state.workingFrames = [createBlankTextureFrame()];
-                state.previewFrames = [createBlankTextureFrame()];
                 state.contentBoundsCache = null;
                 state.previewBaseViewport = null;
                 state.previewViewport = null;
                 state.snapGuides = null;
                 state.savedLongBodyComposer = null;
                 resetTransformInputs();
+                resetRgbAdjustmentInputs();
+                state.previewFrames = buildPreviewFrames();
+                installFramesToStores(state.previewFrames, state.selected, {
+                    persist: false
+                });
                 updateLongBodyComposerUI();
                 updateMeta();
-                completeSavedTab();
-                showToast('已设为空白', '当前贴图已替换为 1×1 全透明 PNG。');
+                commitEditorHistory();
+                showToast('已设为空白', '当前贴图已改为 1×1 全透明预览，点击“保存到皮肤”后生效。');
                 return true;
             } catch (err) {
+                state.editorHistoryTransaction = null;
                 console.error('设为空白失败', err);
                 showToast('设为空白失败', err.message || '未知错误');
                 return false;
             } finally {
-                if (blankBtn) blankBtn.textContent = '设为空白';
                 updateSelectionSummary();
                 updateImageTransformControlAvailability();
             }

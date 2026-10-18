@@ -28,12 +28,28 @@
             ui.oskFileName.classList.add('loaded');
             showProgress('正在读取并构建皮肤资源库...');
 
+            let skinImportSucceeded = false;
             try {
                 const oskZip = await JSZip.loadAsync(file);
                 stripUnsafeSkinArchiveEntries(oskZip);
+                deactivateEditableDefaultSkinWorkspace();
                 currentSkinZip = oskZip;
                 currentSkinFileName = file.name;
+                currentSkinMetadata = {
+                    general: {
+                        Name: file.name.replace(/\.(osk|zip)$/i, ''),
+                        Author: 'Unknown',
+                        Version: 'latest',
+                        AnimationFramerate: 60,
+                    },
+                    colours: {},
+                    fonts: {},
+                    rawSections: {},
+                    rawIniText: ''
+                };
                 userReplacedTextures.clear();
+                deletedSkinTexturePaths.clear();
+                createdSkinTextureParams.clear();
                 scorePercentSourceImages.clear();
                 for (const u of activeSkinBlobUrls) {
                     try { URL.revokeObjectURL(u); } catch (_) { }
@@ -264,6 +280,7 @@
                     `;
                     showToast('提示', warningMsg, 0, true);
                 }
+                skinImportSucceeded = true;
             } catch (err) {
                 console.error(err);
                 showToast('错误', 'OSK 皮肤解析失败: ' + err.message);
@@ -271,10 +288,11 @@
                 // 解锁状态
                 isSkinLoading = false;
                 ui.oszWrapper.classList.remove('disabled');
-                if (currentBeatmap && ui.playerControls) {
-                    ui.playerControls.classList.remove('disabled');
-                    if (ui.progressRange) ui.progressRange.disabled = false;
-                    if (ui.playPauseBtn) ui.playPauseBtn.disabled = false;
+                if (skinImportSucceeded && typeof markStartupSkinReady === 'function') {
+                    markStartupSkinReady(file.name);
+                }
+                if (typeof syncStartupPlayerControls === 'function') {
+                    syncStartupPlayerControls();
                 }
                 // 皮肤加载完成后自动刷新右侧画布中的贴图
                 if (currentBeatmap) {

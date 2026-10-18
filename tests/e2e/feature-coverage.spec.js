@@ -14,6 +14,7 @@ const SKIN = path.join(ROOT, 'samples', 'skins', 'Kumakalerki.osk');
 const BOJII_SKIN = path.join(ROOT, 'samples', 'skins', 'bojii 04-02-2023.osk');
 const CURSOR_MIDDLE_SKIN = path.join(ROOT, 'samples', 'skins', 'Unknown111.osk');
 const BEATMAP = path.join(ROOT, 'samples', 'beatmaps', '1790742 MIMI - Kuu ni Naru.osz');
+const MINIMAL_BEATMAP = path.join(ROOT, 'samples', 'beatmaps', 'minimal-4k.osu');
 
 let tmpDir;
 let skinWithoutIni;
@@ -26,6 +27,28 @@ let unsafeSkinArchive;
 
 test.beforeAll(async () => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mania-skin-test-'));
+
+  // 双前置条件流程需要一个稳定的 4K 谱面，供原本只测试皮肤编辑的用例复用。
+  fs.mkdirSync(path.dirname(MINIMAL_BEATMAP), { recursive: true });
+  fs.writeFileSync(MINIMAL_BEATMAP, [
+    'osu file format v14',
+    '[General]',
+    'Mode: 3',
+    '[Metadata]',
+    'Title: Minimal 4K',
+    'Artist: Test',
+    'Version: Normal',
+    '[Difficulty]',
+    'CircleSize: 4',
+    'OverallDifficulty: 8',
+    'ApproachRate: 9',
+    'HPDrainRate: 8',
+    '[TimingPoints]',
+    '0,500,4,1,0,50,1,0',
+    '[HitObjects]',
+    '80,240,1000,1,0',
+    '320,240,2000,1,0'
+  ].join('\n'), 'utf8');
 
   // 1) 不含 skin.ini 的 .osk：验证「按默认命名规范回退」且不崩溃
   const noIniZip = new JSZip();
@@ -138,6 +161,38 @@ async function importBeatmap(page, file = BEATMAP) {
   await page.waitForTimeout(600);
 }
 
+async function importSkinAndBeatmap(page, file = SKIN) {
+  await importSkin(page, file);
+  await importBeatmap(page, MINIMAL_BEATMAP);
+}
+
+async function chooseDefaultSkin(page) {
+  await page.click('#startupUseDefaultSkinBtn');
+  await page.waitForFunction(() => isStartupSkinReady() && canPlayWithStartupSelection());
+}
+
+async function dropFile(page, file, selector = '#canvasWrapper') {
+  const name = path.basename(file);
+  const base64 = fs.readFileSync(file).toString('base64');
+  await page.evaluate(({ targetSelector, fileName, fileBase64 }) => {
+    const binary = atob(fileBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const droppedFile = new File([bytes], fileName);
+    const transfer = new DataTransfer();
+    transfer.items.add(droppedFile);
+    const target = document.querySelector(targetSelector);
+    const dispatch = (type) => target.dispatchEvent(new DragEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      dataTransfer: transfer
+    }));
+    dispatch('dragenter');
+    dispatch('dragover');
+    dispatch('drop');
+  }, { targetSelector: selector, fileName: name, fileBase64: base64 });
+}
+
 /** 画布上「非纯黑」像素数量，用于判断是否真的画出了东西 */
 function countLitPixels(page, step = 8) {
   return page.evaluate((s) => {
@@ -161,29 +216,162 @@ function pixelAt(page, x, y) {
 // A. 启动与默认皮肤
 // --------------------------------------------------------------------------
 
-test('A1 启动即加载默认皮肤资源，未导入皮肤时用默认皮肤渲染谱面', async ({ page }) => {
+test('A1 启动面板先导入谱面，皮肤来源确定前只显示背景并锁定播放', async ({ page }) => {
   const errors = await boot(page);
-  const info = await page.evaluate(() => ({
+  const initial = await page.evaluate(() => ({
     defaultImgs: defaultSkinImageStore.size,
     isDefaultLoaded: isDefaultSkinLoaded,
     canvasSize: { w: canvas.width, h: canvas.height },
-    topBarHeight: document.getElementById('canvasTopBar').getBoundingClientRect().height
+    topBarHeight: document.getElementById('canvasTopBar').getBoundingClientRect().height,
+    configs: maniaSkinConfigurations.size,
+    startupVisible: !document.getElementById('startupActions').hidden,
+    skinReady: isStartupSkinReady()
   }));
-  expect(info.defaultImgs).toBeGreaterThan(0);
-  expect(info.isDefaultLoaded).toBe(true);
-  expect(info.canvasSize.w).toBeGreaterThan(0);
-  expect(info.canvasSize.h).toBeGreaterThan(0);
-  expect(info.topBarHeight).toBe(48);
+  expect(initial.defaultImgs).toBeGreaterThan(0);
+  expect(initial.isDefaultLoaded).toBe(true);
+  expect(initial.canvasSize.w).toBeGreaterThan(0);
+  expect(initial.canvasSize.h).toBeGreaterThan(0);
+  expect(initial.topBarHeight).toBe(48);
+  expect(initial.configs).toBe(0);
+  expect(initial.startupVisible).toBe(true);
+  expect(initial.skinReady).toBe(false);
 
-  // 只导入谱面、不导入任何皮肤，验证默认皮肤回退链路真的能画出内容
+  // 先导入谱面：只显示背景，舞台与音符继续等待皮肤来源。
   await importBeatmap(page);
+  await page.waitForFunction(() => startupWorkflowBeatmapReady === true);
+  const waiting = await page.evaluate(() => ({
+    panelVisible: !document.getElementById('startupActions').hidden,
+    canPlay: canPlayWithStartupSelection(),
+    deferSkin: shouldDeferSkinRendering(),
+    controlsDisabled: document.getElementById('playerControls').classList.contains('disabled'),
+    playDisabled: document.getElementById('playPauseBtn').disabled,
+    configs: maniaSkinConfigurations.size
+  }));
+  expect(waiting.panelVisible).toBe(true);
+  expect(waiting.canPlay).toBe(false);
+  expect(waiting.deferSkin).toBe(true);
+  expect(waiting.controlsDisabled).toBe(true);
+  expect(waiting.playDisabled).toBe(true);
+  expect(waiting.configs).toBe(0);
+
+  await page.evaluate(() => drawFrame());
+  await page.waitForTimeout(300);
+  expect(await countLitPixels(page)).toBeGreaterThan(20);
+
+  // 选择默认皮肤后才建立工作区并解锁播放。
+  await page.click('#startupUseDefaultSkinBtn');
+  await page.waitForFunction(() => isStartupSkinReady() && canPlayWithStartupSelection());
+  const ready = await page.evaluate(() => ({
+    panelHidden: document.getElementById('startupActions').hidden,
+    controlsDisabled: document.getElementById('playerControls').classList.contains('disabled'),
+    playDisabled: document.getElementById('playPauseBtn').disabled,
+    configs: Array.from(maniaSkinConfigurations.keys()).sort((a, b) => a - b),
+    skinName: document.getElementById('infoSkinName').textContent.trim()
+  }));
+  expect(ready.panelHidden).toBe(true);
+  expect(ready.controlsDisabled).toBe(false);
+  expect(ready.playDisabled).toBe(false);
+  expect(ready.configs.length).toBeGreaterThan(0);
+  expect(ready.skinName).toBe('默认皮肤');
+
   await page.evaluate(() => {
     audio.currentTime = 12;
     syncNotesStateWithTime(12000);
     drawFrame();
   });
-  await page.waitForTimeout(400);
+  await page.waitForTimeout(300);
   expect(await countLitPixels(page)).toBeGreaterThan(20);
+  expect(errors).toEqual([]);
+});
+
+test('A2 默认皮肤与谱面都就绪后才创建可编辑工作区', async ({ page }) => {
+  const errors = await boot(page);
+  await page.waitForFunction(() => isDefaultSkinLoaded && defaultSkinImageStore.size > 0);
+
+  const initial = await page.evaluate(() => {
+    return {
+      active: isEditableDefaultSkinWorkspaceActive(),
+      configs: Array.from(maniaSkinConfigurations.keys()).sort((a, b) => a - b),
+      infoName: document.getElementById('infoSkinName').textContent.trim(),
+      startupVisible: !document.getElementById('startupActions').hidden
+    };
+  });
+  expect(initial.active).toBe(false);
+  expect(initial.configs).toEqual([]);
+  expect(initial.infoName).toBe('等待选择皮肤');
+  expect(initial.startupVisible).toBe(true);
+
+  await page.click('#startupUseDefaultSkinBtn');
+  await page.waitForFunction(() => isStartupSkinReady() && isEditableDefaultSkinWorkspaceActive());
+  const defaultOnly = await page.evaluate(() => ({
+    canPlay: canPlayWithStartupSelection(),
+    controlsDisabled: document.getElementById('playerControls').classList.contains('disabled')
+  }));
+  expect(defaultOnly.canPlay).toBe(false);
+  expect(defaultOnly.controlsDisabled).toBe(true);
+
+  await page.click('#openSkinEditorBtn');
+  await expect(page.locator('#skinEditorSkinRequired .skin-source-required-title')).toHaveText('请导入谱面');
+  await expect(page.locator('#paramListContainer')).toBeHidden();
+  await page.click('#closeSkinEditorBtn');
+
+  await importBeatmap(page);
+  await page.waitForFunction(() => canPlayWithStartupSelection() && isSkinEditingWorkspaceReady());
+
+  await page.click('#openSkinEditorBtn');
+  await page.waitForFunction(() => document.querySelectorAll('#paramListContainer .param-card').length > 0);
+  await expect(page.locator('#paramListContainer')).not.toContainText('请导入包含 Mania 键位配置的皮肤');
+
+  const editedWidth = await page.evaluate(() => {
+    onParamChange('ColumnWidth', [44, 44, 44, 44]);
+    return ensureManiaConfigForKeys(4).ColumnWidth.slice();
+  });
+  expect(editedWidth).toEqual([44, 44, 44, 44]);
+
+  const textureEditor = await page.evaluate(() => {
+    textureImageEditorUi.open();
+    const selected = textureImageEditorUi.selectByParamKey('NoteImage0');
+    return {
+      selected,
+      state: textureImageEditorUi.getState()
+    };
+  });
+  expect(textureEditor.selected).toBe(true);
+  expect(textureEditor.state.selectedKey).toBe('NoteImage0');
+  expect(textureEditor.state.sourceSize.width).toBeGreaterThan(1);
+  expect(textureEditor.state.sourceSize.height).toBeGreaterThan(1);
+  await page.evaluate(() => textureImageEditorUi.close());
+
+  expect(await page.evaluate(() => document.getElementById('playerControls').classList.contains('disabled'))).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('A3 启动面板支持拖拽导入皮肤与谱面', async ({ page }) => {
+  const errors = await boot(page);
+
+  await dropFile(page, SKIN);
+  await page.waitForFunction(() => isStartupSkinReady() && skinImageStore.size > 0, null, { timeout: 60000 });
+  const skinOnly = await page.evaluate(() => ({
+    panelHidden: document.getElementById('startupActions').hidden,
+    canPlay: canPlayWithStartupSelection(),
+    controlsDisabled: document.getElementById('playerControls').classList.contains('disabled')
+  }));
+  expect(skinOnly.panelHidden).toBe(false);
+  expect(skinOnly.canPlay).toBe(false);
+  expect(skinOnly.controlsDisabled).toBe(true);
+
+  await dropFile(page, BEATMAP);
+  await page.waitForFunction(() => startupWorkflowBeatmapReady && canPlayWithStartupSelection(), null, { timeout: 60000 });
+  const ready = await page.evaluate(() => ({
+    panelHidden: document.getElementById('startupActions').hidden,
+    canPlay: canPlayWithStartupSelection(),
+    controlsDisabled: document.getElementById('playerControls').classList.contains('disabled'),
+    playDisabled: document.getElementById('playPauseBtn').disabled
+  }));
+  expect(ready.panelHidden).toBe(true);
+  expect(ready.canPlay).toBe(true);
+  expect(ready.controlsDisabled).toBe(false);
+  expect(ready.playDisabled).toBe(false);
   expect(errors).toEqual([]);
 });
 
@@ -193,7 +381,7 @@ test('A1 启动即加载默认皮肤资源，未导入皮肤时用默认皮肤�
 
 test('B1 导入含 skin.ini 的 .osk：配置、键位、皮肤信息全部生效', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   const state = await page.evaluate(() => ({
     version: globalSkinVersion,
@@ -427,23 +615,28 @@ test('C3 切换难度会重新加载对应谱面', async ({ page }) => {
 
 test('C4 键位数切换（4K/6K/7K）同步画布与标签', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   // 键位 pill 位于皮肤编辑器面板内，需先打开面板
   await page.click('#openSkinEditorBtn');
   await page.waitForTimeout(300);
 
+  // 该测试验证皮肤配置中的键位胶囊；临时把当前谱面对齐到 7K，避免 4K 谱面反向校准。
+  await page.evaluate(() => {
+    currentBeatmap = { keys: 7, difficulty: { circleSize: 7 }, hitObjects: [], timingPoints: [] };
+  });
+
   await page.click('#keyPillsContainer .key-pill:has-text("7K")');
   await page.waitForTimeout(300);
   const seven = await page.evaluate(() => ({
-    keys: getActiveKeyCount(),
+    editorKeys: activeEditorKeyCount,
     label: document.getElementById('activeKeyCountTabLabel').textContent.trim()
   }));
-  expect(seven.keys).toBe(7);
+  expect(seven.editorKeys).toBe(7);
   expect(seven.label).toBe('7K');
 
   await page.click('#keyPillsContainer .key-pill:has-text("4K")');
   await page.waitForTimeout(300);
-  expect(await page.evaluate(() => getActiveKeyCount())).toBe(4);
+  expect(await page.evaluate(() => activeEditorKeyCount)).toBe(4);
   expect(errors).toEqual([]);
 });
 
@@ -454,6 +647,7 @@ test('C4 键位数切换（4K/6K/7K）同步画布与标签', async ({ page }) =
 test('D1 播放 / 暂停切换', async ({ page }) => {
   const errors = await boot(page);
   await importBeatmap(page);
+  await chooseDefaultSkin(page);
 
   await page.click('#playPauseBtn');
   await page.waitForTimeout(900);
@@ -499,6 +693,7 @@ test('D1 播放 / 暂停切换', async ({ page }) => {
 test('D2 进度条拖动 seek 会改变播放位置', async ({ page }) => {
   const errors = await boot(page);
   await importBeatmap(page);
+  await chooseDefaultSkin(page);
 
   const target = await page.evaluate(() => {
     const r = document.getElementById('progressRange');
@@ -539,6 +734,8 @@ test('D3 音量滑块与静音按钮生效', async ({ page }) => {
   // 设计如此：未加载谱面时整条播放控制栏为 disabled（pointer-events: none）
   expect(await page.evaluate(() => document.getElementById('playerControls').className)).toContain('disabled');
   await importBeatmap(page);
+  expect(await page.evaluate(() => document.getElementById('playerControls').className)).toContain('disabled');
+  await chooseDefaultSkin(page);
   expect(await page.evaluate(() => document.getElementById('playerControls').className)).not.toContain('disabled');
 
   await page.evaluate(() => {
@@ -561,6 +758,7 @@ test('D3 音量滑块与静音按钮生效', async ({ page }) => {
 test('D4 空格键切换播放 / 暂停', async ({ page }) => {
   const errors = await boot(page);
   await importBeatmap(page);
+  await chooseDefaultSkin(page);
 
   await page.keyboard.press('Space');
   await page.waitForTimeout(350);
@@ -708,7 +906,7 @@ test('E2 UpsideDown 会把判定线与演奏区镜像到画布另一侧', async 
 
 test('E3 加载谱面后画布绘制出音符 / HUD 等可见内容', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await importBeatmap(page);
 
   await page.evaluate(() => {
@@ -727,7 +925,7 @@ test('E3 加载谱面后画布绘制出音符 / HUD 等可见内容', async ({ p
 
 test('F1 编辑器面板打开 / 关闭 / 折叠 / 停靠', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   expect(await page.evaluate(() => getComputedStyle(document.getElementById('skinEditorModal')).display)).toBe('none');
 
@@ -751,14 +949,14 @@ test('F1 编辑器面板打开 / 关闭 / 折叠 / 停靠', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('F2 五个参数 Tab 均渲染出参数卡片', async ({ page }) => {
+test('F2 详细设置四个参数 Tab 均渲染出参数卡片', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.click('#openSkinEditorBtn');
   await page.waitForTimeout(300);
 
   const counts = {};
-  for (const tab of ['mania', 'textures', 'fonts', 'general', 'raw']) {
+  for (const tab of ['mania', 'fonts', 'general', 'raw']) {
     await page.click(`#skinEditorTabs .tab-btn[data-tab="${tab}"]`);
     await page.waitForTimeout(250);
     counts[tab] = await page.evaluate(() => ({
@@ -768,12 +966,20 @@ test('F2 五个参数 Tab 均渲染出参数卡片', async ({ page }) => {
     expect(counts[tab].active).toBe(tab);
     expect(counts[tab].cards).toBeGreaterThan(0);
   }
+
+  await expect(page.locator('#skinEditorTabs .tab-btn[data-tab="textures"]')).toHaveCount(0);
+  await page.click('#closeSkinEditorBtn');
+  await page.click('#openTextureImageEditorBtn');
+  await page.waitForFunction(() =>
+    document.getElementById('textureImageEditorModal').classList.contains('active')
+  );
+  expect(await page.locator('#textureImagePickerGrid .texture-image-picker-item').count()).toBeGreaterThan(20);
   expect(errors).toEqual([]);
 });
 
 test('F3 参数搜索过滤与清空', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.click('#openSkinEditorBtn');
   await page.click('#skinEditorTabs .tab-btn[data-tab="mania"]');
   await page.waitForTimeout(300);
@@ -794,7 +1000,7 @@ test('F3 参数搜索过滤与清空', async ({ page }) => {
 
 test('F4 修改参数即时写入配置并影响画布', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.click('#openSkinEditorBtn');
   await page.click('#skinEditorTabs .tab-btn[data-tab="mania"]');
   await page.waitForTimeout(300);
@@ -820,7 +1026,7 @@ test('F4 修改参数即时写入配置并影响画布', async ({ page }) => {
 
 test('F4A 准度透明垫片参数与进度饼图拖动联动', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.click('#openSkinEditorBtn');
   await page.click('#skinEditorTabs .tab-btn[data-tab="mania"]');
   await page.waitForTimeout(300);
@@ -912,7 +1118,7 @@ test('F4A 准度透明垫片参数与进度饼图拖动联动', async ({ page })
 
 test('F5 撤销与恢复初始状态', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.click('#openSkinEditorBtn');
   await page.click('#skinEditorTabs .tab-btn[data-tab="mania"]');
   await page.waitForTimeout(300);
@@ -953,7 +1159,7 @@ test('F5 撤销与恢复初始状态', async ({ page }) => {
 
 test('F6 导出 .osk / .zip 触发下载', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   for (const format of ['osk', 'zip']) {
     const [download] = await Promise.all([
@@ -993,22 +1199,9 @@ test('F7 导入和导出会移除不兼容的皮肤包条目', async ({ page }) 
 // G. 画布交互
 // --------------------------------------------------------------------------
 
-test('G1 拖拽编辑模式开关可切换', async ({ page }) => {
-  const errors = await boot(page);
-  await importSkin(page);
-
-  const before = await page.evaluate(() => canvasEditMode);
-  // 开关是 opacity:0 的样式化 checkbox，直接 click() 会被判为不可见
-  await page.evaluate(() => document.getElementById('canvasEditModeToggle').click());
-  await page.waitForTimeout(250);
-  const after = await page.evaluate(() => canvasEditMode);
-  expect(after).not.toBe(before);
-  expect(errors).toEqual([]);
-});
-
 test('G2 画布点选元素会弹出选中卡片', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.evaluate(() => ensureManiaConfigForKeys(getActiveKeyCount()));
   await page.waitForTimeout(500);
 
@@ -1062,7 +1255,7 @@ test('G2 画布点选元素会弹出选中卡片', async ({ page }) => {
 
 test('G2b 连击选中卡片可直接预览并修改 Hold 变色与断连遮罩', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   await page.evaluate(() => {
     ensureManiaConfigForKeys(getActiveKeyCount());
@@ -1117,7 +1310,7 @@ test('G2b 连击选中卡片可直接预览并修改 Hold 变色与断连遮罩'
 
 test('G3 贴图替换上传后写入 userReplacedTextures', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   const file = path.join(tmpDir, 'replacement.png');
   fs.writeFileSync(
@@ -1149,7 +1342,7 @@ test('G3 贴图替换上传后写入 userReplacedTextures', async ({ page }) => 
 
 test('G3a 详细设置已选规格后直接导入，不再询问导入类型', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   const file = path.join(tmpDir, 'direct-import-2x.png');
   fs.writeFileSync(
@@ -1187,7 +1380,7 @@ test('G3a 详细设置已选规格后直接导入，不再询问导入类型', a
 
 test('G4 动画贴图编辑器可打开并列出帧', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   const state = await page.evaluate(() => {
     if (typeof openAnimTextureEditor !== 'function') return { missing: true };
@@ -1209,9 +1402,11 @@ test('G4 动画贴图编辑器可打开并列出帧', async ({ page }) => {
 
 test('G5 不支持帧序列的贴图不提供动态上传入口', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
-  await page.click('#openSkinEditorBtn');
-  await page.click('#skinEditorTabs .tab-btn[data-tab="textures"]');
+  await importSkinAndBeatmap(page);
+  await page.click('#openTextureImageEditorBtn');
+  await page.waitForFunction(() =>
+    document.getElementById('textureImageEditorModal').classList.contains('active')
+  );
   await page.waitForTimeout(300);
 
   const state = await page.evaluate(() => {
@@ -1271,7 +1466,7 @@ test('G6 按键发光直接框住贴图本体，但判定提示 / 连击 / HUD /
   const errors = await boot(page);
   // 这个皮肤自身不含 mania-stage-light，会回退到内置默认皮肤的真实光柱贴图，
   // 便于验证「有可见光柱时选中框直接框住贴图本体」。
-  await importSkin(page, path.join(ROOT, 'samples', 'skins', "#MuTong233's Touhou Skin Refreshed - 副本.osk"));
+  await importSkinAndBeatmap(page, path.join(ROOT, 'samples', 'skins', "#MuTong233's Touhou Skin Refreshed - 副本.osk"));
 
   const info = await page.evaluate(() => {
     // 参数面板「预览发光」：强制所有轨道视为按下，让光柱真正画出来
@@ -1360,7 +1555,7 @@ test('G6 按键发光直接框住贴图本体，但判定提示 / 连击 / HUD /
 
 test('G6a Lighting 高于 mania-stage-light / KeyImage / 轨道，低于其余元素', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page, path.join(ROOT, 'samples', 'skins', "#MuTong233's Touhou Skin Refreshed - 副本.osk"));
+  await importSkinAndBeatmap(page, path.join(ROOT, 'samples', 'skins', "#MuTong233's Touhou Skin Refreshed - 副本.osk"));
   await page.waitForFunction(() => !document.getElementById('loadingOverlay').classList.contains('active'));
 
   const geometry = await page.evaluate(() => {
@@ -1459,6 +1654,7 @@ test('G6a Lighting 高于 mania-stage-light / KeyImage / 轨道，低于其余�
 
 test('H1 帮助弹窗：打开 / 分类筛选 / 搜索 / 关闭', async ({ page }) => {
   const errors = await boot(page);
+  await page.click('#otherMenuBtn');
   await page.click('#topHelpBtn');
   await page.waitForTimeout(300);
   expect(await page.evaluate(() => document.getElementById('helpModal').style.display)).toBe('flex');
@@ -1487,7 +1683,7 @@ test('H1 帮助弹窗：打开 / 分类筛选 / 搜索 / 关闭', async ({ page 
 
 test('H2 快捷键：Esc 关闭面板、Ctrl+Z 撤销', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.click('#openSkinEditorBtn');
   await page.click('#skinEditorTabs .tab-btn[data-tab="mania"]');
   await page.waitForTimeout(300);
@@ -1517,7 +1713,7 @@ test('H2 快捷键：Esc 关闭面板、Ctrl+Z 撤销', async ({ page }) => {
 
 test('I1 判定演示开关驱动判定动画', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   await page.evaluate(() => document.getElementById('previewJudgementToggle').click());
   await page.waitForTimeout(400);
@@ -1536,7 +1732,7 @@ test('I1 判定演示开关驱动判定动画', async ({ page }) => {
 
 test('I2 全屏按钮进入 / 退出全屏', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   await page.click('#fullscreenBtn');
   await page.waitForTimeout(600);
@@ -1555,7 +1751,7 @@ test('I2 全屏按钮进入 / 退出全屏', async ({ page }) => {
 
 test('I3 「恢复靠右吸附位置」按钮复位编辑器窗口', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.click('#openSkinEditorBtn');
   await page.waitForTimeout(300);
 
@@ -1580,7 +1776,7 @@ test('I3 「恢复靠右吸附位置」按钮复位编辑器窗口', async ({ pa
 
 test('I4 卡片「应用给所有轨道」统一全部列宽', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.evaluate(() => ensureManiaConfigForKeys(getActiveKeyCount()));
   await page.waitForTimeout(500);
 
@@ -1606,7 +1802,7 @@ test('I4 卡片「应用给所有轨道」统一全部列宽', async ({ page }) 
 
 test('I5 raw skin.ini 文本生成与复制入口可用', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
   await page.click('#openSkinEditorBtn');
   await page.click('#skinEditorTabs .tab-btn[data-tab="raw"]');
   await page.waitForTimeout(400);
@@ -1630,7 +1826,7 @@ test('I5 raw skin.ini 文本生成与复制入口可用', async ({ page }) => {
 
 test('I6 动画贴图编辑器可以添加单帧', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   const frame = path.join(tmpDir, 'frame0.png');
   fs.writeFileSync(
@@ -1655,7 +1851,7 @@ test('I6 动画贴图编辑器可以添加单帧', async ({ page }) => {
 
 test('I7 打击特效贴图使用 stable 全局键，不再按轨道展开', async ({ page }) => {
   const errors = await boot(page);
-  await importSkin(page);
+  await importSkinAndBeatmap(page);
 
   const state = await page.evaluate(() => {
     parseSkinIniLazer([

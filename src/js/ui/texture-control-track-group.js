@@ -3,7 +3,7 @@
 // 从 texture-controls.js 按职责拆分。
 // ============================================================================
 
-        function buildPerTrackTextureGroup(unit, keys) {
+        function buildPerTrackTextureGroup(unit, keys, options = {}) {
             const first = unit.items[0];
 
             const group = document.createElement('div');
@@ -34,7 +34,8 @@
 
             for (const p of unit.items) {
                 const row = document.createElement('div');
-                row.className = 'per-track-texture-row';
+                row.className = 'per-track-texture-row'
+                    + (options.pickerMode ? ' texture-image-picker-item' : '');
                 // 每轨一行同样以真实 ini 键作为 id，画布定位高亮可直接命中单轨
                 row.id = `param-card-${p.key}`;
 
@@ -43,7 +44,21 @@
                 label.textContent = `第 ${(p._trackCol != null ? p._trackCol : 0) + 1} 轨`;
                 row.appendChild(label);
 
-                row.appendChild(buildTextureParamControl(p, keys, group));
+                if (options.pickerMode) {
+                    const target = buildEditorTarget(p);
+                    const canEdit = !!(target && target.selectable);
+                    row.appendChild(buildTextureParamControl(p, keys, group, {
+                        onEdit: () => {
+                            if (canEdit) selectTarget(target);
+                        },
+                        editDisabled: !canEdit,
+                        editTitle: canEdit
+                            ? `编辑第 ${(p._trackCol != null ? p._trackCol : 0) + 1} 轨${unit.groupName || p.zhName}`
+                            : '当前没有可编辑的图片'
+                    }));
+                } else {
+                    row.appendChild(buildTextureParamControl(p, keys, group));
+                }
 
                 if (p.elementId) {
                     const locateBtn = document.createElement('button');

@@ -18,7 +18,10 @@
             const zoom = clampPreviewZoom(state.previewZoom);
             state.previewZoom = zoom;
 
-            if (range) range.value = String(zoom);
+            if (range) {
+                range.value = String(zoom);
+                updateTextureRangeFill(range);
+            }
             if (output) output.textContent = `${Math.round(zoom * 100)}%`;
             if (zoomOut) zoomOut.disabled = zoom <= PREVIEW_ZOOM_MIN + 0.001;
             if (zoomIn) zoomIn.disabled = zoom >= PREVIEW_ZOOM_MAX - 0.001;
@@ -134,24 +137,48 @@
             ) || null;
         }
 
-        function getLongBodyTailInfo() {
+        function getLongBodySourceInfo() {
             const selected = state.selected;
-            if (!selected) return { eligible: false, state: 'unset', frame: null, name: '' };
+            if (!selected) {
+                return {
+                    eligible: false,
+                    state: 'unset',
+                    frame: null,
+                    name: '',
+                    bodyHeight: 0
+                };
+            }
+            const bodyFrame = state.originalFrames[0] ||
+                state.workingFrames[0] ||
+                (selected.frames && selected.frames[0]) ||
+                null;
+            const bodyHeight = bodyFrame
+                ? Number(bodyFrame.naturalHeight || bodyFrame.videoHeight || bodyFrame.height) || 0
+                : 0;
+            const canOpenLongBody = bodyHeight > 0 && bodyHeight < LONG_BODY_OPEN_HEIGHT_LIMIT;
             const tailParam = getTailParamForSelectedBody();
-            if (!tailParam) return { eligible: true, state: 'unset', frame: null, name: '' };
+            if (!tailParam) {
+                return {
+                    eligible: canOpenLongBody,
+                    state: 'unset',
+                    frame: null,
+                    name: '',
+                    bodyHeight
+                };
+            }
             const resolved = resolveTextureParam(selected.keys || getActiveKeyCount(), tailParam);
             const frames = resolveTextureParamFrames(selected.keys || getActiveKeyCount(), tailParam);
             const frame = (frames && frames[0]) || (resolved && resolved.img) || null;
-            const transparent = !!frame && (
+            const transparentTail = !!frame && (
                 !!frame._isBlankPlaceholder ||
                 isFullyTransparentImage(frame, 48, 36)
             );
-            const hasOpaqueTail = !!(resolved && resolved.state === 'ok' && frame && !transparent);
             return {
-                eligible: hasOpaqueTail,
+                eligible: canOpenLongBody,
                 state: resolved ? resolved.state : 'unset',
-                frame,
-                name: resolved ? resolved.name : ''
+                frame: transparentTail ? null : frame,
+                name: resolved ? resolved.name : '',
+                bodyHeight
             };
         }
 
@@ -171,7 +198,10 @@
                 coverageInput.value = String(composer.coverage);
             }
             if (targetInput) targetInput.value = String(composer.targetHeight);
-            if (fadeInput) fadeInput.value = String(composer.fade);
+            if (fadeInput) {
+                fadeInput.value = String(composer.fade);
+                updateTextureRangeFill(fadeInput);
+            }
             if (fadeValue) fadeValue.textContent = `${Math.round(composer.fade)}%`;
         }
 
@@ -186,7 +216,7 @@
             const controls = byId('textureImageLongBodyControls');
             const status = byId('textureImageLongBodyStatus');
             const composer = state.longBodyComposer;
-            const info = getLongBodyTailInfo();
+            const info = getLongBodySourceInfo();
 
             if (toggle) {
                 toggle.checked = composer.active;
@@ -198,11 +228,11 @@
                 if (composer.active) {
                     status.textContent = `已开启：将生成 ${composer.targetHeight}px 高身体，并把 NoteBodyStyle 设为 1。`;
                 } else if (info.eligible) {
-                    status.textContent = '当前轨道已找到不透明长条尾部，可开启一键投皮。';
-                } else if (info.frame && isFullyTransparentImage(info.frame, 48, 36)) {
-                    status.textContent = '当前轨道长条尾部为透明贴图，无法开启一键投皮。';
+                    status.textContent = `当前长条身体高度为 ${info.bodyHeight}px，小于 ${LONG_BODY_OPEN_HEIGHT_LIMIT}px，可开启一键投皮。`;
+                } else if (info.bodyHeight > 0) {
+                    status.textContent = `当前长条身体高度为 ${info.bodyHeight}px，需小于 ${LONG_BODY_OPEN_HEIGHT_LIMIT}px 才能开启一键投皮。`;
                 } else {
-                    status.textContent = '当前轨道未找到不透明长条尾部，无法开启一键投皮。';
+                    status.textContent = `当前未读取到长条身体高度，需小于 ${LONG_BODY_OPEN_HEIGHT_LIMIT}px 才能开启一键投皮。`;
                 }
             }
             updateLongBodyControlValues();

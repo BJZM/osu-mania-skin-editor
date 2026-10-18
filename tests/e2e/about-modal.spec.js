@@ -6,6 +6,7 @@ test('关于弹窗展示版本、版权与第三方许可', async ({ page }) => 
 
   await expect(page.locator('#aboutModal')).toBeHidden();
 
+  await page.click('#otherMenuBtn');
   await page.click('#topAboutBtn');
   await expect(page.locator('#aboutModal')).toBeVisible();
   await expect(page.locator('#aboutAppVersion')).toHaveText('0.2.3');
@@ -21,6 +22,7 @@ test('关于弹窗展示版本、版权与第三方许可', async ({ page }) => 
   await page.click('#aboutModalConfirmBtn');
   await expect(page.locator('#aboutModal')).toBeHidden();
 
+  await page.click('#otherMenuBtn');
   await page.click('#topAboutBtn');
   await expect(page.locator('#aboutModal')).toBeVisible();
   await page.keyboard.press('Escape');

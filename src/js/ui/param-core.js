@@ -374,8 +374,12 @@
 
             const keySelectorGroup = document.getElementById('keySelectorGroup');
             if (keySelectorGroup) {
-                // 贴图标签页同样是逐轨贴图，需要键位切换（4K / 7K …）
-                keySelectorGroup.style.display = (tabName === 'mania' || tabName === 'textures') ? 'flex' : 'none';
+                keySelectorGroup.style.display = (tabName === 'mania') ? 'flex' : 'none';
+            }
+
+            if (!isSkinEditingWorkspaceReady()) {
+                syncSkinEditingAvailabilityUI();
+                return;
             }
 
             const paramContainer = document.getElementById('paramListContainer');
@@ -397,15 +401,31 @@
         // 导入新皮肤后，如果编辑器正处于打开状态，立即用新皮肤数据重建面板内容。
         // 保留当前标签页、搜索词和键位选择，避免刷新时打断用户正在查看的位置。
         function refreshSkinEditorAfterSkinImport() {
+            syncSkinEditingAvailabilityUI();
+            if (!isSkinEditingWorkspaceReady()) return;
+
             const modal = document.getElementById('skinEditorModal');
-            if (!modal || !modal.classList.contains('active')) return;
+            if (modal && modal.classList.contains('active')) {
+                updateSkinEditorKeyPills();
+                renderSkinEditorParams();
 
-            updateSkinEditorKeyPills();
-            renderSkinEditorParams();
+                const rawIniContainer = document.getElementById('rawIniContainer');
+                const rawIniTextarea = document.getElementById('rawIniTextarea');
+                if (rawIniContainer && rawIniTextarea && rawIniContainer.style.display !== 'none') {
+                    rawIniTextarea.value = generateSkinIniText();
+                }
+            }
 
-            const rawIniContainer = document.getElementById('rawIniContainer');
-            const rawIniTextarea = document.getElementById('rawIniTextarea');
-            if (rawIniContainer && rawIniTextarea && rawIniContainer.style.display !== 'none') {
-                rawIniTextarea.value = generateSkinIniText();
+            const textureModal = document.getElementById('textureImageEditorModal');
+            if (textureModal && textureModal.classList.contains('active') &&
+                typeof renderPicker === 'function') {
+                if (typeof textureImageEditorUi !== 'undefined' && textureImageEditorUi &&
+                    typeof textureImageEditorUi.refreshAfterSkinImport === 'function') {
+                    textureImageEditorUi.refreshAfterSkinImport();
+                    return;
+                }
+                renderPicker();
+                renderTabs();
+                setViews(true);
             }
         }

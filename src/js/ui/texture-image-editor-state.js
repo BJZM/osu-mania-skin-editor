@@ -3,12 +3,18 @@
 // 由 texture-image-editor.js 按职责拆分；所有脚本共享既有经典脚本作用域。
 // ============================================================================
 
+        function byId(id) {
+            return document.getElementById(id);
+        }
+        window.byId = byId;
+
         const MAX_TEXTURE_DIMENSION = 50000;
         const MAX_TEXTURE_PIXELS = 64 * 1024 * 1024;
         const PREVIEW_ZOOM_MIN = 0.1;
         const PREVIEW_ZOOM_MAX = 4;
         const PREVIEW_ZOOM_STEP = 0.1;
         const LONG_BODY_DEFAULT_HEIGHT = 40000;
+        const LONG_BODY_OPEN_HEIGHT_LIMIT = 5000;
         const LONG_BODY_PREVIEW_HEIGHT = 800;
         const LONG_BODY_FADE_MAX = 100;
         const longBodyComposerSessions = new Map();
@@ -32,6 +38,9 @@
                     anchorX: 0.5,
                     anchorY: 0.5
                 },
+                rgbAdjustment: typeof createDefaultRgbAdjustment === 'function'
+                    ? createDefaultRgbAdjustment()
+                    : { r: 100, g: 100, b: 100 },
                 previewViewport: null,
                 cropDragState: null,
                 transformDragState: null,
@@ -67,15 +76,19 @@
 
         const menuState = createEditorState();
         const menuTab = { id: 'menu', kind: 'menu', title: '菜单', state: menuState };
+        const libraryTab = {
+            id: 'texture-library',
+            kind: 'library',
+            title: '全部贴图',
+            state: menuState
+        };
         let state = menuState;
         let editorBaseSnapshot = null;
-        let tabs = [menuTab];
+        let tabs = [menuTab, libraryTab];
         let activeTabId = menuTab.id;
         let nextTextureTabId = 1;
         let externalChangesPending = false;
         const externalFrameUpdates = new Map();
-
-        const byId = (id) => document.getElementById(id);
         const MAX_EDITOR_HISTORY = 40;
 
         function createDefaultImageTransform() {
@@ -242,4 +255,56 @@
                 const input = byId(id);
                 if (input) input.disabled = disabled;
             }
+        }
+
+        function updateRgbAdjustmentInputs() {
+            const adjustment = cloneRgbAdjustment(state.rgbAdjustment);
+            for (const channel of ['r', 'g', 'b']) {
+                const range = byId(`textureImageRgb${channel.toUpperCase()}`);
+                const number = byId(`textureImageRgb${channel.toUpperCase()}Value`);
+                const value = String(adjustment[channel]);
+                if (range) {
+                    range.value = value;
+                    updateTextureRangeFill(range);
+                }
+                if (number) number.value = value;
+            }
+        }
+
+        function updateTextureRangeFill(range) {
+            if (!range) return;
+            const min = Number(range.min) || 0;
+            const max = Number(range.max);
+            const value = Number(range.value);
+            const percent = Number.isFinite(max) && max > min
+                ? Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100))
+                : 0;
+            range.style.setProperty('--slider-pct', `${percent}%`);
+        }
+
+        function updateTextureRangeFills(root = document) {
+            if (!root || typeof root.querySelectorAll !== 'function') return;
+            root.querySelectorAll('.texture-image-range').forEach(updateTextureRangeFill);
+        }
+
+        function updateRgbAdjustmentControlAvailability() {
+            const disabled = !state.selected;
+            for (const id of [
+                'textureImageRgbR',
+                'textureImageRgbRValue',
+                'textureImageRgbG',
+                'textureImageRgbGValue',
+                'textureImageRgbB',
+                'textureImageRgbBValue',
+                'textureImageRgbResetBtn'
+            ]) {
+                const input = byId(id);
+                if (input) input.disabled = disabled;
+            }
+        }
+
+        function resetRgbAdjustmentInputs() {
+            state.rgbAdjustment = createDefaultRgbAdjustment();
+            updateRgbAdjustmentInputs();
+            updateRgbAdjustmentControlAvailability();
         }

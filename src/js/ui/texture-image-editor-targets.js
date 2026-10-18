@@ -11,6 +11,9 @@
             canvas.height = height;
             canvas.getContext('2d').drawImage(source, 0, 0);
             canvas._is2x = !!source._is2x;
+            canvas._isRootLevel = !!source._isRootLevel;
+            canvas._isTransparent1x1 = !!source._isTransparent1x1;
+            canvas._isBlankPlaceholder = !!source._isBlankPlaceholder;
             canvas._keyImageHeightOffset1x = Number(source._keyImageHeightOffset1x) || 0;
             canvas._keyImageHeightPadding1x = Number(source._keyImageHeightPadding1x) || 0;
             return canvas;
@@ -59,6 +62,80 @@
             return items;
         }
 
+        function getTextureLibraryTargetKey(sourceOrPath) {
+            const path = typeof sourceOrPath === 'string'
+                ? sourceOrPath
+                : (sourceOrPath && sourceOrPath.path);
+            return `TextureLibrary:${normalizeSkinKey(path)}`;
+        }
+
+        function buildTextureLibraryEditorTarget(source, options = {}) {
+            if (!source || !source.path) return null;
+            let frames = ((source.frames && source.frames.length > 0)
+                ? source.frames
+                : (source.image ? [source.image] : [])
+            ).filter((frame) => {
+                const width = frame.naturalWidth || frame.videoWidth || frame.width || 0;
+                const height = frame.naturalHeight || frame.videoHeight || frame.height || 0;
+                return width > 0 && height > 0;
+            });
+            const path = normalizeTextureLookupPath(source.path) || source.path;
+            const createdParams = typeof getCreatedTextureParams === 'function'
+                ? getCreatedTextureParams(path)
+                : null;
+            const generalEditParams = createdParams && createdParams.generalEditParams
+                ? JSON.parse(JSON.stringify(createdParams.generalEditParams))
+                : null;
+            if (generalEditParams && typeof createSolidShapeTexture === 'function') {
+                const generated = createSolidShapeTexture(createdParams);
+                generated._is2x = createdParams.spec === '2x';
+                generated._isRootLevel = !path.includes('/');
+                frames = [generated];
+            }
+            if (frames.length === 0) return null;
+            return {
+                kind: 'library',
+                p: {
+                    key: getTextureLibraryTargetKey(source),
+                    zhName: source.basename || path.split('/').pop() || '贴图',
+                    default: path,
+                    _libraryPath: path,
+                    _libraryStoreKey: source.storeKey || path
+                },
+                keys: getActiveKeyCount(),
+                resolved: {
+                    name: path,
+                    img: frames[0],
+                    state: 'set'
+                },
+                frames,
+                selectable: true,
+                base: path,
+                libraryPath: path,
+                libraryStoreKey: source.storeKey || path,
+                librarySource: source,
+                libraryParamKey: options.paramKey || null,
+                generalEditParams,
+                state: 'set'
+            };
+        }
+
+        function openTextureLibraryGeneralEditor(sourceOrPath, options = {}) {
+            const source = typeof sourceOrPath === 'string'
+                ? collectExistingTextureSources().find((item) =>
+                    normalizeSkinKey(item.path) === normalizeSkinKey(sourceOrPath))
+                : sourceOrPath;
+            if (!source) return false;
+            const target = buildTextureLibraryEditorTarget(source, options);
+            if (!target) return false;
+            const modal = byId('textureImageEditorModal');
+            if (!modal || !modal.classList.contains('active')) {
+                if (typeof open !== 'function' || !open()) return false;
+            }
+            selectTarget(target);
+            return true;
+        }
+
         function buildEditorTarget(p) {
             const keys = getActiveKeyCount();
             const resolved = resolveTextureParam(keys, p);
@@ -69,7 +146,7 @@
             const usableFrames = (frames || []).filter((frame) => {
                 const w = frame.naturalWidth || frame.videoWidth || frame.width || 0;
                 const h = frame.naturalHeight || frame.videoHeight || frame.height || 0;
-                return w > 1 && h > 1 && !frame._isBlankPlaceholder;
+                return w > 0 && h > 0;
             });
 
             return {
@@ -109,6 +186,13 @@
 
         function getStretchFixTarget(selected, frame) {
             if (!selected || !frame) return null;
+            if (selected.kind === 'library') {
+                return {
+                    axis: null,
+                    size: 0,
+                    reason: '普通贴图没有参数规则可自动推导拉伸修复目标。'
+                };
+            }
             const p = selected.p;
             const rawKey = String(p.key || '');
             const key = rawKey.toLowerCase();
@@ -181,3 +265,5 @@
                 reason: '该贴图没有可自动计算的单轴拉伸规则。'
             };
         }
+
+        window.openTextureLibraryGeneralEditor = openTextureLibraryGeneralEditor;

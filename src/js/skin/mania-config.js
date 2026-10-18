@@ -3,6 +3,8 @@
 // 依赖：core/state.js、skin/skin-ini.js
 // ============================================================================
 
+        let editableDefaultSkinWorkspaceActive = false;
+
         function getManiaConfigForKeys(keyCount) {
             if (maniaSkinConfigurations.size === 0) return null;
             if (maniaSkinConfigurations.has(keyCount)) return maniaSkinConfigurations.get(keyCount);
@@ -74,11 +76,57 @@
         // 按需生成一份**完整**的默认配置并登记后返回。
         // 各编辑入口一律用它兜底，绝不要再用 `{ Keys: keys }` 这种残缺对象写回配置表。
         function ensureManiaConfigForKeys(keyCount) {
-            const existing = getManiaConfigForKeys(keyCount);
+            const keys = Math.max(1, keyCount | 0);
+            const existing = maniaSkinConfigurations.get(keys);
             if (existing) return existing;
-            const cfg = createDefaultManiaSkinConfiguration(keyCount);
+            const cfg = createDefaultManiaSkinConfiguration(keys);
             maniaSkinConfigurations.set(cfg.Keys, cfg);
             return cfg;
+        }
+
+        function createEditableDefaultSkinMetadata() {
+            return {
+                general: {
+                    Name: '默认皮肤',
+                    Author: 'osu! / ppy',
+                    Version: 'latest',
+                    AnimationFramerate: 60,
+                    CursorRotate: 0,
+                    CursorExpand: 1,
+                    CursorCentre: 1,
+                },
+                colours: {},
+                fonts: {},
+                rawSections: {},
+                rawIniText: ''
+            };
+        }
+
+        function isEditableDefaultSkinWorkspaceActive() {
+            return editableDefaultSkinWorkspaceActive && !currentSkinZip;
+        }
+
+        function activateEditableDefaultSkinWorkspace(keyCount = activeEditorKeyCount || 4) {
+            if (currentSkinZip) {
+                editableDefaultSkinWorkspaceActive = false;
+                return null;
+            }
+
+            const keys = Math.max(1, keyCount | 0);
+            const wasActive = editableDefaultSkinWorkspaceActive;
+            editableDefaultSkinWorkspaceActive = true;
+
+            if (!wasActive) {
+                currentSkinFileName = '默认皮肤';
+                currentSkinMetadata = createEditableDefaultSkinMetadata();
+            }
+
+            activeEditorKeyCount = keys;
+            return ensureManiaConfigForKeys(keys);
+        }
+
+        function deactivateEditableDefaultSkinWorkspace() {
+            editableDefaultSkinWorkspaceActive = false;
         }
 
         function isDummyBlankName(name) {
@@ -326,7 +374,7 @@
                 case LML.NoteImage:
                     return ['NoteImage' + ci, 'NoteImage'];
                 case LML.HoldNoteHeadImage:
-                    return ['NoteImage' + ci + 'H', 'HoldNoteHeadImage' + ci, 'NoteImage' + ci, 'HoldNoteHeadImage', 'NoteImageH', 'NoteImage'];
+                    return ['NoteImage' + ci + 'H', 'HoldNoteHeadImage' + ci, 'HoldNoteHeadImage', 'NoteImageH', 'NoteImage' + ci, 'NoteImage'];
                 case LML.HoldNoteBodyImage:
                     return ['NoteImage' + ci + 'L', 'HoldNoteBodyImage' + ci, 'HoldNoteBodyImage', 'NoteImageL', 'NoteImage'];
                 case LML.HoldNoteTailImage:
