@@ -1,9 +1,55 @@
 // ============================================================================
 // export.js - 皮肤替换上传入口与 .osk / 文件夹导出
-// 依赖：parser/skin-assets.js、ui/ini-export.js
+// 依赖：parser/skin-assets.js、ui/ini-export.js、ui/texture-project-archive.js
 // ============================================================================
 
         let preferredTextureUploadSpec = null;
+
+        function normalizeTextureExportMode(mode) {
+            return mode === 'release' ? 'release' : 'editable';
+        }
+
+        function requestTextureExportMode(format = 'osk') {
+            const modal = document.getElementById('textureExportModeModal');
+            if (!modal) return Promise.resolve('editable');
+            const dialog = document.getElementById('textureExportModeDialog');
+            const editableBtn = document.getElementById('textureExportEditableBtn');
+            const releaseBtn = document.getElementById('textureExportReleaseBtn');
+            const cancelBtn = document.getElementById('textureExportModeCancelBtn');
+            const backdrop = document.getElementById('textureExportModeBackdrop');
+
+            return new Promise((resolve) => {
+                const finish = (mode) => {
+                    modal.style.display = 'none';
+                    if (editableBtn) editableBtn.onclick = null;
+                    if (releaseBtn) releaseBtn.onclick = null;
+                    if (cancelBtn) cancelBtn.onclick = null;
+                    if (backdrop) backdrop.onclick = null;
+                    window.removeEventListener('keydown', onKeyDown, true);
+                    resolve(mode);
+                };
+                const onKeyDown = (event) => {
+                    if (event.key !== 'Escape') return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    finish(null);
+                };
+                if (editableBtn) editableBtn.onclick = () => finish('editable');
+                if (releaseBtn) releaseBtn.onclick = () => finish('release');
+                if (cancelBtn) cancelBtn.onclick = () => finish(null);
+                if (backdrop) backdrop.onclick = () => finish(null);
+                window.addEventListener('keydown', onKeyDown, true);
+                modal.style.display = 'flex';
+                if (editableBtn) editableBtn.focus();
+                if (dialog) dialog.scrollTop = 0;
+            });
+        }
+
+        async function requestAndExportSkin(format = 'osk') {
+            const mode = await requestTextureExportMode(format);
+            if (!mode) return false;
+            return exportSkin(format, { mode });
+        }
 
         // 10. 触发本地图片替换
         // 详细设置入口会传入已选择的 '1x' / '2x'，选完本地文件后直接导入；
@@ -22,11 +68,16 @@
         }
 
         // 11. 导出更新后的完整皮肤包 (.osk 或 .zip)
-        async function exportSkin(format = 'osk') {
-            showProgress(`正在打包生成 ${format.toUpperCase()} 皮肤文件...`);
+        async function exportSkin(format = 'osk', options = {}) {
+            const mode = normalizeTextureExportMode(
+                typeof options === 'string' ? options : options.mode
+            );
+            const modeLabel = mode === 'editable' ? '可继续编辑' : '仅发布';
+            showProgress(`正在打包生成 ${format.toUpperCase()} 皮肤文件（${modeLabel}）...`);
             try {
                 let zip = currentSkinZip ? currentSkinZip : new JSZip();
                 stripUnsafeSkinArchiveEntries(zip);
+                stripTextureProjectFromArchive(zip);
                 if (deletedSkinTexturePaths.size > 0) {
                     for (const filename of Object.keys(zip.files)) {
                         if (deletedSkinTexturePaths.has(filename.replace(/\\/g, '/').toLowerCase())) {
@@ -60,6 +111,9 @@
                 }
 
                 // 3. 开始执行异步压缩
+                const projectSummary = mode === 'editable'
+                    ? await writeTextureProjectToArchive(zip, { includeSources: true })
+                    : null;
                 const blob = await zip.generateAsync({
                     type: 'blob',
                     compression: 'DEFLATE',
@@ -71,7 +125,8 @@
                 // 4. 触发浏览器保存下载
                 const rawName = (currentSkinMetadata.general && currentSkinMetadata.general.Name) || currentSkinFileName || 'Mania_Custom_Skin';
                 const cleanName = rawName.replace(/\.(osk|zip)$/i, '').replace(/[\\/:*?"<>|]/g, '_');
-                const exportFileName = `${cleanName}_edited.${format}`;
+                const suffix = mode === 'editable' ? '_editable' : '_release';
+                const exportFileName = `${cleanName}${suffix}.${format}`;
 
                 const downloadUrl = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -83,10 +138,15 @@
                 setTimeout(() => URL.revokeObjectURL(downloadUrl), 8000);
 
                 hideProgress();
-                showToast('导出皮肤成功', `已下载生成文件: ${exportFileName}`);
+                const projectDetail = projectSummary
+                    ? `，工程源图 ${projectSummary.sourceCount} 张`
+                    : '，不含工程编辑数据';
+                showToast('导出皮肤成功', `已下载生成文件: ${exportFileName}${projectDetail}`);
+                return true;
             } catch (err) {
                 hideProgress();
                 console.error('导出皮肤异常', err);
                 showToast('导出失败', err.message || '未知错误');
+                return false;
             }
         }

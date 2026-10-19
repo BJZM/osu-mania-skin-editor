@@ -579,8 +579,10 @@
             for (const tab of tabs) {
                 if (tab.state) clearEditorStateTimers(tab.state);
             }
-            longBodyComposerSessions.clear();
-            textureEditRecipes.clear();
+            if (!hasActiveTextureProjectImport()) {
+                longBodyComposerSessions.clear();
+                textureEditRecipes.clear();
+            }
             externalFrameUpdates.clear();
             externalChangesPending = false;
 

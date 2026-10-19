@@ -19,6 +19,7 @@
 | default-skin-workspace | 在用户选择后建立可编辑默认皮肤工作区，并按谱面键数补齐 Mania 配置 | implemented | mania-config, global-skin-state |
 | startup-actions | 管理启动阶段的谱面/皮肤选择、画布入口、拖拽分流与播放解锁条件 | implemented | beatmap-import, skin-import, default-skin-workspace, global-skin-state |
 | ui-localization | 管理中英文界面切换、osu!mania 术语表、动态 DOM 翻译、可访问属性与语言偏好持久化 | implemented | 无 |
+| texture-project-archive | 在 `.osk` / `.zip` 内保存和恢复可续编的创建参数、普通贴图源图与投皮会话，并支持干净发布导出 | implemented | skin-assets, global-skin-state, texture-image-editor-recipes, texture-image-editor-state, JSZip |
 
 ## 依赖图
 
@@ -46,4 +47,11 @@ graph TD
   startup --> defaultWorkspace
   startup --> skinState
   shell[app-shell] --> localization[ui-localization]
+  projectArchive[texture-project-archive] --> skinAssets
+  projectArchive --> skinState
+  projectArchive --> recipes[texture-image-editor-recipes]
+  projectArchive --> editorState[texture-image-editor-state]
+  projectArchive --> jsZip[JSZip]
+  exportSkin[export-skin] --> projectArchive
+  skinImport --> projectArchive
 ```

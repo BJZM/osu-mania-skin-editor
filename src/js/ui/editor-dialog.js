@@ -247,10 +247,10 @@
             // 初始化谱面难度下拉列表
             renderDiffDropdownMenu();
 
-            if (exportOskBtn) exportOskBtn.onclick = () => exportSkin('osk');
-            if (exportZipBtn) exportZipBtn.onclick = () => exportSkin('zip');
-            if (modalExportOskBtn) modalExportOskBtn.onclick = () => exportSkin('osk');
-            if (modalExportZipBtn) modalExportZipBtn.onclick = () => exportSkin('zip');
+            if (exportOskBtn) exportOskBtn.onclick = () => requestAndExportSkin('osk');
+            if (exportZipBtn) exportZipBtn.onclick = () => requestAndExportSkin('zip');
+            if (modalExportOskBtn) modalExportOskBtn.onclick = () => requestAndExportSkin('osk');
+            if (modalExportZipBtn) modalExportZipBtn.onclick = () => requestAndExportSkin('zip');
             const useDefaultSkinBtn = document.getElementById('useDefaultSkinBtn');
             if (useDefaultSkinBtn) useDefaultSkinBtn.onclick = () => startFromDefaultSkin();
 

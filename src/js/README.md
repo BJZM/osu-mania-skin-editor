@@ -70,7 +70,8 @@ ordered according to the groups below.
 - `ui/texture-control-colours.js`: per-track colour manager.
 - `ui/texture-controls.js`: category expansion helper.
 - `ui/param-render.js`: parameter panel renderer.
-- `ui/export.js`: texture upload entry and skin export.
+- `ui/texture-project-archive.js`: editable texture project manifest, hidden source snapshots and archive restore.
+- `ui/export.js`: texture upload entry and editable/release skin export modes.
 - `ui/history.js`: snapshots, undo and redo.
 - `ui/editor-card-controls.js`: selected-card controls and quick actions.
 - `ui/editor-dialog.js`: editor shell and initialization coordinator.

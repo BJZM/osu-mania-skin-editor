@@ -1109,4 +1109,197 @@
             word-break: break-word;
         }
 
+        /* ===== 导出方式选择 ===== */
+        .texture-export-mode-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 5200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .texture-export-mode-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(6, 5, 10, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .texture-export-mode-dialog {
+            position: relative;
+            width: min(520px, calc(100vw - 32px));
+            padding: 22px;
+            border: none;
+            border-radius: 10px;
+            background: #181520;
+            color: #ffffff;
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.72);
+            box-sizing: border-box;
+            animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .texture-export-mode-heading {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .texture-export-mode-icon {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            border-radius: 8px;
+            color: #ff9ac7;
+            background: rgba(255, 102, 170, 0.13);
+        }
+
+        .texture-export-mode-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .texture-export-mode-heading h3 {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.3;
+        }
+
+        .texture-export-mode-heading p {
+            margin: 5px 0 0;
+            color: rgba(255, 255, 255, 0.58);
+            font-size: 0.75rem;
+            line-height: 1.45;
+        }
+
+        .texture-export-mode-options {
+            display: grid;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .texture-export-mode-option {
+            width: 100%;
+            min-height: 76px;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
+            text-align: left;
+            cursor: pointer;
+            transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .texture-export-mode-option-icon {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            border-radius: 7px;
+            color: #ff9ac7;
+            background: rgba(255, 102, 170, 0.14);
+        }
+
+        .texture-export-mode-option-icon svg {
+            width: 19px;
+            height: 19px;
+        }
+
+        .texture-export-mode-option-text {
+            min-width: 0;
+            display: grid;
+            gap: 4px;
+        }
+
+        .texture-export-mode-option-title {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.25;
+        }
+
+        .texture-export-mode-option-desc {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.58);
+            line-height: 1.4;
+        }
+
+        .texture-export-mode-option:hover,
+        .texture-export-mode-option:focus-visible {
+            color: #111118;
+            background: #ffffff;
+            box-shadow: none;
+            outline: none;
+        }
+
+        .texture-export-mode-option:hover .texture-export-mode-option-title,
+        .texture-export-mode-option:hover .texture-export-mode-option-desc,
+        .texture-export-mode-option:focus-visible .texture-export-mode-option-title,
+        .texture-export-mode-option:focus-visible .texture-export-mode-option-desc {
+            color: #111118;
+        }
+
+        .texture-export-mode-option:hover .texture-export-mode-option-icon,
+        .texture-export-mode-option:focus-visible .texture-export-mode-option-icon {
+            color: #111118;
+            background: rgba(17, 17, 24, 0.1);
+        }
+
+        .texture-export-mode-option:active {
+            transform: scale(0.96);
+            background: #e2e2e8;
+        }
+
+        .texture-export-mode-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .texture-export-mode-cancel {
+            min-width: 76px;
+            height: 34px;
+            padding: 0 14px;
+            border: none;
+            border-radius: 6px;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.12);
+            cursor: pointer;
+            font-size: 0.76rem;
+            font-weight: 600;
+            transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .texture-export-mode-cancel:hover {
+            color: #111118;
+            background: #ffffff;
+            box-shadow: none;
+        }
+
+        .texture-export-mode-cancel:active {
+            transform: scale(0.96);
+            background: #e2e2e8;
+        }
+
+        @media (max-width: 560px) {
+            .texture-export-mode-dialog {
+                padding: 18px;
+            }
+
+            .texture-export-mode-option {
+                min-height: 70px;
+                padding: 12px;
+            }
+        }
+
         /* ==========================================================================

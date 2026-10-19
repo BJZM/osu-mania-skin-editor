@@ -32,6 +32,13 @@
             try {
                 const oskZip = await JSZip.loadAsync(file);
                 stripUnsafeSkinArchiveEntries(oskZip);
+                clearTextureProjectImportState();
+                if (typeof textureEditRecipes !== 'undefined' && textureEditRecipes instanceof Map) {
+                    textureEditRecipes.clear();
+                }
+                if (typeof longBodyComposerSessions !== 'undefined' && longBodyComposerSessions instanceof Map) {
+                    longBodyComposerSessions.clear();
+                }
                 deactivateEditableDefaultSkinWorkspace();
                 currentSkinZip = oskZip;
                 currentSkinFileName = file.name;
@@ -175,7 +182,10 @@
                 }
 
                 // 3. 过滤出所有图片条目，并分组成：优先贴图组 (skin.ini 涉及) 与 其他贴图组
-                const imageEntries = fileEntries.filter(p => p.toLowerCase().match(/\.(png|jpg|jpeg)$/i));
+                const imageEntries = fileEntries.filter(p =>
+                    p.toLowerCase().match(/\.(png|jpg|jpeg)$/i) &&
+                    !isTextureProjectInternalPath(p)
+                );
                 const priorityImages = [];
                 const otherImages = [];
 
@@ -260,6 +270,14 @@
                             try { URL.revokeObjectURL(blobUrl); } catch (_) { }
                         }
                     }
+                }
+
+                const textureProjectRestore = await readTextureProjectFromArchive(oskZip);
+                if (textureProjectRestore) {
+                    showToast(
+                        '可续编工程已恢复',
+                        `自建贴图 ${textureProjectRestore.createdCount}，普通贴图配方 ${textureProjectRestore.recipeCount}，投皮 ${textureProjectRestore.longBodyCount}`
+                    );
                 }
 
                 // 4. 提示皮肤配置解析结果

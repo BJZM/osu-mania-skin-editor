@@ -154,6 +154,32 @@
             }
         }
 
+        function cloneLongBodyComposerSessionForHistory(session) {
+            if (!session) return null;
+            return {
+                baseFrames: (session.baseFrames || []).map((frame) => cloneFrame(frame)),
+                tailFrame: session.tailFrame ? cloneFrame(session.tailFrame) : null,
+                bodySourceName: session.bodySourceName || '',
+                tailSourceName: session.tailSourceName || '',
+                targetHeight: Number(session.targetHeight) || 0,
+                coverage: Number(session.coverage) || 0,
+                fade: Number(session.fade) || 0,
+                tailPreset: session.tailPreset || 'none',
+                presetHeight: Number(session.presetHeight) || 0
+            };
+        }
+
+        function cloneLongBodyComposerSessionsForHistory() {
+            if (typeof longBodyComposerSessions === 'undefined' ||
+                !(longBodyComposerSessions instanceof Map)) {
+                return null;
+            }
+            return new Map(Array.from(longBodyComposerSessions.entries(), ([key, session]) => [
+                key,
+                cloneLongBodyComposerSessionForHistory(session)
+            ]));
+        }
+
         function createSkinSnapshot(desc = '操作') {
             return {
                 desc,
@@ -186,6 +212,7 @@
                         outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
                     }]))
                     : null,
+                longBodyComposerSessions: cloneLongBodyComposerSessionsForHistory(),
                 activeEditorKeyCount: activeEditorKeyCount
             };
         }
@@ -271,6 +298,16 @@
                                 } : null,
                                 outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
                             });
+                        }
+                    }
+                }
+                if (typeof longBodyComposerSessions !== 'undefined' &&
+                    longBodyComposerSessions instanceof Map) {
+                    longBodyComposerSessions.clear();
+                    if (snap.longBodyComposerSessions) {
+                        for (const [key, session] of snap.longBodyComposerSessions.entries()) {
+                            const cloned = cloneLongBodyComposerSessionForHistory(session);
+                            if (cloned) longBodyComposerSessions.set(key, cloned);
                         }
                     }
                 }
@@ -477,6 +514,7 @@
             }
 
             const keyCount = getActiveKeyCount();
+            clearTextureProjectImportState();
             currentSkinZip = null;
             currentSkinFileName = '默认皮肤';
             deactivateEditableDefaultSkinWorkspace();
@@ -484,6 +522,12 @@
             userReplacedTextures.clear();
             deletedSkinTexturePaths.clear();
             createdSkinTextureParams.clear();
+            if (typeof textureEditRecipes !== 'undefined' && textureEditRecipes instanceof Map) {
+                textureEditRecipes.clear();
+            }
+            if (typeof longBodyComposerSessions !== 'undefined' && longBodyComposerSessions instanceof Map) {
+                longBodyComposerSessions.clear();
+            }
             scorePercentSourceImages.clear();
             for (const url of activeSkinBlobUrls) {
                 try { URL.revokeObjectURL(url); } catch (_) {}
