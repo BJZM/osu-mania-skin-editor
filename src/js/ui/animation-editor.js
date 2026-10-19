@@ -50,11 +50,10 @@
                     aliases.add('stageright');
                     aliases.add('stage_right');
                 }
-                if (pk === 'lightingn' || tb === 'lightingn' || tb === 'lighting') {
+                if (pk === 'lightingn' || (tb === 'lightingn' && pk !== 'lightingl')) {
                     aliases.add('lightingn');
-                    aliases.add('lighting');
                 }
-                if (pk === 'lightingl' || tb === 'lightingl') {
+                if (pk === 'lightingl' || (tb === 'lightingl' && pk !== 'lightingn')) {
                     aliases.add('lightingl');
                 }
                 if (pk === 'hit0' || tb === 'hit0' || tb === 'mania-hit0') {

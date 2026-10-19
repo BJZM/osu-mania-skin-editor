@@ -421,6 +421,11 @@
                 cornerRadius: payload.cornerRadius,
                 arrowThickness: payload.arrowThickness,
                 arrowRoundness: payload.arrowRoundness,
+                fillTransparentEnabled: !!(payload.fillTransparentEnabled || payload.transparentFillEnabled),
+                fillTransparentColor: payload.fillTransparentColor || payload.transparentFillColor || '#000000',
+                fillTransparentAlpha: Number.isFinite(payload.fillTransparentAlpha !== undefined ? payload.fillTransparentAlpha : payload.transparentFillAlpha)
+                    ? (payload.fillTransparentAlpha !== undefined ? payload.fillTransparentAlpha : payload.transparentFillAlpha)
+                    : 100,
                 generalEditParams
             });
 

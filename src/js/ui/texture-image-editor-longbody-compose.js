@@ -53,6 +53,125 @@
             ctx.restore();
         }
 
+        function getLongBodyBaseContentBounds(baseFrame) {
+            if (!baseFrame || !(baseFrame.width > 0) || !(baseFrame.height > 0)) {
+                return { left: 0, right: 0, width: 0, center: 0 };
+            }
+            if (baseFrame._contentBoundsCache) {
+                return baseFrame._contentBoundsCache;
+            }
+            const width = baseFrame.width;
+            const height = baseFrame.height;
+            let minX = Infinity;
+            let maxX = -1;
+            try {
+                let ctx = null;
+                if (typeof baseFrame.getContext === 'function') {
+                    ctx = baseFrame.getContext('2d');
+                } else {
+                    const temp = document.createElement('canvas');
+                    temp.width = width;
+                    temp.height = height;
+                    const tCtx = temp.getContext('2d');
+                    tCtx.drawImage(baseFrame, 0, 0);
+                    ctx = tCtx;
+                }
+                if (ctx) {
+                    const data = ctx.getImageData(0, 0, width, height).data;
+                    for (let y = 0; y < height; y++) {
+                        const row = y * width * 4;
+                        for (let x = 0; x < width; x++) {
+                            if (data[row + x * 4 + 3] > 0) {
+                                if (x < minX) minX = x;
+                                if (x > maxX) maxX = x;
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                // Ignore fallback to full width
+            }
+            const bounds = (maxX >= minX && minX !== Infinity)
+                ? {
+                    left: minX,
+                    right: maxX + 1,
+                    width: maxX + 1 - minX,
+                    center: (minX + maxX + 1) / 2
+                }
+                : {
+                    left: 0,
+                    right: width,
+                    width,
+                    center: width / 2
+                };
+            baseFrame._contentBoundsCache = bounds;
+            return bounds;
+        }
+
+        function getLongBodyDefaultPresetHeight(baseFrame) {
+            const bounds = getLongBodyBaseContentBounds(baseFrame);
+            return Math.max(2, Math.round(bounds.width / 2));
+        }
+
+        function applyLongBodyTailPreset(
+            ctx,
+            width,
+            outputHeight,
+            tailTop,
+            preset,
+            presetHeight,
+            baseBounds
+        ) {
+            if (!preset || preset === 'none' || tailTop >= outputHeight) return;
+            const contentLeft = baseBounds ? baseBounds.left : 0;
+            const contentRight = baseBounds ? baseBounds.right : width;
+            const contentWidth = Math.max(2, contentRight - contentLeft);
+            const centerX = baseBounds ? baseBounds.center : (width / 2);
+
+            const h = Math.max(2, Math.min(outputHeight - tailTop, Math.round(presetHeight || (contentWidth / 2))));
+            if (h <= 0) return;
+
+            const useOffscreenCanvas = typeof OffscreenCanvas === 'function';
+            const mask = useOffscreenCanvas
+                ? new OffscreenCanvas(width, h)
+                : document.createElement('canvas');
+            if (!useOffscreenCanvas) {
+                mask.width = width;
+                mask.height = h;
+            }
+            const mCtx = mask.getContext('2d');
+            mCtx.imageSmoothingEnabled = true;
+
+            mCtx.fillStyle = '#ffffff';
+            mCtx.beginPath();
+            if (preset === 'sharp') {
+                mCtx.moveTo(contentLeft, h);
+                mCtx.lineTo(centerX, 0);
+                mCtx.lineTo(contentRight, h);
+                mCtx.closePath();
+                mCtx.fill();
+            } else if (preset === 'round') {
+                const rx = contentWidth / 2;
+                const ry = h;
+                mCtx.ellipse(centerX, h, rx, ry, 0, Math.PI, 0, false);
+                mCtx.lineTo(contentRight, h);
+                mCtx.lineTo(contentLeft, h);
+                mCtx.closePath();
+                mCtx.fill();
+            } else {
+                return;
+            }
+
+            mCtx.globalCompositeOperation = 'source-out';
+            mCtx.fillStyle = '#ffffff';
+            mCtx.fillRect(0, 0, width, h);
+
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.drawImage(mask, 0, tailTop);
+            ctx.restore();
+        }
+
         function buildLongBodyComposite(maxHeight = null) {
             const composer = state.longBodyComposer;
             if (!composer.active || !state.selected || composer.baseFrames.length === 0) return null;
@@ -79,7 +198,23 @@
             if (hiddenHeight > 0) {
                 ctx.clearRect(0, 0, base.width, hiddenHeight);
             }
-            drawTailForLongBody(ctx, composer.tailFrame, base.width, composer.coverage);
+            const isTailTransparent = !composer.tailFrame ||
+                !!composer.tailFrame._isBlankPlaceholder ||
+                (typeof isFullyTransparentImage === 'function' && isFullyTransparentImage(composer.tailFrame, 48, 36));
+            if (isTailTransparent && composer.tailPreset && composer.tailPreset !== 'none') {
+                const baseBounds = getLongBodyBaseContentBounds(base);
+                applyLongBodyTailPreset(
+                    ctx,
+                    base.width,
+                    outputHeight,
+                    composer.coverage,
+                    composer.tailPreset,
+                    composer.presetHeight,
+                    baseBounds
+                );
+            } else {
+                drawTailForLongBody(ctx, composer.tailFrame, base.width, composer.coverage);
+            }
             applyLongBodyOverallFade(
                 ctx,
                 base.width,
@@ -165,6 +300,11 @@
         function requestLongBodyApplyScope(options = {}) {
             const modal = byId('textureImageApplyScopeModal');
             if (!modal) return Promise.resolve('current');
+            const editorModal = byId('textureImageEditorModal');
+            const wasEditorModalHidden = editorModal && (editorModal.style.display === 'none' || !editorModal.classList.contains('active'));
+            if (wasEditorModalHidden && modal.parentElement !== document.body) {
+                document.body.appendChild(modal);
+            }
             const title = byId('textureImageApplyScopeTitle');
             const text = byId('textureImageApplyScopeText');
             const currentBtn = byId('textureImageApplyScopeCurrentBtn');
@@ -186,6 +326,9 @@
                     if (cancelBtn) cancelBtn.onclick = null;
                     if (backdrop) backdrop.onclick = null;
                     window.removeEventListener('keydown', onKeyDown, true);
+                    if (wasEditorModalHidden && editorModal && modal.parentElement === document.body) {
+                        editorModal.appendChild(modal);
+                    }
                     resolve(scope);
                 };
                 const onKeyDown = (event) => {
@@ -246,7 +389,23 @@
             }
             if (onProgress) onProgress(55);
             await waitForUiPaint();
-            drawTailForLongBody(ctx, source.tailFrame, base.width, coverage);
+            const isTailTransparent = !source.tailFrame ||
+                !!source.tailFrame._isBlankPlaceholder ||
+                (typeof isFullyTransparentImage === 'function' && isFullyTransparentImage(source.tailFrame, 48, 36));
+            if (isTailTransparent && source.tailPreset && source.tailPreset !== 'none') {
+                const baseBounds = getLongBodyBaseContentBounds(base);
+                applyLongBodyTailPreset(
+                    ctx,
+                    base.width,
+                    outputHeight,
+                    coverage,
+                    source.tailPreset,
+                    source.presetHeight,
+                    baseBounds
+                );
+            } else {
+                drawTailForLongBody(ctx, source.tailFrame, base.width, coverage);
+            }
             applyLongBodyOverallFade(
                 ctx,
                 base.width,

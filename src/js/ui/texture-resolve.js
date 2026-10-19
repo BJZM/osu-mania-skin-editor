@@ -82,10 +82,10 @@
                 }
             } else if (low === 'lightingn') {
                 // 打击特效贴图在 stable 中为全局键：所有轨道共用 LightingN，不能生成 LightingN0 / Lighting0N。
-                aliases.push('LightingN', 'Lighting');
+                aliases.push('LightingN');
             } else if (low === 'lightingl') {
                 // 打击特效贴图在 stable 中为全局键：所有轨道共用 LightingL，不能生成 LightingL0 / Lighting0L。
-                aliases.push('LightingL', 'Lighting');
+                aliases.push('LightingL');
             } else if (low === 'stageleft') {
                 aliases.push('StageLeft', 'Stage_Left', 'LeftStageImage', 'StageLeft0');
             } else if (low === 'stageright') {
@@ -406,9 +406,9 @@
                 } else if (lookup === LML.HitTargetImage) {
                     candidates.push('mania-stage-hint');
                 } else if (lookup === LML.ExplosionImage) {
-                    candidates.push('lightingN', 'lighting');
+                    candidates.push('lightingN');
                 } else if (lookup === LML.HoldNoteLightImage) {
-                    candidates.push('lightingL', 'lightingL-0', 'lighting');
+                    candidates.push('lightingL', 'lightingL-0');
                 }
             }
 

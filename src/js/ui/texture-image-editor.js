@@ -28,6 +28,8 @@
         const longBodyCoverage = byId('textureImageLongBodyCoverage');
         const longBodyTargetHeight = byId('textureImageLongBodyTargetHeight');
         const longBodyFade = byId('textureImageLongBodyFade');
+        const longBodyPreset = byId('textureImageLongBodyPreset');
+        const longBodyPresetHeight = byId('textureImageLongBodyPresetHeight');
         const liveInputIds = [
             'textureImageCropLeft',
             'textureImageCropRight',
@@ -141,6 +143,34 @@
                 state.longBodyComposer.fade = Math.max(0, Math.min(LONG_BODY_FADE_MAX, Number(longBodyFade.value) || 0));
                 const fadeValue = byId('textureImageLongBodyFadeValue');
                 if (fadeValue) fadeValue.textContent = `${Math.round(state.longBodyComposer.fade)}%`;
+                updateTextureRangeFill(longBodyFade);
+                scheduleLongBodyRegenerate();
+            });
+        }
+        if (longBodyPreset) {
+            longBodyPreset.addEventListener('change', () => {
+                beginEditorHistory('调整尾部预设');
+                const nextPreset = longBodyPreset.value || 'none';
+                state.longBodyComposer.tailPreset = nextPreset;
+                if (nextPreset !== 'none' && !state.longBodyComposer.presetHeight) {
+                    const defaultH = (state.longBodyComposer.baseFrames[0] && typeof getLongBodyDefaultPresetHeight === 'function')
+                        ? getLongBodyDefaultPresetHeight(state.longBodyComposer.baseFrames[0])
+                        : 50;
+                    state.longBodyComposer.presetHeight = defaultH;
+                }
+                updateLongBodyControlValues();
+                if (state.longBodyRegenerateTimer) {
+                    clearTimeout(state.longBodyRegenerateTimer);
+                    state.longBodyRegenerateTimer = null;
+                }
+                regenerateLongBodyComposite();
+                commitEditorHistory();
+            });
+        }
+        if (longBodyPresetHeight) {
+            longBodyPresetHeight.addEventListener('input', () => {
+                beginEditorHistory('调整尾部预设高度', { group: 'longbody-preset-height', autoCommitMs: 450 });
+                state.longBodyComposer.presetHeight = Math.max(1, Number(longBodyPresetHeight.value) || 0);
                 scheduleLongBodyRegenerate();
             });
         }
@@ -166,8 +196,8 @@
                         const next = cloneImageTransform(state.imageTransform);
                         if (id === 'textureImageScalePercent') {
                             const value = Number(input.value);
-                            if (!Number.isFinite(value) || value < 1 || value > 1000) {
-                                throw new Error('放大百分比必须在 1 到 1000 之间');
+                            if (!Number.isFinite(value) || value < 1 || value > 5000) {
+                                throw new Error('放大百分比必须在 1 到 5000 之间');
                             }
                             next.scalePercent = value;
                         } else if (id === 'textureImageStretchX') {
@@ -206,11 +236,11 @@
                     state.rgbAdjustment[channel] = value;
                     if (range && range.value !== String(value)) {
                         range.value = String(value);
-                        updateTextureRangeFill(range);
                     }
                     if (number && number.value !== String(value)) {
                         number.value = String(value);
                     }
+                    if (range) updateTextureRangeFill(range);
                     scheduleLivePreview();
                 };
                 if (range) {
@@ -347,6 +377,9 @@
                         strokeWidth: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeWidth : 0,
                         strokeColor: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeColor : '#000000',
                         strokeAlpha: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeAlpha : 100,
+                        fillTransparentEnabled: typeof textureCreatorState !== 'undefined' ? !!textureCreatorState.fillTransparentEnabled : false,
+                        fillTransparentColor: typeof textureCreatorState !== 'undefined' ? (textureCreatorState.fillTransparentColor || '#000000') : '#000000',
+                        fillTransparentAlpha: typeof textureCreatorState !== 'undefined' ? (Number.isFinite(textureCreatorState.fillTransparentAlpha) ? textureCreatorState.fillTransparentAlpha : 100) : 100,
                         spec: typeof textureCreatorState !== 'undefined' ? textureCreatorState.spec : '1x'
                     },
                     longBody: {
@@ -355,6 +388,8 @@
                         coverage: state.longBodyComposer.coverage,
                         fade: state.longBodyComposer.fade,
                         tailScaledHeight: state.longBodyComposer.tailScaledHeight,
+                        tailPreset: state.longBodyComposer.tailPreset || 'none',
+                        presetHeight: state.longBodyComposer.presetHeight || 0,
                         sessionKey: state.longBodyComposer.sessionKey
                     },
                     canUndo: state.editorUndoStack.length > 0,

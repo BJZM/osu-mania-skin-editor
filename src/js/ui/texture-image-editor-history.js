@@ -8,7 +8,10 @@
                 workingFrames: state.workingFrames.slice(),
                 cropRect: state.cropRect ? { ...state.cropRect } : null,
                 imageTransform: cloneImageTransform(state.imageTransform),
-                rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
+                rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment),
+                longBodyComposer: (state.longBodyComposer && state.longBodyComposer.active && typeof captureLongBodyComposerState === 'function')
+                    ? captureLongBodyComposerState(state.longBodyComposer)
+                    : null
             };
         }
 
@@ -26,6 +29,13 @@
             if (!rectsEqual) return false;
             if (!imageTransformsEqual(a.imageTransform, b.imageTransform)) return false;
             if (!rgbAdjustmentsEqual(a.rgbAdjustment, b.rgbAdjustment)) return false;
+            if (typeof longBodyComposerStatesEqual === 'function') {
+                const aLb = a.longBodyComposer;
+                const bLb = b.longBodyComposer;
+                if (aLb || bLb) {
+                    if (!aLb || !bLb || !longBodyComposerStatesEqual(aLb, bLb)) return false;
+                }
+            }
             if (a.workingFrames.length !== b.workingFrames.length) return false;
             return a.workingFrames.every((frame, index) => frame === b.workingFrames[index]);
         }
@@ -146,6 +156,15 @@
                 applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
             );
             installFramesToStores(state.previewFrames, state.selected, { persist: false });
+            if (snapshot.longBodyComposer && state.longBodyComposer && state.longBodyComposer.active) {
+                state.longBodyComposer.targetHeight = snapshot.longBodyComposer.targetHeight;
+                state.longBodyComposer.coverage = snapshot.longBodyComposer.coverage;
+                state.longBodyComposer.fade = snapshot.longBodyComposer.fade;
+                state.longBodyComposer.tailPreset = snapshot.longBodyComposer.tailPreset || 'none';
+                state.longBodyComposer.presetHeight = snapshot.longBodyComposer.presetHeight || 0;
+                if (typeof updateLongBodyControlValues === 'function') updateLongBodyControlValues();
+                if (typeof regenerateLongBodyComposite === 'function') regenerateLongBodyComposite();
+            }
             updateMeta();
         }
 

@@ -84,6 +84,74 @@
             return best;
         }
 
+        function getCropInputValues(rect, frame = state.workingFrames[0]) {
+            if (!rect || !frame) return null;
+            const scale = getImageCropOutputScale();
+            return {
+                left: Math.round(-rect.x * scale),
+                right: Math.round((rect.x + rect.width - frame.width) * scale),
+                top: Math.round(-rect.y * scale),
+                bottom: Math.round((rect.y + rect.height - frame.height) * scale),
+                width: Math.round((rect.width - frame.width) * scale),
+                height: Math.round((rect.height - frame.height) * scale)
+            };
+        }
+
+        function cropRectsEqual(a, b) {
+            if (!a || !b) return false;
+            return Math.abs(a.x - b.x) < 0.0001 &&
+                Math.abs(a.y - b.y) < 0.0001 &&
+                Math.abs(a.width - b.width) < 0.0001 &&
+                Math.abs(a.height - b.height) < 0.0001;
+        }
+
+        function getCropRectFromInputValues(values, frame = state.workingFrames[0]) {
+            if (!frame || !values) return null;
+            const scale = getImageCropOutputScale();
+            const snapshot = state.cropInputSnapshot;
+            const canUseSnapshot = snapshot &&
+                cropRectsEqual(snapshot.rect, state.cropRect) &&
+                imageTransformsEqual(snapshot.transform, state.imageTransform);
+
+            if (canUseSnapshot) {
+                const delta = (current, previous) => {
+                    if (current == null || previous == null) return 0;
+                    return (current - previous) / scale;
+                };
+                const leftDelta = delta(values.left, snapshot.values.left);
+                const rightDelta = delta(values.right, snapshot.values.right);
+                const topDelta = delta(values.top, snapshot.values.top);
+                const bottomDelta = delta(values.bottom, snapshot.values.bottom);
+                const widthDelta = delta(values.width, snapshot.values.width);
+                const heightDelta = delta(values.height, snapshot.values.height);
+                const hasNewCropInputs = values.left != null ||
+                    values.right != null ||
+                    values.top != null ||
+                    values.bottom != null;
+                return {
+                    x: snapshot.rect.x - leftDelta,
+                    y: snapshot.rect.y - topDelta,
+                    width: hasNewCropInputs
+                        ? snapshot.rect.width + leftDelta + rightDelta
+                        : snapshot.rect.width + widthDelta,
+                    height: hasNewCropInputs
+                        ? snapshot.rect.height + topDelta + bottomDelta
+                        : snapshot.rect.height + heightDelta
+                };
+            }
+
+            const left = (values.left ?? 0) / scale;
+            const right = (values.right ?? 0) / scale;
+            const top = (values.top ?? 0) / scale;
+            const bottom = (values.bottom ?? 0) / scale;
+            return {
+                x: -left,
+                y: -top,
+                width: frame.width + left + right + (values.width ?? 0) / scale,
+                height: frame.height + top + bottom + (values.height ?? 0) / scale
+            };
+        }
+
         function updateCropInputs(rect) {
             const baseFrame = state.workingFrames[0];
             const cropLeft = byId('textureImageCropLeft') || byId('textureImageCropX');
@@ -94,23 +162,26 @@
             const cropH = byId('textureImageCropHeight');
             if (!rect || !baseFrame) return;
 
-            const left = -rect.x;
-            const top = -rect.y;
-            const right = rect.x + rect.width - baseFrame.width;
-            const bottom = rect.y + rect.height - baseFrame.height;
+            const values = getCropInputValues(rect, baseFrame);
+            const scale = getImageCropOutputScale();
 
-            if (cropLeft) cropLeft.value = String(left);
-            if (cropRight) cropRight.value = String(right);
-            if (cropTop) cropTop.value = String(top);
-            if (cropBottom) cropBottom.value = String(bottom);
+            if (cropLeft) cropLeft.value = String(values.left);
+            if (cropRight) cropRight.value = String(values.right);
+            if (cropTop) cropTop.value = String(values.top);
+            if (cropBottom) cropBottom.value = String(values.bottom);
             if (cropW) {
-                cropW.min = String(1 - baseFrame.width);
-                cropW.value = String(rect.width - baseFrame.width);
+                cropW.min = String(Math.ceil((1 - baseFrame.width) * scale));
+                cropW.value = String(values.width);
             }
             if (cropH) {
-                cropH.min = String(1 - baseFrame.height);
-                cropH.value = String(rect.height - baseFrame.height);
+                cropH.min = String(Math.ceil((1 - baseFrame.height) * scale));
+                cropH.value = String(values.height);
             }
+            state.cropInputSnapshot = {
+                rect: { ...rect },
+                transform: cloneImageTransform(state.imageTransform),
+                values: { ...values }
+            };
         }
 
         function setCropRect(rect, options = {}) {
@@ -133,7 +204,7 @@
             const next = cloneImageTransform(transform);
             next.scalePercent = Math.max(
                 1,
-                Math.min(1000, Math.round(next.scalePercent * 10) / 10)
+                Math.min(5000, Math.round(next.scalePercent * 10) / 10)
             );
             const scaleChanged = Math.abs(next.scalePercent - previous.scalePercent) > 0.0001;
             const stretchXChanged = Math.abs(next.stretchX - previous.stretchX) > 0.0001;
@@ -154,10 +225,10 @@
             const uniformScale = Math.max(0.01, next.scalePercent / 100);
             const minimumStretchX = next.scaleAfterStretch
                 ? Math.ceil(1 / uniformScale - baseCrop.width)
-                : Math.round(1 - baseCrop.width * uniformScale);
+                : Math.ceil(1 - baseCrop.width * uniformScale);
             const minimumStretchY = next.scaleAfterStretch
                 ? Math.ceil(1 / uniformScale - baseCrop.height)
-                : Math.round(1 - baseCrop.height * uniformScale);
+                : Math.ceil(1 - baseCrop.height * uniformScale);
             next.stretchX = Math.max(
                 minimumStretchX,
                 Math.round(next.stretchX)
@@ -166,8 +237,8 @@
                 minimumStretchY,
                 Math.round(next.stretchY)
             );
-            // Keep stretch values relative to the crop they were applied to.
-            // Later crop changes only expose less or more of that transformed image.
+            // Retain reference dimensions for stored-recipe compatibility.
+            // Stretch is calculated against the current crop in output pixels.
             next.referenceWidth = baseCrop.width;
             next.referenceHeight = baseCrop.height;
 
@@ -175,6 +246,7 @@
             validateOutputSize(outputRect.width, outputRect.height);
             state.imageTransform = next;
             updateImageTransformInputs();
+            updateCropInputs(baseCrop);
             if (options.refresh !== false) refreshLivePreview();
             return true;
         }
@@ -186,19 +258,21 @@
         ) {
             if (!outputRect) return null;
             const value = cloneImageTransform(transform);
-            const transformScales = getImageTransformScales(value, {
-                width: sourceFrame && sourceFrame.width,
-                height: sourceFrame && sourceFrame.height
-            });
+            const uniformScale = Math.max(0.01, value.scalePercent / 100);
+            const stretchOutputX = value.scaleAfterStretch
+                ? value.stretchX * uniformScale
+                : value.stretchX;
+            const stretchOutputY = value.scaleAfterStretch
+                ? value.stretchY * uniformScale
+                : value.stretchY;
             const width = Math.max(
                 1,
-                Math.round(Number(outputRect.width) / transformScales.x)
+                Math.round((Number(outputRect.width) - stretchOutputX) / uniformScale)
             );
             const height = Math.max(
                 1,
-                Math.round(Number(outputRect.height) / transformScales.y)
+                Math.round((Number(outputRect.height) - stretchOutputY) / uniformScale)
             );
-            const uniformScale = Math.max(0.01, value.scalePercent / 100);
             const scaleX = Number(outputRect.width) / width;
             const scaleY = Number(outputRect.height) / height;
             const stretchScaleX = scaleX / uniformScale;

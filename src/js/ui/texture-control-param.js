@@ -193,34 +193,56 @@
                 pathInput.title = `skin.ini 指定了「${initialResolved.name}」，但皮肤中不存在该贴图文件（画布上将不绘制该元素）`;
             }
             pathInput.onchange = (e) => {
-                const newPath = e.target.value.trim();
+                const rawVal = e.target.value.trim();
                 recordSkinUndoBeforeChange(`修改 ${p.zhName || p.key} 贴图路径`);
-                if (!mCfg.ImageLookups) mCfg.ImageLookups = new Map();
-
-                preserveHoldHeadsBeforeNoteEdit(keys, p, { syncInput: true });
-
-                mCfg[p.key] = newPath;
-                mCfg.ImageLookups.set(p.key, newPath);
-                mCfg.ImageLookups.set(p.key.toLowerCase(), newPath);
-                const aliases = getTextureParamAliases(p.key, keys || 4);
-                for (const a of aliases) {
-                    mCfg.ImageLookups.set(a, newPath);
-                    mCfg.ImageLookups.set(a.toLowerCase(), newPath);
-                }
-                if (globalSkinImageLookups) {
-                    globalSkinImageLookups.set(p.key, newPath);
-                    globalSkinImageLookups.set(p.key.toLowerCase(), newPath);
-                    for (const a of aliases) {
-                        globalSkinImageLookups.set(a, newPath);
-                        globalSkinImageLookups.set(a.toLowerCase(), newPath);
+                if (!rawVal) {
+                    if (typeof clearTextureParamLookup === 'function') {
+                        clearTextureParamLookup(keys, p);
+                    } else {
+                        delete mCfg[p.key];
+                        if (mCfg.ImageLookups) {
+                            mCfg.ImageLookups.delete(p.key);
+                            mCfg.ImageLookups.delete(p.key.toLowerCase());
+                        }
                     }
+                    syncParamInputValue(p.key, '');
+                    if (typeof refreshExternalConfigSnapshot === 'function') {
+                        refreshExternalConfigSnapshot();
+                    }
+                    const updated = resolveLiveTexture();
+                    paintPreview(updated, resolveTextureParamFrames(keys, p));
+                    pathInput.classList.toggle('texture-path-missing', updated.state === 'missing');
+                    updateEditAction(updated);
+                    drawFrame();
+                    if (typeof renderSkinEditorParams === 'function') {
+                        renderSkinEditorParams();
+                    }
+                    return;
                 }
-                syncParamInputValue(p.key, newPath);
+
+                const normalized = (typeof isDummyBlankName === 'function' && isDummyBlankName(rawVal))
+                    ? rawVal
+                    : (typeof normalizeTextureLookupPath === 'function' ? normalizeTextureLookupPath(rawVal) : rawVal);
+                if (typeof assignTextureParamLookup === 'function') {
+                    assignTextureParamLookup(keys, p, normalized);
+                } else {
+                    if (!mCfg.ImageLookups) mCfg.ImageLookups = new Map();
+                    mCfg[p.key] = normalized;
+                    mCfg.ImageLookups.set(p.key, normalized);
+                    mCfg.ImageLookups.set(p.key.toLowerCase(), normalized);
+                }
+                syncParamInputValue(p.key, normalized);
+                if (typeof refreshExternalConfigSnapshot === 'function') {
+                    refreshExternalConfigSnapshot();
+                }
                 const updated = resolveLiveTexture();
                 paintPreview(updated, resolveTextureParamFrames(keys, p));
                 pathInput.classList.toggle('texture-path-missing', updated.state === 'missing');
                 updateEditAction(updated);
                 drawFrame();
+                if (typeof renderSkinEditorParams === 'function') {
+                    renderSkinEditorParams();
+                }
             };
 
             const uploadTargetName = rawIniValue || p.default || p.key;
@@ -410,7 +432,7 @@
                     const path = editCreatedPath;
                     closeEditModeMenu();
                     if (path && typeof openTextureCreator === 'function') {
-                        openTextureCreator({ editPath: path });
+                        openTextureCreator({ editPath: path, paramKey: p.key });
                     }
                 };
 

@@ -31,7 +31,12 @@
                     shape: (saved && saved.shape) || 'rectangle',
                     cornerRadius: (saved && Number.isFinite(saved.cornerRadius)) ? saved.cornerRadius : 24,
                     arrowThickness: (saved && Number.isFinite(saved.arrowThickness)) ? saved.arrowThickness : 20,
-                    arrowRoundness: (saved && Number.isFinite(saved.arrowRoundness)) ? saved.arrowRoundness : 50
+                    arrowRoundness: (saved && Number.isFinite(saved.arrowRoundness)) ? saved.arrowRoundness : 50,
+                    fillTransparentEnabled: !!(saved && (saved.fillTransparentEnabled || saved.transparentFillEnabled)),
+                    fillTransparentColor: (saved && (saved.fillTransparentColor || saved.transparentFillColor)) || '#000000',
+                    fillTransparentAlpha: (saved && Number.isFinite(saved.fillTransparentAlpha !== undefined ? saved.fillTransparentAlpha : saved.transparentFillAlpha))
+                        ? (saved.fillTransparentAlpha !== undefined ? saved.fillTransparentAlpha : saved.transparentFillAlpha)
+                        : 100
                 };
             }
             return {
@@ -53,7 +58,10 @@
                 shape: 'rectangle',
                 cornerRadius: 24,
                 arrowThickness: 20,
-                arrowRoundness: 50
+                arrowRoundness: 50,
+                fillTransparentEnabled: false,
+                fillTransparentColor: '#000000',
+                fillTransparentAlpha: 100
             };
         }
 
@@ -172,7 +180,10 @@
                         ))
                         : 0,
                     arrowThickness: textureCreatorState.arrowThickness,
-                    arrowRoundness: textureCreatorState.arrowRoundness
+                    arrowRoundness: textureCreatorState.arrowRoundness,
+                    fillTransparentEnabled: textureCreatorState.fillTransparentEnabled,
+                    fillTransparentColor: textureCreatorState.fillTransparentColor,
+                    fillTransparentAlpha: textureCreatorState.fillTransparentAlpha / 100
                 });
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -217,7 +228,10 @@
                     shape: textureCreatorState.shape,
                     cornerRadius: textureCreatorState.cornerRadius * scale,
                     arrowThickness: textureCreatorState.arrowThickness,
-                    arrowRoundness: textureCreatorState.arrowRoundness
+                    arrowRoundness: textureCreatorState.arrowRoundness,
+                    fillTransparentEnabled: textureCreatorState.fillTransparentEnabled,
+                    fillTransparentColor: textureCreatorState.fillTransparentColor,
+                    fillTransparentAlpha: textureCreatorState.fillTransparentAlpha / 100
                 });
                 const left = (canvas.width - previewWidth) / 2;
                 const top = (canvas.height - previewHeight) / 2;
@@ -353,6 +367,35 @@
             }
         }
 
+        function updateTextureCreatorFillTransparentInputs() {
+            const enabledInput = byId('textureImageCreateFillTransparentEnabled');
+            const controls = byId('textureImageCreateFillTransparentControls');
+            const colorInput = byId('textureImageCreateFillTransparentColor');
+            const colorHexInput = byId('textureImageCreateFillTransparentColorHex');
+            const alphaRange = byId('textureImageCreateFillTransparentAlpha');
+            const alphaNumber = byId('textureImageCreateFillTransparentAlphaValue');
+
+            if (enabledInput) {
+                enabledInput.checked = !!textureCreatorState.fillTransparentEnabled;
+            }
+            if (controls) {
+                controls.style.display = textureCreatorState.fillTransparentEnabled ? 'block' : 'none';
+            }
+            const color = normalizeTextureHexColor(textureCreatorState.fillTransparentColor || '#000000');
+            if (colorInput) colorInput.value = color;
+            if (colorHexInput) colorHexInput.value = color;
+            const alpha = Number.isFinite(textureCreatorState.fillTransparentAlpha)
+                ? textureCreatorState.fillTransparentAlpha
+                : 100;
+            if (alphaRange) {
+                alphaRange.value = String(alpha);
+                updateTextureRangeFill(alphaRange);
+            }
+            if (alphaNumber) {
+                alphaNumber.value = String(alpha);
+            }
+        }
+
         function updateTextureCreatorArrowInputs() {
             for (const [rangeId, numberId, value] of [
                 [
@@ -402,6 +445,7 @@
             });
             updateTextureCreatorAlphaInputs();
             updateTextureCreatorStrokeInputs();
+            updateTextureCreatorFillTransparentInputs();
             updateTextureCreatorCornerInputs();
             updateTextureCreatorArrowInputs();
             updateTextureCreatorShapeSelection();
@@ -463,6 +507,7 @@
                 const creatorState = createTextureCreatorState({
                     editPath: isEdit ? options.editPath : null
                 });
+                creatorState.paramKey = (options && options.paramKey) || null;
                 if (isEdit && typeof createSkinSnapshot === 'function') {
                     creatorState.previewSnapshot = createSkinSnapshot(
                         '生成设置实时预览基线'
@@ -476,6 +521,8 @@
                     previousTabId: activeTabId || 'menu'
                 };
                 tabs.push(tab);
+            } else if (options && options.paramKey) {
+                tab.creatorState.paramKey = options.paramKey;
             }
             textureCreatorState = tab.creatorState;
 
@@ -549,6 +596,24 @@
                 ? Math.max(0, Math.min(100, Math.round(roundnessValue)))
                 : textureCreatorState.arrowRoundness;
 
+            const fillTransparentEnabledInput = byId('textureImageCreateFillTransparentEnabled');
+            const fillTransparentEnabled = fillTransparentEnabledInput
+                ? fillTransparentEnabledInput.checked
+                : !!textureCreatorState.fillTransparentEnabled;
+            const fillTransparentColorInput = byId('textureImageCreateFillTransparentColor');
+            const fillTransparentColorHexInput = byId('textureImageCreateFillTransparentColorHex');
+            const rawFillTransparentColor = (fillTransparentColorHexInput && fillTransparentColorHexInput.value) ||
+                (fillTransparentColorInput && fillTransparentColorInput.value) ||
+                textureCreatorState.fillTransparentColor ||
+                '#000000';
+            const fillTransparentColor = normalizeTextureHexColor(rawFillTransparentColor);
+            const fillTransparentAlphaValue = Number(
+                (byId('textureImageCreateFillTransparentAlphaValue') || {}).value
+            );
+            const fillTransparentAlpha = Number.isFinite(fillTransparentAlphaValue)
+                ? Math.max(0, Math.min(100, Math.round(fillTransparentAlphaValue)))
+                : (Number.isFinite(textureCreatorState.fillTransparentAlpha) ? textureCreatorState.fillTransparentAlpha : 100);
+
             textureCreatorState.name = rawName;
             textureCreatorState.width = width;
             textureCreatorState.height = height;
@@ -559,6 +624,9 @@
             textureCreatorState.cornerRadius = cornerRadius;
             textureCreatorState.arrowThickness = arrowThickness;
             textureCreatorState.arrowRoundness = arrowRoundness;
+            textureCreatorState.fillTransparentEnabled = fillTransparentEnabled;
+            textureCreatorState.fillTransparentColor = fillTransparentColor;
+            textureCreatorState.fillTransparentAlpha = fillTransparentAlpha;
             return {
                 name: rawName,
                 width,
@@ -574,7 +642,13 @@
                 shape: textureCreatorState.shape,
                 cornerRadius,
                 arrowThickness,
-                arrowRoundness
+                arrowRoundness,
+                fillTransparentEnabled,
+                fillTransparentColor,
+                fillTransparentAlpha,
+                transparentFillEnabled: fillTransparentEnabled,
+                transparentFillColor: fillTransparentColor,
+                transparentFillAlpha: fillTransparentAlpha
             };
         }
 
@@ -590,13 +664,73 @@
                 const creatorState = creatorTab.creatorState;
                 textureCreatorState = creatorState;
                 const payload = readTextureCreatorPayload();
+                const isEdit = !!creatorState.editPath;
+                const sourcePath = isEdit ? normalizeTextureLookupPath(creatorState.editPath) : '';
+                const paramKey = creatorState.paramKey;
+                const currentParam = paramKey
+                    ? (typeof getTextureTabParams === 'function' ? getTextureTabParams() : []).find((p) => p.key === paramKey)
+                    : null;
+                const currentTrack = currentParam && typeof getParamTrackIndex === 'function'
+                    ? getParamTrackIndex(currentParam)
+                    : null;
+                const references = (isEdit && typeof collectTexturePathReferences === 'function')
+                    ? collectTexturePathReferences(sourcePath)
+                    : [];
+                const otherReferences = currentTrack == null
+                    ? []
+                    : references.filter((p) => {
+                        if (p.key === paramKey) return false;
+                        const track = typeof getParamTrackIndex === 'function' ? getParamTrackIndex(p) : null;
+                        return track != null && track !== currentTrack;
+                    });
+
+                let decision = 'all';
+                if (otherReferences.length > 0 && typeof requestLongBodyApplyScope === 'function') {
+                    decision = await requestLongBodyApplyScope({
+                        title: '贴图被多处引用',
+                        text: `“${sourcePath}”还被其他 ${otherReferences.length} 个轨道引用。是否同步替换所有引用？选择“同步替换”将直接覆盖原图；选择“独立创建”将为当前轨道独立创建贴图。`,
+                        currentLabel: '独立创建',
+                        allLabel: '同步替换'
+                    });
+                    if (!decision) return false;
+                }
+
                 if (creatorState.editPath && creatorState.previewSnapshot) {
-                    applySkinSnapshot(creatorState.previewSnapshot);
+                    applySkinSnapshot(creatorState.previewSnapshot, { preserveNonTextureSettings: true });
                     drawFrame();
                 }
-                const result = await saveSolidTextureToLibrary(payload, {
-                    oldPath: creatorState.editPath
-                });
+
+                let result;
+                if (decision === 'current' && isEdit && paramKey) {
+                    const independentPath = createIndependentTexturePath(sourcePath, paramKey);
+                    const independentPayload = {
+                        ...payload,
+                        name: independentPath
+                    };
+                    result = await saveSolidTextureToLibrary(independentPayload, {
+                        oldPath: null
+                    });
+                    const previousParams = typeof getCreatedTextureParams === 'function'
+                        ? getCreatedTextureParams(sourcePath)
+                        : null;
+                    if (previousParams && previousParams.generalEditParams &&
+                        typeof saveCreatedTextureGeneralEditParams === 'function') {
+                        saveCreatedTextureGeneralEditParams(
+                            result.path,
+                            previousParams.generalEditParams
+                        );
+                    }
+                    if (typeof pointTextureEditParamToPath === 'function') {
+                        pointTextureEditParamToPath(paramKey, result.path);
+                    }
+                } else {
+                    result = await saveSolidTextureToLibrary(payload, {
+                        oldPath: creatorState.editPath
+                    });
+                    if (paramKey && typeof pointTextureEditParamToPath === 'function') {
+                        pointTextureEditParamToPath(paramKey, result.path);
+                    }
+                }
                 creatorState.previewSnapshot = null;
                 if (typeof updateEditorBaseAfterSave === 'function') {
                     updateEditorBaseAfterSave();
@@ -634,7 +768,9 @@
 
                 showToast(
                     result.isEdit ? '贴图已更新' : '已创建纯色贴图',
-                    `${result.path}.png 已生成到全部贴图。`
+                    decision === 'current'
+                        ? `${result.path}.png 已作为独立贴图分配给当前轨道。`
+                        : `${result.path}.png 已生成到全部贴图。`
                 );
                 return true;
             } catch (err) {
@@ -701,6 +837,30 @@
             refreshTextureCreatorPreview();
         }
 
+        function applyTextureCreatorFillTransparentEnabled(enabled) {
+            textureCreatorState.fillTransparentEnabled = !!enabled;
+            updateTextureCreatorFillTransparentInputs();
+            refreshTextureCreatorPreview();
+        }
+
+        function applyTextureCreatorFillTransparentColor(rawValue) {
+            textureCreatorState.fillTransparentColor = normalizeTextureHexColor(rawValue);
+            updateTextureCreatorFillTransparentInputs();
+            refreshTextureCreatorPreview();
+        }
+
+        function applyTextureCreatorFillTransparentAlpha(rawValue) {
+            if (rawValue === '') return;
+            const value = Number(rawValue);
+            if (!Number.isFinite(value)) return;
+            textureCreatorState.fillTransparentAlpha = Math.max(
+                0,
+                Math.min(100, Math.round(value))
+            );
+            updateTextureCreatorFillTransparentInputs();
+            refreshTextureCreatorPreview();
+        }
+
         function applyTextureCreatorCornerRadius(rawValue) {
             if (rawValue === '') return;
             const value = Number(rawValue);
@@ -746,6 +906,11 @@
             const strokeWidthNumber = byId('textureImageCreateStrokeWidthValue');
             const strokeAlphaRange = byId('textureImageCreateStrokeAlpha');
             const strokeAlphaNumber = byId('textureImageCreateStrokeAlphaValue');
+            const fillTransparentEnabledInput = byId('textureImageCreateFillTransparentEnabled');
+            const fillTransparentColorInput = byId('textureImageCreateFillTransparentColor');
+            const fillTransparentColorHexInput = byId('textureImageCreateFillTransparentColorHex');
+            const fillTransparentAlphaRange = byId('textureImageCreateFillTransparentAlpha');
+            const fillTransparentAlphaNumber = byId('textureImageCreateFillTransparentAlphaValue');
             const radiusRange = byId('textureImageCreateCornerRadiusRange');
             const radiusNumber = byId('textureImageCreateCornerRadius');
             const arrowThicknessRange = byId('textureImageCreateArrowThickness');
@@ -859,6 +1024,36 @@
             if (strokeAlphaNumber) {
                 strokeAlphaNumber.addEventListener('input', () => {
                     applyTextureCreatorStrokeAlpha(strokeAlphaNumber.value);
+                });
+            }
+            if (fillTransparentEnabledInput) {
+                fillTransparentEnabledInput.addEventListener('change', () => {
+                    applyTextureCreatorFillTransparentEnabled(fillTransparentEnabledInput.checked);
+                });
+            }
+            if (fillTransparentColorInput) {
+                fillTransparentColorInput.addEventListener('input', () => {
+                    applyTextureCreatorFillTransparentColor(fillTransparentColorInput.value);
+                });
+            }
+            if (fillTransparentColorHexInput) {
+                fillTransparentColorHexInput.addEventListener('input', () => {
+                    const raw = fillTransparentColorHexInput.value.trim();
+                    if (!/^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) return;
+                    applyTextureCreatorFillTransparentColor(raw);
+                });
+                fillTransparentColorHexInput.addEventListener('blur', () => {
+                    applyTextureCreatorFillTransparentColor(fillTransparentColorHexInput.value);
+                });
+            }
+            if (fillTransparentAlphaRange) {
+                fillTransparentAlphaRange.addEventListener('input', () => {
+                    applyTextureCreatorFillTransparentAlpha(fillTransparentAlphaRange.value);
+                });
+            }
+            if (fillTransparentAlphaNumber) {
+                fillTransparentAlphaNumber.addEventListener('input', () => {
+                    applyTextureCreatorFillTransparentAlpha(fillTransparentAlphaNumber.value);
                 });
             }
             document.querySelectorAll('input[name="textureImageCreateSpec"]').forEach((input) => {

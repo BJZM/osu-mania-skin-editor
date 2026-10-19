@@ -16,10 +16,10 @@
 
         function getKeyImageParamKind(p) {
             if (!p) return null;
-            if (p._trackLookup === LML.KeyImageDown || /^KeyImage\d+(?:D|Down)$/i.test(p.key || '')) {
+            if (p._trackLookup === LML.KeyImageDown || /^KeyImage(?:\d+)?(?:D|Down)$/i.test(p.key || '')) {
                 return 'down';
             }
-            if (p._trackLookup === LML.KeyImage || /^KeyImage\d+$/i.test(p.key || '')) {
+            if (p._trackLookup === LML.KeyImage || /^KeyImage(?:\d+)?$/i.test(p.key || '')) {
                 return 'normal';
             }
             return null;
@@ -31,9 +31,15 @@
 
         function collectKeyImageEditGroups(scope, options = {}) {
             const keys = getActiveKeyCount();
-            const selectedCol = getSelectedTrackIndex();
+            const effParam = (typeof getEffectiveParamForTarget === 'function')
+                ? getEffectiveParamForTarget(state.selected)
+                : (state.selected && state.selected.p);
+            let selectedCol = getSelectedTrackIndex();
+            if (selectedCol == null && isEditingKeyImageParam(effParam)) {
+                selectedCol = 0;
+            }
             if (selectedCol == null) return [];
-            const selectedKind = options.selectedKind || getKeyImageParamKind(state.selected && state.selected.p);
+            const selectedKind = options.selectedKind || getKeyImageParamKind(effParam);
             const syncPair = options.syncPair !== false;
             const kinds = syncPair
                 ? ['normal', 'down']
@@ -56,7 +62,10 @@
                     if (!p) continue;
                     const target = buildEditorTarget(p);
                     if (!target) continue;
-                    const isSelected = state.selected && state.selected.p.key === p.key;
+                    const isSelected = state.selected && (
+                        (state.selected.p && state.selected.p.key === p.key) ||
+                        (effParam && effParam.key === p.key)
+                    );
                     const cachedSource = state.keyImageOriginalSources[p.key] ||
                         (isSelected && editRecipe
                             ? editRecipe.keyImageOriginalSources[p.key]
@@ -67,13 +76,25 @@
                     const selectedRecipeFrames = isSelected && editRecipe
                         ? editRecipe.sourceFrames.map(cloneFrame)
                         : null;
-                    const sourceFrames = selectedRecipeFrames ||
+                    let sourceFrames = selectedRecipeFrames ||
                         (cachedSource
                             ? cachedSource.frames.map(cloneFrame)
                             : (isSelected
                                 ? state.workingFrames.map(cloneFrame)
                                 : ((storedRecipe && storedRecipe.sourceFrames) ||
                                     target.frames).map(cloneFrame)));
+                    if (!isSelected && !cachedSource && (!storedRecipe || !storedRecipe.sourceFrames || storedRecipe.sourceFrames.length === 0) &&
+                        typeof hasCreatedTextureParams === 'function' &&
+                        hasCreatedTextureParams(target.base) &&
+                        typeof createSolidShapeTexture === 'function') {
+                        const cParams = getCreatedTextureParams(target.base);
+                        if (cParams) {
+                            const gen = createSolidShapeTexture(cParams);
+                            gen._is2x = cParams.spec === '2x';
+                            gen._isRootLevel = !target.base.includes('/');
+                            sourceFrames = [gen];
+                        }
+                    }
                     const explicitReference = isSelected && editRecipe && editRecipe.originalReference
                         ? editRecipe.originalReference
                         : (cachedSource
@@ -169,20 +190,37 @@
             return base;
         }
 
-        async function persistKeyImageEditGroups(groups, params) {
+        async function persistKeyImageEditGroups(groups, params, options = {}) {
             if (!groups || groups.length === 0) return false;
             const prepared = [];
             const usedBases = new Set();
+            const mode = options.mode || 'overwrite';
 
             for (const group of groups) {
-                const base = chooseKeyImageGroupBase(group, usedBases);
+                const representative = group.entries.find((entry) => entry.isSelected) ||
+                    group.entries[0];
+                const rawSource = (representative.reference && !representative.reference.startsWith('missing:'))
+                    ? representative.reference
+                    : ((representative.target.resolved && representative.target.resolved.name) ||
+                       representative.target.base ||
+                       representative.p.key);
+                const sourcePath = normalizeTextureLookupPath(rawSource);
+                let base;
+                if (mode === 'overwrite' && !usedBases.has(sourcePath.toLowerCase())) {
+                    base = normalizeTextureLookupPath(sourcePath);
+                } else if (mode === 'independent' || usedBases.has(sourcePath.toLowerCase())) {
+                    base = createIndependentTexturePath(sourcePath, representative.p.key);
+                } else {
+                    base = chooseKeyImageGroupBase(group, usedBases);
+                }
+                usedBases.add(base.toLowerCase());
                 const result = buildEditedFrames(group.sourceFrames, params);
                 if (!result || result.frames.length === 0) return false;
                 const frames = result.frames.map((frame) =>
                     applyRgbAdjustmentToCanvas(frame, group.rgbAdjustment)
                 );
                 const serialized = await serializeFrames(base, frames);
-                prepared.push({ group, base, frames, serialized });
+                prepared.push({ group, base, frames, serialized, sourcePath });
             }
 
             for (const item of prepared) {
@@ -199,9 +237,28 @@
                 for (const entry of item.group.entries) {
                     pointKeyImageParamToBase(entry.p, item.base);
                 }
+                if (options.scope === 'all') {
+                    const curKeys = getActiveKeyCount();
+                    let curCfg = maniaSkinConfigurations.get(curKeys) || ensureManiaConfigForKeys(curKeys);
+                    if (!curCfg.ImageLookups) curCfg.ImageLookups = new Map();
+                    if (item.group.kind === 'normal') {
+                        curCfg['KeyImage'] = item.base;
+                        curCfg.ImageLookups.set('KeyImage', item.base);
+                        curCfg.ImageLookups.set('keyimage', item.base);
+                        if (typeof syncParamInputValue === 'function') syncParamInputValue('KeyImage', item.base);
+                    } else if (item.group.kind === 'down') {
+                        curCfg['KeyImageDown'] = item.base;
+                        curCfg.ImageLookups.set('KeyImageDown', item.base);
+                        curCfg.ImageLookups.set('keyimagedown', item.base);
+                        if (typeof syncParamInputValue === 'function') syncParamInputValue('KeyImageDown', item.base);
+                    }
+                }
+                const createdRef = item.sourcePath || item.group.reference;
                 if (typeof hasCreatedTextureParams === 'function' &&
-                    hasCreatedTextureParams(item.group.reference)) {
-                    cloneCreatedTextureParams(item.group.reference, item.base);
+                    hasCreatedTextureParams(createdRef)) {
+                    if (mode === 'independent') {
+                        cloneCreatedTextureParams(createdRef, item.base);
+                    }
                     if (typeof saveCreatedTextureGeneralEditParams === 'function') {
                         saveCreatedTextureGeneralEditParams(item.base, {
                             ...params,
@@ -221,12 +278,14 @@
                     userReplacedTextures.set(`${frameKey}${currentSuffix}`, frame.arrayBuffer);
                     userReplacedTextures.delete(`${frameKey}${oppositeSuffix}`);
                 });
-                for (let i = item.serialized.length; i < 64; i++) {
-                    const frameKey = `${item.base}-${i}`;
-                    skinImageStore.delete(frameKey);
-                    skinFallbackImageStore.delete(frameKey);
-                    userReplacedTextures.delete(`${frameKey}.png`);
-                    userReplacedTextures.delete(`${frameKey}@2x.png`);
+                if (item.serialized.length > 1) {
+                    for (let i = item.serialized.length; i < 64; i++) {
+                        const frameKey = `${item.base}-${i}`;
+                        skinImageStore.delete(frameKey);
+                        skinFallbackImageStore.delete(frameKey);
+                        userReplacedTextures.delete(`${frameKey}.png`);
+                        userReplacedTextures.delete(`${frameKey}@2x.png`);
+                    }
                 }
             }
             drawFrame();

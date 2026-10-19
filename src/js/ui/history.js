@@ -54,6 +54,50 @@
             return cloned;
         }
 
+        function copyNonTextureManiaProperties(sourceCfg, targetCfg) {
+            if (!sourceCfg || !targetCfg) return;
+            const nonTextureKeys = [
+                'Keys', 'SkinVersion', 'WidthForNoteHeightScale',
+                'ColumnLineWidth', 'ColumnSpacing', 'ColumnWidth',
+                'ColumnStart', 'ColumnRight',
+                'HitPosition', 'LightPosition', 'ScorePosition', 'ComboPosition',
+                'BarLineHeight', 'ShowJudgementLine', 'JudgementLine',
+                'KeysUnderNotes', 'LightFramePerSecond',
+                'ExplosionWidth', 'HoldNoteLightWidth',
+                'ColumnColour', 'ColourLight', 'GlobalColourLight',
+                'ColourHold', 'ColourBarline', 'ComboBreakColour', 'CustomColours',
+                'FlipSettings', 'FontCombo', 'ComboOverlap', 'FontScore', 'ScoreOverlap',
+                'UpsideDown', 'SplitStages', 'StageSeparation',
+                'SpecialStyle',
+                '_isDefaultFallback'
+            ];
+            if (typeof SKIN_INI_PARAM_SCHEMA_MANIA !== 'undefined' && Array.isArray(SKIN_INI_PARAM_SCHEMA_MANIA)) {
+                for (const p of SKIN_INI_PARAM_SCHEMA_MANIA) {
+                    if (p && p.key && !nonTextureKeys.includes(p.key)) {
+                        nonTextureKeys.push(p.key);
+                    }
+                }
+            }
+            for (const key of nonTextureKeys) {
+                if (key in sourceCfg) {
+                    const val = sourceCfg[key];
+                    if (Array.isArray(val)) {
+                        targetCfg[key] = val.map(item => (item && typeof item === 'object') ? { ...item } : item);
+                    } else if (val instanceof Map) {
+                        targetCfg[key] = new Map(val);
+                    } else if (val && typeof val === 'object') {
+                        try {
+                            targetCfg[key] = JSON.parse(JSON.stringify(val));
+                        } catch (_) {
+                            targetCfg[key] = { ...val };
+                        }
+                    } else {
+                        targetCfg[key] = val;
+                    }
+                }
+            }
+        }
+
         function cloneManiaSkinConfigs(map) {
             const newMap = new Map();
             if (!map) return newMap;
@@ -119,6 +163,25 @@
                 userReplacedTextures: new Map(userReplacedTextures),
                 deletedSkinTexturePaths: new Set(deletedSkinTexturePaths),
                 createdSkinTextureParams: new Map(Array.from(createdSkinTextureParams.entries(), ([k, v]) => [k, { ...v }])),
+                textureEditRecipes: (typeof textureEditRecipes !== 'undefined' && textureEditRecipes instanceof Map)
+                    ? new Map(Array.from(textureEditRecipes.entries(), ([k, v]) => [k, {
+                        sourceFrames: (v.sourceFrames || []).map((f) => cloneFrame(f)),
+                        originalReference: v.originalReference,
+                        keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
+                            ? cloneKeyImageEditSources(v.keyImageOriginalSources)
+                            : {},
+                        params: v.params ? {
+                            ...v.params,
+                            imageTransform: typeof cloneImageTransform === 'function'
+                                ? cloneImageTransform(v.params.imageTransform)
+                                : (v.params.imageTransform ? { ...v.params.imageTransform } : null),
+                            rgbAdjustment: typeof cloneRgbAdjustment === 'function'
+                                ? cloneRgbAdjustment(v.params.rgbAdjustment)
+                                : (v.params.rgbAdjustment ? { ...v.params.rgbAdjustment } : null)
+                        } : null,
+                        outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
+                    }]))
+                    : null,
                 activeEditorKeyCount: activeEditorKeyCount
             };
         }
@@ -136,17 +199,32 @@
                 continuousActionActive = true;
                 updateUndoButtonState();
             }
+            syncTextureEditorNonTextureSettings();
             if (continuousActionTimer) clearTimeout(continuousActionTimer);
             continuousActionTimer = setTimeout(() => {
                 continuousActionActive = false;
             }, 600);
         }
 
-        function applySkinSnapshot(snap) {
+        function syncTextureEditorNonTextureSettings() {
+            const modal = document.getElementById('textureImageEditorModal');
+            if (!modal || (!modal.classList.contains('active') && modal.style.display === 'none')) {
+                return;
+            }
+            if (typeof syncTextureEditorSnapshotsWithCurrentManiaConfigs === 'function') {
+                syncTextureEditorSnapshotsWithCurrentManiaConfigs();
+            }
+        }
+
+        function applySkinSnapshot(snap, options = {}) {
             if (!snap) return;
             if (typeof invalidateKeyImageHeightPersistence === 'function') {
                 invalidateKeyImageHeightPersistence();
             }
+            const preserveNonTexture = !!options.preserveNonTextureSettings;
+            const currentNonTextureConfigs = preserveNonTexture
+                ? cloneManiaSkinConfigs(maniaSkinConfigurations)
+                : null;
             isPerformingUndoRedo = true;
             try {
                 // 1. 还原 userReplacedTextures
@@ -168,21 +246,58 @@
                         createdSkinTextureParams.set(k, { ...v });
                     }
                 }
+                if (typeof textureEditRecipes !== 'undefined' && textureEditRecipes instanceof Map) {
+                    textureEditRecipes.clear();
+                    if (snap.textureEditRecipes) {
+                        for (const [k, v] of snap.textureEditRecipes.entries()) {
+                            textureEditRecipes.set(k, {
+                                sourceFrames: (v.sourceFrames || []).map((f) => cloneFrame(f)),
+                                originalReference: v.originalReference,
+                                keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
+                                    ? cloneKeyImageEditSources(v.keyImageOriginalSources)
+                                    : {},
+                                params: v.params ? {
+                                    ...v.params,
+                                    imageTransform: typeof cloneImageTransform === 'function'
+                                        ? cloneImageTransform(v.params.imageTransform)
+                                        : (v.params.imageTransform ? { ...v.params.imageTransform } : null),
+                                    rgbAdjustment: typeof cloneRgbAdjustment === 'function'
+                                        ? cloneRgbAdjustment(v.params.rgbAdjustment)
+                                        : (v.params.rgbAdjustment ? { ...v.params.rgbAdjustment } : null)
+                                } : null,
+                                outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
+                            });
+                        }
+                    }
+                }
 
                 // 2. 还原 maniaSkinConfigurations
                 maniaSkinConfigurations.clear();
                 if (snap.maniaSkinConfigurations) {
                     for (const [k, v] of snap.maniaSkinConfigurations.entries()) {
-                        maniaSkinConfigurations.set(k, cloneManiaSkinConfig(v));
+                        const cloned = cloneManiaSkinConfig(v);
+                        if (preserveNonTexture && currentNonTextureConfigs && currentNonTextureConfigs.has(k)) {
+                            copyNonTextureManiaProperties(currentNonTextureConfigs.get(k), cloned);
+                        }
+                        maniaSkinConfigurations.set(k, cloned);
+                    }
+                }
+                if (preserveNonTexture && currentNonTextureConfigs) {
+                    for (const [k, v] of currentNonTextureConfigs.entries()) {
+                        if (!maniaSkinConfigurations.has(k)) {
+                            maniaSkinConfigurations.set(k, cloneManiaSkinConfig(v));
+                        }
                     }
                 }
 
                 // 3. 还原 currentSkinMetadata & skinFontsConfig & globalSkinImageLookups
-                if (snap.currentSkinMetadata) {
-                    currentSkinMetadata = JSON.parse(JSON.stringify(snap.currentSkinMetadata));
-                }
-                if (snap.skinFontsConfig) {
-                    skinFontsConfig = { ...snap.skinFontsConfig };
+                if (!preserveNonTexture) {
+                    if (snap.currentSkinMetadata) {
+                        currentSkinMetadata = JSON.parse(JSON.stringify(snap.currentSkinMetadata));
+                    }
+                    if (snap.skinFontsConfig) {
+                        skinFontsConfig = { ...snap.skinFontsConfig };
+                    }
                 }
                 globalSkinImageLookups.clear();
                 if (snap.globalSkinImageLookups) {
@@ -207,7 +322,7 @@
                 if (typeof refreshSkinCursor === 'function') refreshSkinCursor();
 
                 // 5. 还原活动键位
-                if (snap.activeEditorKeyCount) {
+                if (!preserveNonTexture && snap.activeEditorKeyCount) {
                     activeEditorKeyCount = snap.activeEditorKeyCount;
                 }
 

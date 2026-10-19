@@ -38,9 +38,42 @@
                 return resolved && resolved.name ? resolved.name : '';
             }
 
+            function resolveEffectiveTypedPath(query) {
+                const raw = String(query || '').trim();
+                if (!raw) return null;
+                const norm = typeof normalizeTextureLookupPath === 'function'
+                    ? normalizeTextureLookupPath(raw)
+                    : raw.replace(/\.(png|jpg|jpeg)$/i, '');
+                if (!norm) return null;
+
+                const sources = state.sources || [];
+                const exact = sources.find((s) => {
+                    const sNorm = typeof normalizeTextureLookupPath === 'function'
+                        ? normalizeTextureLookupPath(s.path)
+                        : s.path;
+                    return s.path.toLowerCase() === raw.toLowerCase() ||
+                        sNorm.toLowerCase() === norm.toLowerCase() ||
+                        (s.basename && s.basename.toLowerCase() === norm.toLowerCase());
+                });
+                if (exact) return exact.path;
+
+                if (state.visibleSources && state.visibleSources.length === 1) {
+                    return state.visibleSources[0].path;
+                }
+
+                if (typeof lookupTextureByName === 'function' && lookupTextureByName(norm)) {
+                    return norm;
+                }
+
+                return null;
+            }
+
             function updateConfirmState() {
-                confirmBtn.disabled = !state.selectedPath;
-                confirmBtn.textContent = state.selectedPath ? '使用此贴图' : '选择一张贴图';
+                const effective = state.selectedPath || resolveEffectiveTypedPath(search ? search.value : '');
+                confirmBtn.disabled = !effective;
+                confirmBtn.textContent = effective
+                    ? `使用此贴图 (${typeof normalizeTextureLookupPath === 'function' ? normalizeTextureLookupPath(effective) : effective})`
+                    : '选择一张贴图';
             }
 
             function markSelectedCard() {
@@ -58,7 +91,14 @@
             }
 
             function renderSources() {
-                state.visibleSources = filterExistingTextureSources(state.sources, search ? search.value : '');
+                const query = search ? search.value.trim() : '';
+                state.visibleSources = filterExistingTextureSources(state.sources, query);
+                if (query) {
+                    const matched = resolveEffectiveTypedPath(query);
+                    if (matched) {
+                        state.selectedPath = matched;
+                    }
+                }
                 renderTextureExistingGrid({
                     grid,
                     empty,
@@ -123,8 +163,11 @@
             }
 
             function confirmSelection() {
-                if (!state.open || !state.p || !state.selectedPath) return false;
-                const selectedPath = state.selectedPath;
+                if (!state.open || !state.p) return false;
+                const effectivePath = state.selectedPath || resolveEffectiveTypedPath(search ? search.value : '');
+                if (!effectivePath) return false;
+                state.selectedPath = effectivePath;
+                const selectedPath = effectivePath;
                 const previousPath = getCurrentPath(state.p, state.keys);
                 if (normalizeTextureLookupPath(previousPath) === normalizeTextureLookupPath(selectedPath)) {
                     close();
@@ -153,15 +196,33 @@
             document.getElementById('textureExistingPickerCancelBtn').onclick = close;
             document.getElementById('textureExistingPickerBackdrop').onclick = close;
             confirmBtn.onclick = confirmSelection;
-            if (search) search.addEventListener('input', renderSources);
+            if (search) {
+                search.addEventListener('input', renderSources);
+                search.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        const effective = state.selectedPath || resolveEffectiveTypedPath(search.value);
+                        if (effective) {
+                            state.selectedPath = effective;
+                            confirmSelection();
+                        }
+                    }
+                });
+            }
             modal.addEventListener('keydown', (event) => {
                 if (event.key === 'Escape') {
                     event.preventDefault();
                     event.stopPropagation();
                     close();
-                } else if (event.key === 'Enter' && state.selectedPath) {
-                    event.preventDefault();
-                    confirmSelection();
+                } else if (event.key === 'Enter') {
+                    const effective = state.selectedPath || resolveEffectiveTypedPath(search ? search.value : '');
+                    if (effective) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        state.selectedPath = effective;
+                        confirmSelection();
+                    }
                 }
             });
 

@@ -1269,3 +1269,250 @@ test('撤销操作可恢复二次编辑前的贴图并在删除后恢复', async
   ).toHaveClass(/has-modes/);
   expect(errors).toEqual([]);
 });
+
+test('自建贴图应用拉伸修复时作用于叠加通用设置后的结果且不改写本体生成尺寸', async ({ page }) => {
+  const errors = await boot(page);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImageCreateOpenBtn');
+  await page.fill('#textureImageCreateName', 'created-stretch-fix-test');
+  await page.fill('#textureImageCreateWidth', '50');
+  await page.fill('#textureImageCreateHeight', '50');
+  await page.fill('#textureImageCreateColorHex', '#00ff88');
+  await page.click('#textureImageCreateConfirmBtn');
+
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageLibraryView').style.display !== 'none';
+  });
+
+  // 引用至 StageLeft
+  await referenceCreatedTextureInMenu(page, 'created-stretch-fix-test');
+  let modeMenu = await openCreatedTextureEditMenu(page);
+  await modeMenu.locator('[data-edit-mode="general"]').click();
+
+  // 设置通用裁剪：上下各裁 5px，使得有效高度为 40px
+  await page.fill('#textureImageCropTop', '-5');
+  await page.fill('#textureImageCropBottom', '-5');
+  await page.waitForFunction(() => textureImageEditorUi.getState().previewSize.height === 40);
+
+  // 此时拉伸修复目标 StageLeft 高度为 768px
+  const stretchFixBtn = page.locator('#textureImageStretchFixBtn');
+  await expect(stretchFixBtn).toBeEnabled();
+  await stretchFixBtn.click();
+
+  // 验证修复后的高度为 768px，宽度按等比缩放 50 * (768 / 40) = 960px
+  await page.waitForFunction(() => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.height === 768 && preview.width === 960;
+  });
+
+  // 保存到皮肤
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  // 核心验证：自建贴图本体生成设置的宽高依然保持 50x50，不被拉伸修复改写！
+  const createdParams = await page.evaluate(() => getCreatedTextureParams('created-stretch-fix-test'));
+  expect(createdParams.width).toBe(50);
+  expect(createdParams.height).toBe(50);
+  // 通用设置中保存了裁剪与拉伸修复产生的等比缩放
+  expect(createdParams.generalEditParams.cropTop).toBe(-5);
+  expect(createdParams.generalEditParams.cropBottom).toBe(-5);
+  expect(createdParams.generalEditParams.imageTransform.scalePercent).toBeCloseTo(1920, 0);
+
+  expect(errors).toEqual([]);
+});
+
+test('自建贴图在一键投皮中以叠加通用设置后的最终结果为切片底图', async ({ page }) => {
+  const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImageCreateOpenBtn');
+  await page.fill('#textureImageCreateName', 'created-longbody-test');
+  await page.fill('#textureImageCreateWidth', '60');
+  await page.fill('#textureImageCreateHeight', '60');
+  await page.fill('#textureImageCreateColorHex', '#ff2255');
+  await page.click('#textureImageCreateConfirmBtn');
+
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageLibraryView').style.display !== 'none';
+  });
+
+  // 将 NoteImage0L 引用至此自建贴图并进入通用编辑
+  await referenceCreatedTextureInMenu(page, 'created-longbody-test', 'NoteImage0L');
+  const modeMenu = await openCreatedTextureEditMenu(page, 'NoteImage0L');
+  await modeMenu.locator('[data-edit-mode="general"]').click();
+  await expect(page.locator('#textureImageEditorView')).toBeVisible();
+  // 在通用设置中裁剪左右各 10px，使得有效宽度为 40px
+  await page.fill('#textureImageCropLeft', '-10');
+  await page.fill('#textureImageCropRight', '-10');
+  await page.waitForFunction(() => textureImageEditorUi.getState().previewSize.width === 40);
+
+  // 开启一键投皮
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.longBody && state.longBody.active;
+  });
+
+  // 核心验证：一键投皮长条的切片底图宽度是经过通用设置裁剪后的 40px，而不是原始本体的 60px
+  const composerBaseWidth = await page.evaluate(() => {
+    const state = textureImageEditorUi.getState();
+    return state.previewSize.width;
+  });
+  expect(composerBaseWidth).toBe(40);
+
+  expect(errors).toEqual([]);
+});
+
+test('创建贴图支持填充透明区域颜色，支持二次编辑与撤销重做', async ({ page }) => {
+  const errors = await boot(page);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImageCreateOpenBtn');
+
+  // 1. 验证面板初始状态
+  const section = page.locator('#textureImageCreateFillTransparentSection');
+  await expect(section).toBeVisible();
+  const controls = page.locator('#textureImageCreateFillTransparentControls');
+  await expect(controls).toBeHidden();
+  const switchToggle = page.locator('#textureImageCreateFillTransparentEnabled');
+  await expect(switchToggle).not.toBeChecked();
+
+  // 2. 开启透明区域填充
+  await page.click('#textureImageCreateFillTransparentSection .texture-image-switch');
+  await expect(switchToggle).toBeChecked();
+  await expect(controls).toBeVisible();
+
+  // 3. 配置参数：100x100 圆形，中心红色，透明区域填充纯蓝色
+  await page.fill('#textureImageCreateName', 'created-trans-fill-test');
+  await page.fill('#textureImageCreateWidth', '100');
+  await page.fill('#textureImageCreateHeight', '100');
+  await page.click('#textureImageCreateShapeGrid [data-shape="circle"]');
+  await page.fill('#textureImageCreateColorHex', '#ff0000');
+  await page.fill('#textureImageCreateFillTransparentColorHex', '#0000ff');
+
+  expect(await page.evaluate(() => textureImageEditorUi.getState().creator)).toMatchObject({
+    fillTransparentEnabled: true,
+    fillTransparentColor: '#0000ff',
+    fillTransparentAlpha: 100
+  });
+
+  // 4. 确认创建贴图
+  await page.click('#textureImageCreateConfirmBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageLibraryView').style.display !== 'none';
+  });
+
+  // 验证生成的贴图像素：中心为红，四角（原透明区域）为蓝
+  const pixelCheck1 = await page.evaluate(() => {
+    const source = collectExistingTextureSources().find((s) => s.path === 'created-trans-fill-test');
+    const img = source ? source.image : null;
+    if (!img) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const center = ctx.getImageData(50, 50, 1, 1).data;
+    const corner = ctx.getImageData(2, 2, 1, 1).data;
+    return {
+      center: Array.from(center),
+      corner: Array.from(corner)
+    };
+  });
+  expect(pixelCheck1).not.toBeNull();
+  expect(pixelCheck1.center[0]).toBe(255);
+  expect(pixelCheck1.center[1]).toBe(0);
+  expect(pixelCheck1.center[2]).toBe(0);
+  expect(pixelCheck1.center[3]).toBe(255);
+
+  expect(pixelCheck1.corner[0]).toBe(0);
+  expect(pixelCheck1.corner[1]).toBe(0);
+  expect(pixelCheck1.corner[2]).toBe(255);
+  expect(pixelCheck1.corner[3]).toBe(255);
+
+  // 5. 引用至 StageLeft 并二次编辑生成设置
+  await referenceCreatedTextureInMenu(page, 'created-trans-fill-test');
+  let modeMenu = await openCreatedTextureEditMenu(page);
+  await modeMenu.locator('[data-edit-mode="generation"]').click();
+
+  await expect(page.locator('#textureImageCreatorView')).toBeVisible();
+  await expect(switchToggle).toBeChecked();
+  await expect(controls).toBeVisible();
+  expect(await page.inputValue('#textureImageCreateFillTransparentColorHex')).toBe('#0000ff');
+
+  // 修改透明区域填充颜色为绿色 #00ff00
+  await page.fill('#textureImageCreateFillTransparentColorHex', '#00ff00');
+  await page.click('#textureImageCreateConfirmBtn');
+  await page.waitForTimeout(200);
+
+  // 验证保存后的像素：四角变为绿色
+  const pixelCheck2 = await page.evaluate(() => {
+    const source = collectExistingTextureSources().find((s) => s.path === 'created-trans-fill-test');
+    const img = source ? source.image : null;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const corner = ctx.getImageData(2, 2, 1, 1).data;
+    return Array.from(corner);
+  });
+  expect(pixelCheck2[0]).toBe(0);
+  expect(pixelCheck2[1]).toBe(255);
+  expect(pixelCheck2[2]).toBe(0);
+  expect(pixelCheck2[3]).toBe(255);
+
+  // 6. 验证撤销与重做链路
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+
+  // 撤销后，四角像素恢复为之前的蓝色
+  const pixelCheckUndo = await page.evaluate(() => {
+    const source = collectExistingTextureSources().find((s) => s.path === 'created-trans-fill-test');
+    const img = source ? source.image : null;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const corner = ctx.getImageData(2, 2, 1, 1).data;
+    return Array.from(corner);
+  });
+  expect(pixelCheckUndo[0]).toBe(0);
+  expect(pixelCheckUndo[1]).toBe(0);
+  expect(pixelCheckUndo[2]).toBe(255);
+  expect(pixelCheckUndo[3]).toBe(255);
+
+  // 撤销后重新进入生成设置，表单参数也恢复为蓝色
+  await page.click('.texture-image-tab[data-tab-id="menu"]');
+  modeMenu = await openCreatedTextureEditMenu(page);
+  await modeMenu.locator('[data-edit-mode="generation"]').click();
+  await expect(page.locator('#textureImageCreatorView')).toBeVisible();
+  expect(await page.inputValue('#textureImageCreateFillTransparentColorHex')).toBe('#0000ff');
+  await page.locator('.texture-image-tab.is-active .texture-image-tab-close').click();
+
+  // 重做后，四角像素与参数重新变为绿色
+  await page.keyboard.press('Control+y');
+  await page.waitForTimeout(200);
+  const pixelCheckRedo = await page.evaluate(() => {
+    const source = collectExistingTextureSources().find((s) => s.path === 'created-trans-fill-test');
+    const img = source ? source.image : null;
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const corner = ctx.getImageData(2, 2, 1, 1).data;
+    return Array.from(corner);
+  });
+  expect(pixelCheckRedo[0]).toBe(0);
+  expect(pixelCheckRedo[1]).toBe(255);
+  expect(pixelCheckRedo[2]).toBe(0);
+  expect(pixelCheckRedo[3]).toBe(255);
+
+  await page.click('.texture-image-tab[data-tab-id="menu"]');
+  modeMenu = await openCreatedTextureEditMenu(page);
+  await modeMenu.locator('[data-edit-mode="generation"]').click();
+  await expect(page.locator('#textureImageCreatorView')).toBeVisible();
+  expect(await page.inputValue('#textureImageCreateFillTransparentColorHex')).toBe('#00ff00');
+
+  expect(errors).toEqual([]);
+});

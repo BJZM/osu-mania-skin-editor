@@ -77,7 +77,7 @@ async function openAndEditKeyImage(page, paramKey = 'KeyImage0') {
   });
 }
 
-async function saveKeyImage(page, mode = 'current') {
+async function saveKeyImage(page, mode = 'current', scopeChoice = null) {
   if (mode === 'current') {
     await page.click('#textureImageApplyBtn');
   } else {
@@ -91,6 +91,16 @@ async function saveKeyImage(page, mode = 'current') {
       await page.click('#textureImageApplyAllOnlyBtn');
     }
     await expect(page.locator('#textureImageApplyMenu')).toBeHidden();
+  }
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  if (scopeChoice === 'current') {
+    await expect(scopeModal).toBeVisible();
+    await page.click('#textureImageApplyScopeCurrentBtn');
+  } else if (scopeChoice === 'all') {
+    await expect(scopeModal).toBeVisible();
+    await page.click('#textureImageApplyScopeAllBtn');
+  } else if (await scopeModal.isVisible()) {
+    await page.click('#textureImageApplyScopeCurrentBtn');
   }
   await expect(page.locator('#textureImageApplyScopeModal')).toBeHidden();
   await expect(page.locator('#textureImageApplyBtn')).toHaveText('保存当前轨道');
@@ -138,20 +148,6 @@ function readKeyImageState(page) {
   });
 }
 
-function readKeyImageUiState(page) {
-  return page.evaluate(() => {
-    renderSkinEditorParams();
-    const read = (key) => {
-      const preview = document.querySelector(`#param-card-${key} .texture-preview-box`);
-      return preview ? preview.title : '';
-    };
-    return {
-      normal: read('KeyImage0'),
-      down: read('KeyImage0D')
-    };
-  });
-}
-
 async function dragSelectedKeyTop(page, col, targetSourceHeight) {
   const geometry = await page.evaluate(({ col, targetSourceHeight }) => {
     const key = canvasInteractiveElements.find((item) => item.id === `key_${col}`);
@@ -191,8 +187,8 @@ test('KeyImage 主保存只处理当前轨道并同步裁剪拉伸参数', async
   await saveKeyImage(page);
   const after = await readKeyImageState(page);
 
-  expect(after.names[0].normal).not.toBe(before.names[0].normal);
-  expect(after.names[0].down).not.toBe(before.names[0].down);
+  expect(after.names[0].normal).toBe(before.names[0].normal);
+  expect(after.names[0].down).toBe(before.names[0].down);
   expect(after.names[0].normal).not.toBe(after.names[0].down);
   expect(after.sizes[0].normal).toEqual({ width: 36, height: 84 });
   expect(after.sizes[0].down).toEqual({ width: 36, height: 84 });
@@ -206,7 +202,7 @@ test('KeyImage 主保存只处理当前轨道并同步裁剪拉伸参数', async
   expect(errors).toEqual([]);
 });
 
-test('KeyImage 单轨保存可一步撤回重做并同步参数卡片', async ({ page }) => {
+test('KeyImage 单轨保存可一步撤回重做并同步编辑器界面', async ({ page }) => {
   const errors = await boot(page);
   await installKeyImageReferences(page, Array.from({ length: 4 }, (_, col) => ({
     normal: `apply-undo-normal-${col}`,
@@ -217,26 +213,33 @@ test('KeyImage 单轨保存可一步撤回重做并同步参数卡片', async ({
   await openAndEditKeyImage(page);
   await saveKeyImage(page);
   const saved = await readKeyImageState(page);
-  const savedUi = await readKeyImageUiState(page);
+  await page.click('#textureImageEditorCloseBtn');
+  await page.waitForFunction(() =>
+    document.getElementById('textureImageEditorModal').style.display === 'none'
+  );
 
   await page.evaluate(() => performSkinUndo());
   const undone = await readKeyImageState(page);
-  const undoneUi = await readKeyImageUiState(page);
   expect(undone.names).toEqual(before.names);
   expect(undone.sizes).toEqual(before.sizes);
   expect(undone.colors).toEqual(before.colors);
-  expect(undoneUi.normal).toContain(before.names[0].normal);
-  expect(undoneUi.down).toContain(before.names[0].down);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+  expect(await page.evaluate(() => textureImageEditorUi.getState().previewSize))
+    .toEqual(before.sizes[0].normal);
+  await page.click('#textureImageEditorCloseBtn');
 
   await page.evaluate(() => performSkinRedo());
   const redone = await readKeyImageState(page);
-  const redoneUi = await readKeyImageUiState(page);
   expect(redone.names).toEqual(saved.names);
   expect(redone.sizes).toEqual(saved.sizes);
   expect(redone.colors).toEqual(saved.colors);
-  expect(redoneUi).toEqual(savedUi);
-  expect(redoneUi.normal).toContain(saved.names[0].normal);
-  expect(redoneUi.down).toContain(saved.names[0].down);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+  expect(await page.evaluate(() => textureImageEditorUi.getState().previewSize))
+    .toEqual(saved.sizes[0].normal);
   expect(errors).toEqual([]);
 });
 
@@ -275,8 +278,8 @@ test('编辑 KeyImageD 时也会同步裁剪拉伸参数到 KeyImage', async ({ 
   await saveKeyImage(page);
   const after = await readKeyImageState(page);
 
-  expect(after.names[0].normal).not.toBe(before.names[0].normal);
-  expect(after.names[0].down).not.toBe(before.names[0].down);
+  expect(after.names[0].normal).toBe(before.names[0].normal);
+  expect(after.names[0].down).toBe(before.names[0].down);
   expect(after.sizes[0].normal).toEqual({ width: 36, height: 84 });
   expect(after.sizes[0].down).toEqual({ width: 36, height: 84 });
   expect(after.colors[0].normal).toEqual(before.colors[0].normal);
@@ -297,8 +300,8 @@ test('应用到全部轨道会同步参数但保留每条轨道的原贴图', as
   const after = await readKeyImageState(page);
 
   for (let col = 0; col < 4; col++) {
-    expect(after.names[col].normal).not.toBe(before.names[col].normal);
-    expect(after.names[col].down).not.toBe(before.names[col].down);
+    expect(after.names[col].normal).toBe(before.names[col].normal);
+    expect(after.names[col].down).toBe(before.names[col].down);
     expect(after.sizes[col].normal).toEqual({ width: 36, height: 84 });
     expect(after.sizes[col].down).toEqual({ width: 36, height: 84 });
     expect(after.colors[col]).toEqual(before.colors[col]);
@@ -357,7 +360,7 @@ test('高级保存仅更新当前状态时不会改写 KeyImageD', async ({ page
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
   const after = await readKeyImageState(page);
 
-  expect(after.names[0].normal).not.toBe(before.names[0].normal);
+  expect(after.names[0].normal).toBe(before.names[0].normal);
   expect(after.names[0].down).toBe(before.names[0].down);
   expect(after.sizes[0].normal).toEqual({ width: 36, height: 84 });
   expect(after.sizes[0].down).toEqual(before.sizes[0].down);
@@ -378,7 +381,7 @@ test('高级保存可只更新全部轨道的当前状态', async ({ page }) => 
   const after = await readKeyImageState(page);
 
   for (let col = 0; col < 4; col++) {
-    expect(after.names[col].normal).not.toBe(before.names[col].normal);
+    expect(after.names[col].normal).toBe(before.names[col].normal);
     expect(after.sizes[col].normal).toEqual({ width: 36, height: 84 });
     expect(after.names[col].down).toBe(before.names[col].down);
     expect(after.sizes[col].down).toEqual(before.sizes[col].down);
@@ -443,5 +446,158 @@ test('KeyImage 编辑后调整画布高度，再应用到全轨仍保留编辑�
     item.down.width === 36 &&
     item.down.height === 84
   )).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test('自建贴图作为 KeyImage 时支持展开保存菜单并可使用全部保存选项及撤回重做', async ({ page }) => {
+  const errors = await boot(page);
+  // 1. 创建自建贴图 custom-key-menu-test
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImageCreateOpenBtn');
+  await page.fill('#textureImageCreateName', 'custom-key-menu-test');
+  await page.fill('#textureImageCreateWidth', '48');
+  await page.fill('#textureImageCreateHeight', '80');
+  await page.fill('#textureImageCreateColorHex', '#3399ff');
+  await page.click('#textureImageCreateConfirmBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageLibraryView').style.display !== 'none';
+  });
+
+  // 2. 将 KeyImage0 引用至此自建贴图
+  await page.click('.texture-image-tab[data-tab-id="menu"]');
+  const pathInput = page.locator('#param-card-KeyImage0 .texture-path-input');
+  await pathInput.fill('custom-key-menu-test');
+  await pathInput.press('Tab');
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.mouse.move(8, 8);
+  await page.waitForTimeout(280);
+
+  // 3. 进入通用编辑
+  const editBtn = page.locator('#param-card-KeyImage0 .texture-edit-main-btn');
+  await expect(editBtn).toHaveClass(/has-modes/);
+  await editBtn.hover();
+  const modeMenu = page.locator('#param-card-KeyImage0 .texture-edit-mode-menu');
+  await expect(modeMenu).toBeVisible();
+  await modeMenu.locator('[data-edit-mode="general"]').click();
+
+  // 4. 验证编辑器状态与可折叠保存菜单
+  await expect(page.locator('#textureImageEditorView')).toBeVisible();
+  const applyBtn = page.locator('#textureImageApplyBtn');
+  const applyMenuBtn = page.locator('#textureImageApplyMenuBtn');
+  await expect(applyBtn).toHaveText('保存当前轨道');
+  await expect(applyMenuBtn).toBeVisible();
+  await expect(applyMenuBtn).toBeEnabled();
+
+  // 点击展开保存菜单
+  await applyMenuBtn.click();
+  const applyMenu = page.locator('#textureImageApplyMenu');
+  await expect(applyMenu).toBeVisible();
+  await expect(page.locator('#textureImageApplyCurrentBtn')).toHaveText('保存当前轨道');
+  await expect(page.locator('#textureImageApplyAllBtn')).toHaveText('应用到全部轨道');
+  await expect(page.locator('#textureImageApplyCurrentOnlyBtn')).toHaveText('仅更新当前 KeyImage');
+  await expect(page.locator('#textureImageApplyAllOnlyBtn')).toHaveText('全部轨道仅更新 KeyImage');
+
+  // 5. 进行裁剪并使用「仅更新当前 KeyImage」保存
+  await page.fill('#textureImageCropBottom', '10');
+  await page.waitForFunction(() => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.height === 90;
+  });
+  await page.click('#textureImageApplyCurrentOnlyBtn');
+  await expect(applyMenu).toBeHidden();
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  // 验证只有第 1 轨的 KeyImage 高度变为 90，KeyImageD 未受影响
+  const stateAfter = await readKeyImageState(page);
+  expect(stateAfter.sizes[0].normal.height).toBe(90);
+  expect(stateAfter.sizes[0].down.height).not.toBe(90);
+
+  // 验证自建贴图的通用配方成功持久化
+  const createdParams = await page.evaluate(() => getCreatedTextureParams('custom-key-menu-test'));
+  expect(createdParams.generalEditParams.cropBottom).toBe(10);
+
+  // 6. 验证撤回与重做链路
+  await page.evaluate(() => performSkinUndo());
+  const undone = await readKeyImageState(page);
+  expect(undone.sizes[0].normal.height).toBe(80);
+
+  await page.evaluate(() => performSkinRedo());
+  const redone = await readKeyImageState(page);
+  expect(redone.sizes[0].normal.height).toBe(90);
+
+  expect(errors).toEqual([]);
+});
+
+test('普通贴图保存按钮为完整圆角矩形且无折叠菜单，KeyImage保存按钮为分体组合圆角', async ({ page }) => {
+  const errors = await boot(page);
+
+  // 1. 打开普通贴图（Hit0）
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="Hit0"]');
+  await page.waitForFunction((key) => textureImageEditorUi.getState().selectedKey === key, 'Hit0');
+  const applyBtn = page.locator('#textureImageApplyBtn');
+  const applyMenuBtn = page.locator('#textureImageApplyMenuBtn');
+  const saveActions = page.locator('.texture-image-save-actions');
+
+  await expect(applyBtn).toHaveText('保存到皮肤');
+  await expect(applyMenuBtn).toBeHidden();
+  await expect(saveActions).not.toHaveClass(/has-menu/);
+
+  const normalRadii = await applyBtn.evaluate((el) => {
+    const cs = window.getComputedStyle(el);
+    return {
+      topRight: cs.borderTopRightRadius,
+      bottomRight: cs.borderBottomRightRadius,
+      topLeft: cs.borderTopLeftRadius,
+      bottomLeft: cs.borderBottomLeftRadius
+    };
+  });
+  expect(normalRadii.topLeft).toBe('6px');
+  expect(normalRadii.bottomLeft).toBe('6px');
+  expect(normalRadii.topRight).toBe('6px');
+  expect(normalRadii.bottomRight).toBe('6px');
+
+  // 2. 关闭并切换到 KeyImage 贴图（KeyImage0）
+  await page.click('#textureImageEditorCloseBtn');
+  await page.waitForFunction(() => {
+    const modal = document.getElementById('textureImageEditorModal');
+    return !modal || !modal.classList.contains('active');
+  });
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction((key) => textureImageEditorUi.getState().selectedKey === key, 'KeyImage0');
+
+  await expect(applyBtn).toHaveText('保存当前轨道');
+  await expect(applyMenuBtn).toBeVisible();
+  await expect(saveActions).toHaveClass(/has-menu/);
+
+  const keyRadii = await applyBtn.evaluate((el) => {
+    const cs = window.getComputedStyle(el);
+    return {
+      topRight: cs.borderTopRightRadius,
+      bottomRight: cs.borderBottomRightRadius,
+      topLeft: cs.borderTopLeftRadius,
+      bottomLeft: cs.borderBottomLeftRadius
+    };
+  });
+  expect(keyRadii.topLeft).toBe('6px');
+  expect(keyRadii.bottomLeft).toBe('6px');
+  expect(keyRadii.topRight).toBe('0px');
+  expect(keyRadii.bottomRight).toBe('0px');
+
+  const menuRadii = await applyMenuBtn.evaluate((el) => {
+    const cs = window.getComputedStyle(el);
+    return {
+      topRight: cs.borderTopRightRadius,
+      bottomRight: cs.borderBottomRightRadius,
+      topLeft: cs.borderTopLeftRadius,
+      bottomLeft: cs.borderBottomLeftRadius
+    };
+  });
+  expect(menuRadii.topLeft).toBe('0px');
+  expect(menuRadii.bottomLeft).toBe('0px');
+  expect(menuRadii.topRight).toBe('6px');
+  expect(menuRadii.bottomRight).toBe('6px');
+
   expect(errors).toEqual([]);
 });

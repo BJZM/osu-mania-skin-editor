@@ -122,17 +122,24 @@
                     const next = cloneImageTransform(drag.startTransform);
 
                     if (drag.mode.length === 1) {
+                        const outputScale = Math.max(0.01, drag.startTransform.scalePercent / 100);
+                        const currentStretchX = drag.startTransform.scaleAfterStretch
+                            ? drag.startTransform.stretchX * outputScale
+                            : drag.startTransform.stretchX;
+                        const currentStretchY = drag.startTransform.scaleAfterStretch
+                            ? drag.startTransform.stretchY * outputScale
+                            : drag.startTransform.stretchY;
                         if (drag.mode === 'e') {
-                            next.stretchX += dx * 2;
+                            next.stretchX = currentStretchX + dx * 2;
                             next.anchorX = 0.5;
                         } else if (drag.mode === 'w') {
-                            next.stretchX -= dx * 2;
+                            next.stretchX = currentStretchX - dx * 2;
                             next.anchorX = 0.5;
                         } else if (drag.mode === 's') {
-                            next.stretchY += dy * 2;
+                            next.stretchY = currentStretchY + dy * 2;
                             next.anchorY = 0.5;
                         } else if (drag.mode === 'n') {
-                            next.stretchY -= dy * 2;
+                            next.stretchY = currentStretchY - dy * 2;
                             next.anchorY = 0.5;
                         }
                     } else {
@@ -142,25 +149,15 @@
                         );
                         const widthDelta = (drag.mode.includes('e') ? dx : -dx) * 2;
                         const heightDelta = (drag.mode.includes('s') ? dy : -dy) * 2;
-                        const referenceWidth = drag.startTransform.referenceWidth ||
-                            drag.startCropRect.width;
-                        const referenceHeight = drag.startTransform.referenceHeight ||
-                            drag.startCropRect.height;
-                        const stretchFactorX = drag.startTransform.scaleAfterStretch
-                            ? Math.max(0.01, 1 + drag.startTransform.stretchX / referenceWidth)
-                            : 1;
-                        const stretchFactorY = drag.startTransform.scaleAfterStretch
-                            ? Math.max(0.01, 1 + drag.startTransform.stretchY / referenceHeight)
-                            : 1;
                         const scaleFromWidth = drag.startTransform.scaleAfterStretch
                             ? (startOutputRect.width + widthDelta) /
-                                (drag.startCropRect.width * stretchFactorX) * 100
+                                Math.max(1, drag.startCropRect.width + drag.startTransform.stretchX) * 100
                             : (startOutputRect.width + widthDelta -
                                 drag.startTransform.stretchX) /
                                 Math.max(1, drag.startCropRect.width) * 100;
                         const scaleFromHeight = drag.startTransform.scaleAfterStretch
                             ? (startOutputRect.height + heightDelta) /
-                                (drag.startCropRect.height * stretchFactorY) * 100
+                                Math.max(1, drag.startCropRect.height + drag.startTransform.stretchY) * 100
                             : (startOutputRect.height + heightDelta -
                                 drag.startTransform.stretchY) /
                                 Math.max(1, drag.startCropRect.height) * 100;

@@ -11,19 +11,29 @@
             const isTextureImageEditorOpen = !!(
                 imageEditorModal &&
                 imageEditorModal.style.display !== 'none' &&
+                imageEditorModal.classList.contains('active') &&
                 typeof textureImageEditorUi !== 'undefined' &&
                 textureImageEditorUi
             );
+            const skinEditorModal = document.getElementById('skinEditorModal');
+            const isSkinEditorOpen = !!(
+                skinEditorModal &&
+                skinEditorModal.classList.contains('active')
+            );
+            const isTextureEditorFront = isTextureImageEditorOpen && (
+                !isSkinEditorOpen ||
+                (typeof activeFloatingWindow !== 'undefined' && activeFloatingWindow === 'texture-editor')
+            );
 
-            // 贴图编辑窗口激活时，内部贴图历史（裁剪/调色等）优先撤回；若无内部历史，则向下穿透到皮肤撤回/重做
-            if (isTextureImageEditorOpen && isCtrlOrCmd && keyLower === 'z' && !e.shiftKey) {
+            // 当贴图编辑窗口处于前台激活时，内部贴图历史（裁剪/调色等）优先撤回；若无内部历史，则向下穿透到皮肤撤回/重做
+            if (isTextureEditorFront && isCtrlOrCmd && keyLower === 'z' && !e.shiftKey) {
                 if (typeof textureImageEditorUi.canUndo === 'function' && textureImageEditorUi.canUndo()) {
                     e.preventDefault();
                     textureImageEditorUi.undo();
                     return;
                 }
             }
-            if (isTextureImageEditorOpen && (
+            if (isTextureEditorFront && (
                 (isCtrlOrCmd && keyLower === 'y') ||
                 (isCtrlOrCmd && keyLower === 'z' && e.shiftKey)
             )) {
@@ -96,22 +106,6 @@
                 return;
             }
 
-            // 简单贴图编辑弹窗：Esc 不保存并恢复进入编辑器前的画布状态
-            if (isTextureImageEditorOpen) {
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    if (textureImageEditorUi) textureImageEditorUi.close();
-                    return;
-                }
-                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    const applyBtn = document.getElementById('textureImageApplyBtn');
-                    if (applyBtn) applyBtn.click();
-                    return;
-                }
-                return;
-            }
-
             // 贴图规格弹窗快捷键处理
             const uploadModal = document.getElementById('textureUploadModal');
             if (uploadModal && uploadModal.style.display !== 'none') {
@@ -139,6 +133,47 @@
                     return;
                 }
                 return;
+            }
+
+            // 贴图编辑弹窗 Ctrl+Enter 快捷保存
+            if (isTextureImageEditorOpen && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                const applyBtn = document.getElementById('textureImageApplyBtn');
+                if (applyBtn) applyBtn.click();
+                return;
+            }
+
+            // Esc 键关闭当前激活的前台浮动窗口，或取消画布选中
+            if (e.key === 'Escape') {
+                if (isTextureImageEditorOpen && isSkinEditorOpen) {
+                    e.preventDefault();
+                    if (isTextureEditorFront) {
+                        if (textureImageEditorUi) textureImageEditorUi.close();
+                    } else {
+                        skinEditorModal.classList.remove('active');
+                        if (typeof bringFloatingWindowToFront === 'function') {
+                            bringFloatingWindowToFront('texture-editor');
+                        }
+                    }
+                    return;
+                }
+                if (isTextureImageEditorOpen) {
+                    e.preventDefault();
+                    if (textureImageEditorUi) textureImageEditorUi.close();
+                    return;
+                }
+                if (isSkinEditorOpen) {
+                    e.preventDefault();
+                    skinEditorModal.classList.remove('active');
+                    return;
+                }
+                if (selectedCanvasElement) {
+                    selectedCanvasElement = null;
+                    const card = document.getElementById('canvasSelectedCard');
+                    if (card) card.style.display = 'none';
+                    drawFrame();
+                    return;
+                }
             }
 
             // 空格键全局控制播放/暂停；仅文本输入控件保留空格本身的功能。
@@ -194,19 +229,12 @@
                 if (modal) {
                     if (modal.classList.contains('active')) {
                         modal.classList.remove('active');
-                    } else if (typeof openSkinEditorDialogFromToolbar === 'function') {
-                        void openSkinEditorDialogFromToolbar();
+                        if (typeof bringFloatingWindowToFront === 'function' && isTextureImageEditorOpen) {
+                            bringFloatingWindowToFront('texture-editor');
+                        }
+                    } else if (typeof openSkinEditorDialog === 'function') {
+                        openSkinEditorDialog();
                     }
-                }
-            } else if (e.key === 'Escape') {
-                const modal = document.getElementById('skinEditorModal');
-                if (modal && modal.classList.contains('active')) {
-                    modal.classList.remove('active');
-                } else if (selectedCanvasElement) {
-                    selectedCanvasElement = null;
-                    const card = document.getElementById('canvasSelectedCard');
-                    if (card) card.style.display = 'none';
-                    drawFrame();
                 }
             }
         });

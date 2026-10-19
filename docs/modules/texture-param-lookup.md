@@ -5,6 +5,7 @@
 ## 接口
 - `normalizeTextureLookupPath(path)` 去掉扩展名、`@2x` 并统一为 `/`。
 - `assignTextureParamLookup(keys, p, selectedPath)` 写入当前键位配置、全部参数别名和全局查找表。
+- `clearTextureParamLookup(keys, p)` 清理当前键位配置、全部别名及逐轨分键映射，恢复未显式指定的继承默认状态。
 - 写入逐轨普通 `KeyImage` 前，如果该轨没有显式 `KeyImageD`，先固定当前实际使用的按下态路径，避免默认皮肤按 stable 回退规则同步换图。
 - 返回 `{ path, aliases }`。
 

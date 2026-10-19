@@ -111,7 +111,10 @@
         }
 
         function isHoldBodySelected() {
-            const p = state.selected && state.selected.p;
+            if (!state.selected) return false;
+            const p = (typeof getEffectiveParamForTarget === 'function')
+                ? getEffectiveParamForTarget(state.selected)
+                : (state.selected && state.selected.p);
             if (!p) return false;
             return p._trackLookup === LML.HoldNoteBodyImage ||
                 /^holdnotebodyimage/i.test(p.key || '') ||
@@ -119,11 +122,20 @@
         }
 
         function getSelectedTrackIndex() {
-            const p = state.selected && state.selected.p;
+            if (!state.selected) return null;
+            const p = (typeof getEffectiveParamForTarget === 'function')
+                ? getEffectiveParamForTarget(state.selected)
+                : (state.selected && state.selected.p);
             if (!p) return null;
             if (p._trackCol != null) return Number(p._trackCol);
-            const match = String(p.key || '').match(/^noteimage(\d+)l$/i);
-            return match ? Number(match[1]) : null;
+            const track = typeof getParamTrackIndex === 'function' ? getParamTrackIndex(p) : null;
+            if (track != null) return track;
+            const match = String(p.key || '').match(/(?:noteimage|keyimage|holdnoteheadimage|holdnotebodyimage|holdnotetailimage)(\d+)/i);
+            if (match) return Number(match[1]);
+            if (typeof isEditingKeyImageParam === 'function' && isEditingKeyImageParam(p)) {
+                return 0;
+            }
+            return null;
         }
 
         function getTailParamForSelectedBody() {
@@ -148,8 +160,9 @@
                     bodyHeight: 0
                 };
             }
-            const bodyFrame = state.originalFrames[0] ||
+            const bodyFrame = state.previewFrames[0] ||
                 state.workingFrames[0] ||
+                state.originalFrames[0] ||
                 (selected.frames && selected.frames[0]) ||
                 null;
             const bodyHeight = bodyFrame
@@ -169,7 +182,7 @@
             const resolved = resolveTextureParam(selected.keys || getActiveKeyCount(), tailParam);
             const frames = resolveTextureParamFrames(selected.keys || getActiveKeyCount(), tailParam);
             const frame = (frames && frames[0]) || (resolved && resolved.img) || null;
-            const transparentTail = !!frame && (
+            const transparentTail = !frame || (
                 !!frame._isBlankPlaceholder ||
                 isFullyTransparentImage(frame, 48, 36)
             );
@@ -178,7 +191,8 @@
                 state: resolved ? resolved.state : 'unset',
                 frame: transparentTail ? null : frame,
                 name: resolved ? resolved.name : '',
-                bodyHeight
+                bodyHeight,
+                isTailTransparent: transparentTail
             };
         }
 
@@ -193,6 +207,12 @@
             const targetInput = byId('textureImageLongBodyTargetHeight');
             const fadeInput = byId('textureImageLongBodyFade');
             const fadeValue = byId('textureImageLongBodyFadeValue');
+            const presetSelect = byId('textureImageLongBodyPreset');
+            const presetHeightInput = byId('textureImageLongBodyPresetHeight');
+            const isTailTransparent = !composer.tailFrame ||
+                !!composer.tailFrame._isBlankPlaceholder ||
+                (typeof isFullyTransparentImage === 'function' && isFullyTransparentImage(composer.tailFrame, 48, 36));
+
             if (coverageInput) {
                 coverageInput.max = String(composer.targetHeight);
                 coverageInput.value = String(composer.coverage);
@@ -203,6 +223,25 @@
                 updateTextureRangeFill(fadeInput);
             }
             if (fadeValue) fadeValue.textContent = `${Math.round(composer.fade)}%`;
+
+            if (presetSelect) {
+                presetSelect.disabled = !composer.active || !isTailTransparent;
+                if (!isTailTransparent) {
+                    presetSelect.value = 'none';
+                    presetSelect.title = '当前长条尾部非透明（使用尾部贴图），仅在尾部透明时可用';
+                } else {
+                    presetSelect.value = composer.tailPreset || 'none';
+                    presetSelect.title = '';
+                }
+            }
+            if (presetHeightInput) {
+                const isPresetActive = isTailTransparent && (composer.tailPreset === 'sharp' || composer.tailPreset === 'round');
+                presetHeightInput.disabled = !composer.active || !isPresetActive;
+                const defaultHeight = (composer.baseFrames && composer.baseFrames[0] && typeof getLongBodyDefaultPresetHeight === 'function')
+                    ? getLongBodyDefaultPresetHeight(composer.baseFrames[0])
+                    : 50;
+                presetHeightInput.value = String(composer.presetHeight || (isPresetActive ? defaultHeight : 0));
+            }
         }
 
         function updateLongBodyComposerUI() {

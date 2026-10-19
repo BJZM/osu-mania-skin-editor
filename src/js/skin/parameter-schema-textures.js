@@ -145,7 +145,7 @@
                 tab: 'textures',
                 type: 'texture',
                 default: 'lightingN',
-                elementId: 'lightPosition'
+                elementId: 'lighting_n_col_0'
             },
             {
                 key: 'LightingL',
@@ -157,7 +157,7 @@
                 tab: 'textures',
                 type: 'texture',
                 default: 'lightingL',
-                elementId: 'lightPosition'
+                elementId: 'lighting_l_col_0'
             },
             {
                 key: 'Hit300g',

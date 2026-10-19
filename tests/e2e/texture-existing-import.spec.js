@@ -326,8 +326,11 @@ test('从默认皮肤开始时引用和全部贴图能正确列出默认皮肤�
 
   const targetRow = page.locator('#param-card-NoteImage0');
   await expect(targetRow).toBeVisible();
+  await targetRow.scrollIntoViewIfNeeded();
   await targetRow.locator('.texture-upload-dropdown').first().hover();
-  await targetRow.locator('.texture-upload-menu-item.item-existing').first().click();
+  const existingItem = targetRow.locator('.texture-upload-menu-item.item-existing').first();
+  await expect(existingItem).toBeVisible();
+  await existingItem.click();
 
   await expect(page.locator('#textureExistingPickerModal')).toHaveCSS('display', 'flex');
   expect(await page.evaluate(() => textureExistingPickerUi.getState().sourceCount)).toBe(total);

@@ -32,6 +32,7 @@
             if (!base || isDummyBlankName(base)) base = stripTextureName(p.key || 'texture');
 
             if (p._trackCol == null) return base;
+            if (typeof hasCreatedTextureParams === 'function' && hasCreatedTextureParams(base)) return base;
 
             const col = p._trackCol;
             const colRegex = new RegExp(`(?:col|track|轨)[-_]?${col + 1}\\b`, 'i');
@@ -44,8 +45,12 @@
                 : (lookup === LML.KeyImageDown) ? 'D'
                 : '';
 
-            if (suffix && !base.toLowerCase().endsWith(suffix.toLowerCase())) {
-                return `${base}_col${col + 1}${suffix}`;
+            if (suffix) {
+                let cleanBase = base;
+                if (cleanBase.toLowerCase().endsWith(suffix.toLowerCase())) {
+                    cleanBase = cleanBase.slice(0, -suffix.length);
+                }
+                return `${cleanBase}_col${col + 1}${suffix}`;
             }
             return `${base}_col${col + 1}`;
         }
@@ -184,16 +189,54 @@
             };
         }
 
+        function getEffectiveParamForTarget(selected) {
+            if (!selected) return null;
+            if (selected.kind !== 'library' && selected.p) return selected.p;
+            if (selected.libraryParamKey) {
+                const tabParams = getTextureTabParams();
+                let p = tabParams.find((item) => item.key === selected.libraryParamKey);
+                if (!p) {
+                    const norm = String(selected.libraryParamKey).toLowerCase();
+                    p = tabParams.find((item) => item.key.toLowerCase() === norm);
+                }
+                if (!p) {
+                    const match = String(selected.libraryParamKey).match(/(NoteImage|HoldNoteHeadImage|HoldNoteBodyImage|HoldNoteTailImage|KeyImageDown|KeyImage)(\d+)/i);
+                    if (match) {
+                        const name = match[1].toLowerCase();
+                        const col = Number(match[2]);
+                        const lookup = (name === 'holdnotebodyimage' || name === 'noteimagel') ? LML.HoldNoteBodyImage
+                            : (name === 'holdnoteheadimage' || name === 'noteimageh') ? LML.HoldNoteHeadImage
+                            : (name === 'holdnotetailimage' || name === 'noteimaget') ? LML.HoldNoteTailImage
+                            : (name === 'keyimagedown' || name === 'keyimaged') ? LML.KeyImageDown
+                            : (name === 'keyimage') ? LML.KeyImage
+                            : LML.NoteImage;
+                        p = tabParams.find((item) => item._trackLookup === lookup && item._trackCol === col);
+                    }
+                }
+                if (p) return p;
+            }
+            const path = selected.libraryPath || selected.base;
+            if (path && typeof collectTexturePathReferences === 'function') {
+                const refs = collectTexturePathReferences(path);
+                if (refs.length > 0) return refs[0];
+            }
+            return selected.p || null;
+        }
+
         function getStretchFixTarget(selected, frame) {
             if (!selected || !frame) return null;
+            let p = selected.p;
             if (selected.kind === 'library') {
-                return {
-                    axis: null,
-                    size: 0,
-                    reason: '普通贴图没有参数规则可自动推导拉伸修复目标。'
-                };
+                const eff = getEffectiveParamForTarget(selected);
+                if (!eff) {
+                    return {
+                        axis: null,
+                        size: 0,
+                        reason: '普通贴图没有参数规则可自动推导拉伸修复目标。'
+                    };
+                }
+                p = eff;
             }
-            const p = selected.p;
             const rawKey = String(p.key || '');
             const key = rawKey.toLowerCase();
             const keys = selected.keys || getActiveKeyCount();
@@ -267,3 +310,4 @@
         }
 
         window.openTextureLibraryGeneralEditor = openTextureLibraryGeneralEditor;
+        window.getEffectiveParamForTarget = getEffectiveParamForTarget;

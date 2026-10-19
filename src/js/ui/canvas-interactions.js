@@ -673,27 +673,18 @@
                         if (selectedCanvasElement) {
                             syncCanvasSelectedCard(selectedCanvasElement);
                         }
+                        if (typeof syncTextureEditorNonTextureSettings === 'function') {
+                            syncTextureEditorNonTextureSettings();
+                        }
                         if (finishedDragState && finishedDragState.dragType === 'key_image_height' &&
                             finishedDragState.hasMoved && finishedDragState.keyImageHeightTarget) {
-                            const persistGeneration = ++keyImageHeightPersistGeneration;
-                            const targets = [finishedDragState.keyImageHeightTarget];
-                            if (finishedDragState.keyImageDownHeightTarget) {
-                                targets.push(finishedDragState.keyImageDownHeightTarget);
+                            if (typeof handleKeyImageHeightDragEnd === 'function') {
+                                void handleKeyImageHeightDragEnd(finishedDragState)
+                                    .catch((err) => {
+                                        console.error('保存按键高度调整失败', err);
+                                        showToast('按键高度保存失败', err.message || '未知错误');
+                                    });
                             }
-                            void persistKeyImageHeightTargets(targets, persistGeneration)
-                                .then((applied) => {
-                                    if (!applied) return;
-                                    const offset = finishedDragState.currentOffset1x;
-                                    const offsetText = offset >= 0
-                                        ? `底部透明 +${offset}px`
-                                        : `裁短 ${Math.abs(offset)}px`;
-                                    showToast('按键高度已调整',
-                                        `第 ${finishedDragState.element.colIndex + 1} 轨: ${offsetText}`);
-                                })
-                                .catch((err) => {
-                                    console.error('保存按键高度调整失败', err);
-                                    showToast('按键高度保存失败', err.message || '未知错误');
-                                });
                         }
                     }
                 });

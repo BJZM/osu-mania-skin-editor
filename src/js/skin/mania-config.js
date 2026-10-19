@@ -155,8 +155,8 @@
                 case LML.HoldNoteTailImage: return { prefix: 'NoteImage', suffix: 'T' };
                 case LML.KeyImage: return { prefix: 'KeyImage', suffix: '' };
                 case LML.KeyImageDown: return { prefix: 'KeyImage', suffix: 'D' };
-                case LML.HoldNoteLightImage: return { prefix: 'LightingL', suffix: '', altKeys: ['LightingL', 'Lighting'] };
-                case LML.ExplosionImage: return { prefix: 'LightingN', suffix: '', altKeys: ['LightingN', 'Lighting'] };
+                case LML.HoldNoteLightImage: return { prefix: 'LightingL', suffix: '', altKeys: ['LightingL'] };
+                case LML.ExplosionImage: return { prefix: 'LightingN', suffix: '', altKeys: ['LightingN'] };
                 case LML.HitTargetImage: return { prefix: 'StageHint', suffix: '', altKeys: ['StageHint', 'HitTarget', 'mania-stage-hint'] };
                 case LML.BottomStageImage: return { prefix: 'StageBottom', suffix: '', altKeys: ['StageBottom', 'Stage_Bottom', 'mania-stage-bottom'] };
                 case LML.LeftStageImage: return { prefix: 'StageLeft', suffix: '', altKeys: ['StageLeft', 'Stage_Left', 'mania-stage-left'] };
@@ -383,9 +383,9 @@
                 // 稳定版只按全局键读取这两张贴图，所有轨道共用同一张；不能识别 LightingN0 / Lighting0N 这类分轨键。
                 // 两者是**相互独立**的两套贴图，查找顺序里绝不允许互相回退（LightingN 永不回退到 LightingL）。
                 case LML.ExplosionImage:
-                    return ['LightingN', 'Lighting'];
+                    return ['LightingN'];
                 case LML.HoldNoteLightImage:
-                    return ['LightingL', 'Lighting'];
+                    return ['LightingL'];
                 case LML.KeyImageDown:
                     return ['KeyImage' + ci + 'D', 'KeyImage' + ci + 'Down', 'KeyImageDown' + ci, 'KeyImage' + ci, 'KeyImageD', 'KeyImageDown', 'KeyImage'];
                 case LML.KeyImage:

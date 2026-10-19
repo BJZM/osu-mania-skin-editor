@@ -230,3 +230,26 @@ test('贴图编辑拖动条沿用 skin.ini 的滑杆样式', async ({ page }) =>
   expect(Number.parseFloat(redProgress)).toBe(12.5);
   expect(errors).toEqual([]);
 });
+
+test('RGB 拖动条在鼠标释放前实时更新已覆盖轨道颜色', async ({ page }) => {
+  const errors = await boot(page);
+  await selectKeyImage(page);
+
+  await page.evaluate(() => {
+    const range = document.getElementById('textureImageRgbR');
+    range.value = '50';
+    range.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.waitForFunction(() => textureImageEditorUi.getState().rgbAdjustment.r === 50);
+
+  const duringDrag = await page.evaluate(() => ({
+    value: document.getElementById('textureImageRgbR').value,
+    number: document.getElementById('textureImageRgbRValue').value,
+    progress: document.getElementById('textureImageRgbR').style.getPropertyValue('--slider-pct')
+  }));
+  expect(duringDrag.value).toBe('50');
+  expect(duringDrag.number).toBe('50');
+  expect(Number.parseFloat(duringDrag.progress)).toBe(25);
+
+  expect(errors).toEqual([]);
+});

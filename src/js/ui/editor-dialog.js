@@ -3,11 +3,29 @@
 // 依赖：ui/param-render.js、ui/param-core.js
 // ============================================================================
 
+        let activeFloatingWindow = null;
+
+        function bringFloatingWindowToFront(windowName) {
+            const skinModal = document.getElementById('skinEditorModal');
+            const textureModal = document.getElementById('textureImageEditorModal');
+
+            if (windowName === 'skin-editor') {
+                if (skinModal) skinModal.style.zIndex = '2400';
+                if (textureModal) textureModal.style.zIndex = '2000';
+                activeFloatingWindow = 'skin-editor';
+            } else if (windowName === 'texture-editor') {
+                if (textureModal) textureModal.style.zIndex = '2400';
+                if (skinModal) skinModal.style.zIndex = '2000';
+                activeFloatingWindow = 'texture-editor';
+            }
+        }
+
         function openSkinEditorDialog() {
             const modal = document.getElementById('skinEditorModal');
             if (!modal) return false;
             syncSkinEditingAvailabilityUI();
             modal.classList.add('active');
+            bringFloatingWindowToFront('skin-editor');
             if (!isSkinEditingWorkspaceReady()) return true;
             updateSkinEditorKeyPills();
             renderSkinEditorParams();
@@ -15,10 +33,6 @@
         }
 
         async function openSkinEditorDialogFromToolbar() {
-            if (textureImageEditorUi) {
-                const closed = await textureImageEditorUi.close();
-                if (closed === false) return false;
-            }
             return openSkinEditorDialog();
         }
 
@@ -29,20 +43,38 @@
             const backdrop = document.getElementById('skinEditorBackdrop');
             const modal = document.getElementById('skinEditorModal');
 
+            const closeSkinEditor = () => {
+                if (!modal) return;
+                modal.classList.remove('active');
+                if (activeFloatingWindow === 'skin-editor') {
+                    const textureModal = document.getElementById('textureImageEditorModal');
+                    if (textureModal && (textureModal.classList.contains('active') || textureModal.style.display !== 'none')) {
+                        bringFloatingWindowToFront('texture-editor');
+                    } else {
+                        activeFloatingWindow = null;
+                    }
+                }
+            };
+
             if (openBtn && modal) {
                 openBtn.onclick = openSkinEditorDialogFromToolbar;
             }
             if (closeBtn && modal) {
-                closeBtn.onclick = () => modal.classList.remove('active');
+                closeBtn.onclick = closeSkinEditor;
             }
             if (backdrop && modal) {
-                backdrop.onclick = () => modal.classList.remove('active');
+                backdrop.onclick = closeSkinEditor;
             }
 
             // 绑定可拖拽窗口及折叠/复位行为
             const dialog = document.getElementById('skinEditorDialog');
             const header = document.getElementById('skinEditorHeader');
             const dockBtn = document.getElementById('dockSkinEditorBtn');
+            if (dialog) {
+                dialog.addEventListener('mousedown', () => {
+                    bringFloatingWindowToFront('skin-editor');
+                });
+            }
             const collapseBtn = document.getElementById('collapseSkinEditorBtn');
 
             if (dialog && header) {

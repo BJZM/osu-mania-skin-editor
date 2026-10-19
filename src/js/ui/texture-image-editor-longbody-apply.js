@@ -13,11 +13,12 @@
         }
 
         function getLongBodySourceFrameKey(frame) {
-            if (!frame || (typeof frame !== 'object' && typeof frame !== 'function')) return '';
-            let id = longBodySourceFrameIds.get(frame);
+            const target = (frame && frame._sourceOriginalFrame) ? frame._sourceOriginalFrame : frame;
+            if (!target || (typeof target !== 'object' && typeof target !== 'function')) return '';
+            let id = longBodySourceFrameIds.get(target);
             if (!id) {
                 id = nextLongBodySourceFrameId++;
-                longBodySourceFrameIds.set(frame, id);
+                longBodySourceFrameIds.set(target, id);
             }
             return `frame:${id}`;
         }
@@ -41,8 +42,24 @@
             const tailResolved = tailParam ? resolveTextureParam(keys, tailParam) : null;
             const bodyFrames = bodyParam ? resolveTextureParamFrames(keys, bodyParam) : null;
             const tailFrames = tailParam ? resolveTextureParamFrames(keys, tailParam) : null;
-            const bodyFrame = (bodyFrames && bodyFrames[0]) || (bodyResolved && bodyResolved.img) || null;
+            let bodyFrame = (bodyFrames && bodyFrames[0]) || (bodyResolved && bodyResolved.img) || null;
             const tailFrame = (tailFrames && tailFrames[0]) || (tailResolved && tailResolved.img) || null;
+            if (bodyFrame && bodyResolved && bodyResolved.name) {
+                const normPath = normalizeTextureLookupPath(bodyResolved.name);
+                const cParams = typeof getCreatedTextureParams === 'function' ? getCreatedTextureParams(normPath) : null;
+                if (cParams && cParams.generalEditParams && typeof buildEditedFrames === 'function') {
+                    const baseFrame = (typeof createSolidShapeTexture === 'function') ? createSolidShapeTexture(cParams) : bodyFrame;
+                    baseFrame._is2x = cParams.spec === '2x';
+                    baseFrame._isRootLevel = !normPath.includes('/');
+                    const edited = buildEditedFrames([baseFrame], cParams.generalEditParams);
+                    if (edited && edited.frames && edited.frames[0]) {
+                        bodyFrame = edited.frames[0];
+                        if (cParams.generalEditParams.rgbAdjustment && typeof applyRgbAdjustmentToCanvas === 'function') {
+                            bodyFrame = applyRgbAdjustmentToCanvas(bodyFrame, cParams.generalEditParams.rgbAdjustment);
+                        }
+                    }
+                }
+            }
             const transparentTail = !!tailFrame && (
                 !!tailFrame._isBlankPlaceholder ||
                 isFullyTransparentImage(tailFrame, 48, 36)
@@ -152,9 +169,21 @@
             const currentTrackSource = session && selectedColumn != null
                 ? readLongBodyTrackSource(selectedColumn)
                 : null;
+            if (!session) {
+                composer.preComposerState = {
+                    workingFrames: state.workingFrames.map(cloneFrame),
+                    cropRect: state.cropRect ? { ...state.cropRect } : null,
+                    imageTransform: cloneImageTransform(state.imageTransform),
+                    rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
+                };
+            }
             composer.active = true;
             composer.sessionKey = getLongBodySessionKey();
-            composer.baseFrames = (session ? session.baseFrames : state.workingFrames).map(cloneFrame);
+            const currentEffectiveFrame = state.previewFrames[0] || (buildPreviewFrames()[0] || state.workingFrames[0]);
+            composer.baseFrames = (session ? session.baseFrames : [currentEffectiveFrame]).map(cloneFrame);
+            if (composer.baseFrames[0] && state.originalFrames[0]) {
+                composer.baseFrames[0]._sourceOriginalFrame = state.originalFrames[0];
+            }
             const tailFrame = session
                 ? (currentTrackSource && currentTrackSource.tailFrame)
                 : (info && info.frame);
@@ -173,6 +202,8 @@
                 ? session.coverage
                 : (composer.tailScaledHeight || Math.min(120, composer.baseFrames[0].height));
             composer.fade = session ? session.fade : 0;
+            composer.tailPreset = session ? (session.tailPreset || 'none') : 'none';
+            composer.presetHeight = session ? (session.presetHeight || 0) : 0;
             composer.previousNoteBodyStyle = null;
             state.savedLongBodyComposer = session
                 ? captureLongBodyComposerState(composer)
@@ -189,15 +220,28 @@
         function disableLongBodyComposer() {
             const composer = state.longBodyComposer;
             if (!composer.active) return;
-            const baseFrames = composer.baseFrames.length > 0
-                ? composer.baseFrames.map(cloneFrame)
-                : state.originalFrames.map(cloneFrame);
+            const saved = composer.preComposerState;
             composer.active = false;
             state.savedLongBodyComposer = null;
-            state.workingFrames = baseFrames;
+            if (saved) {
+                state.workingFrames = saved.workingFrames.map(cloneFrame);
+                state.cropRect = saved.cropRect ? { ...saved.cropRect } : null;
+                state.imageTransform = cloneImageTransform(saved.imageTransform);
+                state.rgbAdjustment = cloneRgbAdjustment(saved.rgbAdjustment);
+                composer.preComposerState = null;
+                updateCropInputs(state.cropRect);
+                updateImageTransformInputs();
+                updateRgbAdjustmentInputs();
+            } else {
+                state.workingFrames = composer.baseFrames.length > 0
+                    ? composer.baseFrames.map(cloneFrame)
+                    : state.originalFrames.map(cloneFrame);
+                resetTransformInputs();
+            }
             restoreNoteBodyStyle();
-            resetTransformInputs();
-            state.previewFrames = buildPreviewFrames();
+            state.previewFrames = buildPreviewFrames().map((frame) =>
+                applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
+            );
             installFramesToStores(state.previewFrames, state.selected, { persist: false });
             updateMeta();
             updateLongBodyComposerUI();
@@ -216,7 +260,9 @@
                     tailSourceName: plan.tailSourceName || '',
                     targetHeight: settings.targetHeight,
                     coverage: settings.coverage,
-                    fade: settings.fade
+                    fade: settings.fade,
+                    tailPreset: settings.tailPreset || 'none',
+                    presetHeight: settings.presetHeight || 0
                 });
             }
         }
@@ -243,7 +289,9 @@
                             tailFrame: plan.tailFrame,
                             targetHeight: settings.targetHeight,
                             coverage: settings.coverage,
-                            fade: settings.fade
+                            fade: settings.fade,
+                            tailPreset: settings.tailPreset || 'none',
+                            presetHeight: settings.presetHeight || 0
                         };
                         const generated = await buildLongBodyCompositeForSourceAsync(
                             source,

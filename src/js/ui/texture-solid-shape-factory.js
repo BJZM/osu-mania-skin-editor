@@ -824,33 +824,51 @@
             const strokeAlpha = normalizeTextureSolidAlpha(options.strokeAlpha);
             if (!strokeEnabled || strokeWidth <= 0 || strokeAlpha <= 0) {
                 drawTextureSolidShape(ctx, width, height, shape, rgba, options);
-                return canvas;
+            } else {
+                const fillMask = document.createElement('canvas');
+                fillMask.width = width;
+                fillMask.height = height;
+                const fillCtx = fillMask.getContext('2d');
+                if (!fillCtx) throw new Error('无法创建纯色图层蒙版');
+                drawTextureSolidShape(fillCtx, width, height, shape, {
+                    ...rgba,
+                    a: 1
+                }, options);
+
+                const strokeMask = createTexturePixelBoundaryStrokeCanvas(fillMask, {
+                    width: strokeWidth,
+                    color: options.strokeColor || '#000000',
+                    alpha: strokeAlpha
+                });
+                ctx.save();
+                ctx.globalAlpha = rgba.a;
+                ctx.drawImage(fillMask, 0, 0);
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.globalAlpha = 1;
+                ctx.drawImage(strokeMask, 0, 0);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.globalAlpha = strokeAlpha;
+                ctx.drawImage(strokeMask, 0, 0);
+                ctx.restore();
             }
 
-            const fillMask = document.createElement('canvas');
-            fillMask.width = width;
-            fillMask.height = height;
-            const fillCtx = fillMask.getContext('2d');
-            if (!fillCtx) throw new Error('无法创建纯色图层蒙版');
-            drawTextureSolidShape(fillCtx, width, height, shape, {
-                ...rgba,
-                a: 1
-            }, options);
+            const fillTransparentEnabled = !!(options.fillTransparentEnabled || options.transparentFillEnabled);
+            const fillTransparentAlpha = normalizeTextureSolidAlpha(
+                options.fillTransparentAlpha !== undefined
+                    ? options.fillTransparentAlpha
+                    : (options.transparentFillAlpha !== undefined ? options.transparentFillAlpha : 100)
+            );
+            const fillTransparentColor = normalizeTextureHexColor(
+                options.fillTransparentColor || options.transparentFillColor || '#000000'
+            );
+            if (fillTransparentEnabled && fillTransparentAlpha > 0) {
+                const transRgba = textureHexToRgba(fillTransparentColor, fillTransparentAlpha);
+                ctx.save();
+                ctx.globalCompositeOperation = 'destination-over';
+                ctx.fillStyle = `rgba(${transRgba.r}, ${transRgba.g}, ${transRgba.b}, ${transRgba.a})`;
+                ctx.fillRect(0, 0, width, height);
+                ctx.restore();
+            }
 
-            const strokeMask = createTexturePixelBoundaryStrokeCanvas(fillMask, {
-                width: strokeWidth,
-                color: options.strokeColor || '#000000',
-                alpha: strokeAlpha
-            });
-            ctx.save();
-            ctx.globalAlpha = rgba.a;
-            ctx.drawImage(fillMask, 0, 0);
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.globalAlpha = 1;
-            ctx.drawImage(strokeMask, 0, 0);
-            ctx.globalCompositeOperation = 'source-over';
-            ctx.globalAlpha = strokeAlpha;
-            ctx.drawImage(strokeMask, 0, 0);
-            ctx.restore();
             return canvas;
         }

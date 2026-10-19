@@ -37,7 +37,9 @@
                 tailScaledHeight: composer.tailScaledHeight,
                 targetHeight: composer.targetHeight,
                 coverage: composer.coverage,
-                fade: composer.fade
+                fade: composer.fade,
+                tailPreset: composer.tailPreset || 'none',
+                presetHeight: composer.presetHeight || 0
             };
         }
 
@@ -51,6 +53,8 @@
                 a.targetHeight !== b.targetHeight ||
                 a.coverage !== b.coverage ||
                 a.fade !== b.fade ||
+                (a.tailPreset || 'none') !== (b.tailPreset || 'none') ||
+                (Number(a.presetHeight) || 0) !== (Number(b.presetHeight) || 0) ||
                 a.baseFrames.length !== b.baseFrames.length) {
                 return false;
             }
@@ -233,12 +237,12 @@
                 flushActiveTabState();
                 absorbExternalChanges();
                 if (currentTab.state.previewSnapshot) {
-                    applySkinSnapshot(currentTab.state.previewSnapshot);
+                    applySkinSnapshot(currentTab.state.previewSnapshot, { preserveNonTextureSettings: true });
                 }
             } else if (currentTab && currentTab.kind === 'creator' &&
                 currentTab.creatorState &&
                 currentTab.creatorState.previewSnapshot) {
-                applySkinSnapshot(currentTab.creatorState.previewSnapshot);
+                applySkinSnapshot(currentTab.creatorState.previewSnapshot, { preserveNonTextureSettings: true });
                 drawFrame();
             }
 
@@ -255,5 +259,12 @@
             editorBaseSnapshot = createSkinSnapshot('贴图编辑基线');
             for (const tab of getTextureTabs()) {
                 tab.state.previewSnapshot = editorBaseSnapshot;
+            }
+            if (typeof getTextureCreatorTabs === 'function') {
+                for (const tab of getTextureCreatorTabs()) {
+                    if (tab.creatorState) {
+                        tab.creatorState.previewSnapshot = editorBaseSnapshot;
+                    }
+                }
             }
         }

@@ -29,13 +29,11 @@
         }
 
         function isKeyImageSaveMenuAvailable() {
-            return !!(
-                state.selected &&
-                state.selected.kind !== 'library' &&
-                state.selected.p &&
-                !state.longBodyComposer.active &&
-                isEditingKeyImageParam(state.selected.p)
-            );
+            if (!state.selected || state.longBodyComposer.active) return false;
+            const effParam = (typeof getEffectiveParamForTarget === 'function')
+                ? getEffectiveParamForTarget(state.selected)
+                : (state.selected && state.selected.p);
+            return !!(effParam && isEditingKeyImageParam(effParam));
         }
 
         function closeTextureImageSaveMenu() {
@@ -63,6 +61,7 @@
         function updateSelectionSummary() {
             const applyBtn = byId('textureImageApplyBtn');
             const applyMenuBtn = byId('textureImageApplyMenuBtn');
+            const saveActions = applyBtn ? applyBtn.closest('.texture-image-save-actions') : null;
             const resetBtn = byId('textureImageResetBtn');
             const blankBtn = byId('textureImageBlankBtn');
             const cancelBtn = byId('textureImageCancelBtn');
@@ -75,6 +74,7 @@
                 if (resetBtn) resetBtn.disabled = true;
                 if (blankBtn) blankBtn.disabled = true;
                 if (cancelBtn) cancelBtn.disabled = true;
+                if (saveActions) saveActions.classList.remove('has-menu');
                 closeTextureImageSaveMenu();
                 return;
             }
@@ -94,12 +94,18 @@
                 applyMenuBtn.disabled = !keyImageMenuAvailable;
                 applyMenuBtn.style.display = keyImageMenuAvailable ? 'inline-flex' : 'none';
             }
+            if (saveActions) {
+                saveActions.classList.toggle('has-menu', keyImageMenuAvailable);
+            }
             if (!keyImageMenuAvailable) {
                 closeTextureImageSaveMenu();
                 return;
             }
 
-            const kind = getKeyImageParamKind(state.selected.p);
+            const effParam = (typeof getEffectiveParamForTarget === 'function')
+                ? getEffectiveParamForTarget(state.selected)
+                : (state.selected && state.selected.p);
+            const kind = getKeyImageParamKind(effParam);
             const stateLabel = kind === 'down' ? 'KeyImageD' : 'KeyImage';
             const currentOnlyBtn = byId('textureImageApplyCurrentOnlyBtn');
             const allOnlyBtn = byId('textureImageApplyAllOnlyBtn');

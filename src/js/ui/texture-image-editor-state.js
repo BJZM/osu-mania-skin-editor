@@ -66,6 +66,8 @@
                     targetHeight: LONG_BODY_DEFAULT_HEIGHT,
                     coverage: 0,
                     fade: 0,
+                    tailPreset: 'none',
+                    presetHeight: 0,
                     previousNoteBodyStyle: null
                 },
                 savedLongBodyComposer: null,
@@ -144,24 +146,25 @@
                 Math.abs(value.stretchY) > 0.001;
         }
 
+        function getImageCropOutputScale(transform = state.imageTransform) {
+            const value = cloneImageTransform(transform);
+            return Math.max(0.01, value.scalePercent / 100);
+        }
+
         function getImageTransformScales(transform, cropRect) {
             const value = cloneImageTransform(transform);
-            const fallbackWidth = Math.max(1, Number(cropRect && cropRect.width) || 1);
-            const fallbackHeight = Math.max(1, Number(cropRect && cropRect.height) || 1);
-            const referenceWidth = value.referenceWidth || fallbackWidth;
-            const referenceHeight = value.referenceHeight || fallbackHeight;
-            const baseScale = Math.max(0.01, value.scalePercent / 100);
-            const stretchScaleX = Math.max(0.01, 1 + value.stretchX / referenceWidth);
-            const stretchScaleY = Math.max(0.01, 1 + value.stretchY / referenceHeight);
+            const cropWidth = Math.max(1, Number(cropRect && cropRect.width) || 1);
+            const cropHeight = Math.max(1, Number(cropRect && cropRect.height) || 1);
+            const baseScale = getImageCropOutputScale(value);
             if (value.scaleAfterStretch) {
                 return {
-                    x: Math.max(0.01, stretchScaleX * baseScale),
-                    y: Math.max(0.01, stretchScaleY * baseScale)
+                    x: Math.max(0.01, (1 + value.stretchX / cropWidth) * baseScale),
+                    y: Math.max(0.01, (1 + value.stretchY / cropHeight) * baseScale)
                 };
             }
             return {
-                x: Math.max(0.01, baseScale + value.stretchX / referenceWidth),
-                y: Math.max(0.01, baseScale + value.stretchY / referenceHeight)
+                x: Math.max(0.01, baseScale + value.stretchX / cropWidth),
+                y: Math.max(0.01, baseScale + value.stretchY / cropHeight)
             };
         }
 

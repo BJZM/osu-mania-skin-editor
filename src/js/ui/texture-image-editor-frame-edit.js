@@ -4,35 +4,56 @@
 // ============================================================================
 
         function getCurrentEditParams() {
-            const hasNewCropInputs = !!(byId('textureImageCropLeft') || byId('textureImageCropRight') || byId('textureImageCropTop') || byId('textureImageCropBottom'));
+            const baseFrame = state.workingFrames[0];
+            const hasNewCropInputs = !!(byId('textureImageCropLeft') ||
+                byId('textureImageCropRight') ||
+                byId('textureImageCropTop') ||
+                byId('textureImageCropBottom'));
             if (hasNewCropInputs) {
                 const left = parseIntegerInput('textureImageCropLeft', '左边界', -MAX_TEXTURE_DIMENSION);
                 const right = parseIntegerInput('textureImageCropRight', '右边界', -MAX_TEXTURE_DIMENSION);
                 const top = parseIntegerInput('textureImageCropTop', '上边界', -MAX_TEXTURE_DIMENSION);
                 const bottom = parseIntegerInput('textureImageCropBottom', '下边界', -MAX_TEXTURE_DIMENSION);
-                return {
+                const cropRect = getCropRectFromInputValues({
                     left,
                     right,
                     top,
                     bottom,
-                    cropLeft: left,
-                    cropRight: right,
-                    cropTop: top,
-                    cropBottom: bottom,
-                    cropX: -left,
-                    cropY: -top,
+                    width: null,
+                    height: null
+                }, baseFrame);
+                return {
+                    left: -cropRect.x,
+                    right: cropRect.x + cropRect.width - baseFrame.width,
+                    top: -cropRect.y,
+                    bottom: cropRect.y + cropRect.height - baseFrame.height,
+                    cropLeft: -cropRect.x,
+                    cropRight: cropRect.x + cropRect.width - baseFrame.width,
+                    cropTop: -cropRect.y,
+                    cropBottom: cropRect.y + cropRect.height - baseFrame.height,
+                    cropX: cropRect.x,
+                    cropY: cropRect.y,
                     imageTransform: cloneImageTransform(state.imageTransform)
                 };
             }
+            const widthDelta = parseIntegerInput('textureImageCropWidth', '宽度变化');
+            const heightDelta = parseIntegerInput('textureImageCropHeight', '高度变化');
+            const cropRect = getCropRectFromInputValues({
+                left: null,
+                right: null,
+                top: null,
+                bottom: null,
+                width: widthDelta,
+                height: heightDelta
+            }, baseFrame);
             return {
-                cropX: -parseIntegerInput('textureImageCropX', '左边界', -MAX_TEXTURE_DIMENSION),
-                cropY: -parseIntegerInput('textureImageCropY', '上边界', -MAX_TEXTURE_DIMENSION),
-                widthDelta: parseIntegerInput('textureImageCropWidth', '宽度变化'),
-                heightDelta: parseIntegerInput('textureImageCropHeight', '高度变化'),
+                cropX: cropRect.x,
+                cropY: cropRect.y,
+                widthDelta: cropRect.width - baseFrame.width,
+                heightDelta: cropRect.height - baseFrame.height,
                 imageTransform: cloneImageTransform(state.imageTransform)
             };
         }
-
         function buildEditedFrames(sourceFrames, params) {
             if (!sourceFrames || sourceFrames.length === 0 || !params) return null;
             const baseFrame = sourceFrames[0];
@@ -112,6 +133,7 @@
             const result = buildEditedFrames(state.workingFrames, params);
             if (!result) return [];
             state.cropRect = result.cropRect;
+            updateCropInputs(state.cropRect);
             return result.frames;
         }
 
@@ -185,8 +207,12 @@
             try {
                 commitEditorHistory();
                 beginEditorHistory('拉伸修复', { group: 'stretch-fix' });
-                const sourceFrames = buildPreviewFrames();
-                const target = getStretchFixTarget(state.selected, sourceFrames[0]);
+                if (!state.cropRect) {
+                    buildPreviewFrames();
+                }
+                const currentPreview = state.previewFrames[0] || (buildPreviewFrames()[0] || state.workingFrames[0]);
+                if (!currentPreview) return;
+                const target = getStretchFixTarget(state.selected, currentPreview);
                 if (!target || !target.axis) {
                     state.editorHistoryTransaction = null;
                     updateEditorHistoryButtons();
@@ -194,14 +220,29 @@
                     return;
                 }
 
-                const before = sourceFrames[0];
-                state.workingFrames = resizeFramesUniform(sourceFrames, target);
-                state.previewFrames = state.workingFrames.map((frame) =>
-                    applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
-                );
-                resetTransformInputs();
-                installFramesToStores(state.previewFrames, state.selected, { persist: false });
-                updateMeta();
+                const currentAxisSize = target.axis === 'width' ? currentPreview.width : currentPreview.height;
+                if (Math.abs(currentAxisSize - target.size) <= 0.5) {
+                    state.editorHistoryTransaction = null;
+                    updateEditorHistoryButtons();
+                    showToast('无需修复', `当前尺寸已符合${target.label}目标。`);
+                    return;
+                }
+
+                const before = currentPreview;
+                const baseCropDim = target.axis === 'width'
+                    ? ((state.cropRect && state.cropRect.width) || currentPreview.width)
+                    : ((state.cropRect && state.cropRect.height) || currentPreview.height);
+                const nextScale = (target.size / Math.max(1, baseCropDim)) * 100;
+                const nextTransform = {
+                    ...cloneImageTransform(state.imageTransform),
+                    scalePercent: nextScale,
+                    stretchX: 0,
+                    stretchY: 0
+                };
+                setImageTransform(nextTransform, { centerAnchor: true, refresh: false });
+                updateImageTransformInputs();
+                refreshLivePreview();
+                updateStretchFixUI();
                 commitEditorHistory();
                 const after = state.previewFrames[0];
                 showToast(

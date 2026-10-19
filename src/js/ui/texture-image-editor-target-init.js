@@ -5,8 +5,11 @@
 
         function captureKeyImagePairOriginalSources(target) {
             const sources = {};
-            if (!target || !target.p || !isEditingKeyImageParam(target.p)) return sources;
-            const column = getParamTrackIndex(target.p);
+            const effParam = (typeof getEffectiveParamForTarget === 'function')
+                ? getEffectiveParamForTarget(target)
+                : (target && target.p);
+            if (!target || !effParam || !isEditingKeyImageParam(effParam)) return sources;
+            const column = getParamTrackIndex(effParam);
             if (column == null) return sources;
             const params = getTextureTabParams();
             for (const kind of ['normal', 'down']) {
@@ -14,11 +17,23 @@
                     getParamTrackIndex(p) === column &&
                     getKeyImageParamKind(p) === kind
                 );
-                if (!pairParam || pairParam.key === target.p.key) continue;
+                if (!pairParam || pairParam.key === effParam.key) continue;
                 const pairTarget = buildEditorTarget(pairParam);
                 if (!pairTarget || pairTarget.frames.length === 0) continue;
+                let frames = pairTarget.frames;
+                if (typeof hasCreatedTextureParams === 'function' &&
+                    hasCreatedTextureParams(pairTarget.base) &&
+                    typeof createSolidShapeTexture === 'function') {
+                    const cParams = getCreatedTextureParams(pairTarget.base);
+                    if (cParams) {
+                        const generated = createSolidShapeTexture(cParams);
+                        generated._is2x = cParams.spec === '2x';
+                        generated._isRootLevel = !pairTarget.base.includes('/');
+                        frames = [generated];
+                    }
+                }
                 sources[pairParam.key] = {
-                    frames: pairTarget.frames.map(cloneFrame),
+                    frames: frames.map(cloneFrame),
                     reference: normalizeSkinKey(
                         (pairTarget.resolved && pairTarget.resolved.name) ||
                         pairTarget.base ||
@@ -35,17 +50,37 @@
             state.selected = target;
             const session = longBodyComposerSessions.get(getLongBodySessionKey(target));
             const savedRecipe = session ? null : getStoredTextureEditRecipe(target);
-            const targetRecipe = target.kind === 'library' && target.generalEditParams
+            const isCreated = typeof hasCreatedTextureParams === 'function' &&
+                hasCreatedTextureParams(target.base);
+            const createdGeneral = isCreated && typeof getCreatedTextureGeneralEditParams === 'function'
+                ? getCreatedTextureGeneralEditParams(target.base)
+                : null;
+            const targetRecipe = (target.kind === 'library' && target.generalEditParams)
                 ? {
                     params: JSON.parse(JSON.stringify(target.generalEditParams))
                 }
-                : null;
+                : (createdGeneral ? { params: JSON.parse(JSON.stringify(createdGeneral)) } : null);
             const effectiveRecipe = targetRecipe || savedRecipe;
-            const sourceFrames = session && session.baseFrames
-                ? session.baseFrames
-                : (target.kind === 'library'
-                    ? target.frames
-                    : (savedRecipe ? savedRecipe.sourceFrames : target.frames));
+            let sourceFrames;
+            if (session && session.baseFrames) {
+                sourceFrames = session.baseFrames;
+            } else if (isCreated && typeof createSolidShapeTexture === 'function') {
+                const cParams = getCreatedTextureParams(target.base);
+                if (cParams) {
+                    const generated = createSolidShapeTexture(cParams);
+                    generated._is2x = cParams.spec === '2x';
+                    generated._isRootLevel = !target.base.includes('/');
+                    sourceFrames = [generated];
+                } else {
+                    sourceFrames = target.kind === 'library'
+                        ? target.frames
+                        : (savedRecipe ? savedRecipe.sourceFrames : target.frames);
+                }
+            } else if (target.kind === 'library') {
+                sourceFrames = target.frames;
+            } else {
+                sourceFrames = savedRecipe ? savedRecipe.sourceFrames : target.frames;
+            }
             state.originalFrames = sourceFrames.map(cloneFrame);
             state.originalReference = normalizeSkinKey(
                 (effectiveRecipe && effectiveRecipe.originalReference) ||
@@ -78,7 +113,10 @@
                 resetTransformInputs();
                 resetRgbAdjustmentInputs();
             }
-            state.keyImageEditRecipe = restored && isEditingKeyImageParam(target.p)
+            const effParam = (typeof getEffectiveParamForTarget === 'function')
+                ? getEffectiveParamForTarget(target)
+                : (target && target.p);
+            state.keyImageEditRecipe = restored && isEditingKeyImageParam(effParam)
                 ? captureTextureEditRecipe(state, target)
                 : null;
             resetEditorHistory();

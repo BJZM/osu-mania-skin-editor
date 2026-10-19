@@ -875,19 +875,19 @@
                                     </div>
                                     <div class="texture-image-number-grid">
                                         <label>
-                                            <span>左边界</span>
+                                            <span>左边界 (px)</span>
                                             <input type="number" id="textureImageCropLeft" min="-8192" step="1" value="0">
                                         </label>
                                         <label>
-                                            <span>右边界</span>
+                                            <span>右边界 (px)</span>
                                             <input type="number" id="textureImageCropRight" min="-8192" step="1" value="0">
                                         </label>
                                         <label>
-                                            <span>上边界</span>
+                                            <span>上边界 (px)</span>
                                             <input type="number" id="textureImageCropTop" min="-8192" step="1" value="0">
                                         </label>
                                         <label>
-                                            <span>下边界</span>
+                                            <span>下边界 (px)</span>
                                             <input type="number" id="textureImageCropBottom" min="-8192" step="1" value="0">
                                         </label>
                                     </div>
@@ -902,7 +902,7 @@
                                     <div class="texture-image-number-grid">
                                         <label>
                                             <span>放大百分比</span>
-                                            <input type="number" id="textureImageScalePercent" min="1" max="1000" step="1" value="100">
+                                            <input type="number" id="textureImageScalePercent" min="1" max="5000" step="any" value="100">
                                         </label>
                                         <label>
                                             <span>横向拉伸 (px)</span>
@@ -935,6 +935,20 @@
                                             <label>
                                                 <span>生成高度</span>
                                                 <input type="number" id="textureImageLongBodyTargetHeight" min="1" max="50000" step="100" value="40000">
+                                            </label>
+                                        </div>
+                                        <div class="texture-image-number-grid">
+                                            <label>
+                                                <span>尾部预设</span>
+                                                <select id="textureImageLongBodyPreset">
+                                                    <option value="none">无</option>
+                                                    <option value="sharp">尖头</option>
+                                                    <option value="round">圆头</option>
+                                                </select>
+                                            </label>
+                                            <label id="textureImageLongBodyPresetHeightWrap">
+                                                <span>预设高度 (px)</span>
+                                                <input type="number" id="textureImageLongBodyPresetHeight" min="1" max="5000" step="1" value="0">
                                             </label>
                                         </div>
                                         <label class="texture-image-long-body-fade">
@@ -1112,6 +1126,36 @@
                                     </div>
                                 </section>
 
+                                <section class="texture-image-control-section" id="textureImageCreateFillTransparentSection">
+                                    <div class="texture-image-control-head">
+                                        <div>
+                                            <div class="texture-image-control-title">透明区域填充</div>
+                                        </div>
+                                        <label class="texture-image-switch" title="开启透明区域填充">
+                                            <input type="checkbox" id="textureImageCreateFillTransparentEnabled">
+                                            <span class="texture-image-switch-track"></span>
+                                        </label>
+                                    </div>
+                                    <div id="textureImageCreateFillTransparentControls" style="display: none;">
+                                        <div class="texture-image-creator-color-row">
+                                            <label class="texture-image-creator-color">
+                                                <span>填充颜色</span>
+                                                <input type="color" id="textureImageCreateFillTransparentColor" value="#000000">
+                                            </label>
+                                            <label class="texture-image-creator-hex">
+                                                <span>Hex 数值</span>
+                                                <input type="text" id="textureImageCreateFillTransparentColorHex" value="#000000" spellcheck="false">
+                                            </label>
+                                        </div>
+                                        <div class="texture-image-creator-alpha" style="margin-top: 0;">
+                                            <span>透明度</span>
+                                            <input type="range" id="textureImageCreateFillTransparentAlpha" min="0" max="100" step="1" value="100" class="texture-image-range">
+                                            <input type="number" id="textureImageCreateFillTransparentAlphaValue" min="0" max="100" step="1" value="100">
+                                            <span>%</span>
+                                        </div>
+                                    </div>
+                                </section>
+
                                 <section class="texture-image-control-section">
                                     <div class="texture-image-control-head">
                                         <div>
@@ -1208,7 +1252,7 @@
                             <button type="button" class="btn btn-secondary" id="textureImageCancelBtn">不保存</button>
                             <div class="texture-image-save-actions">
                                 <button type="button" class="btn btn-primary texture-image-save-btn" id="textureImageApplyBtn" disabled>保存到皮肤</button>
-                                <button type="button" class="texture-image-save-menu-btn" id="textureImageApplyMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-label="更多保存方式" title="更多保存方式" disabled>
+                                <button type="button" class="texture-image-save-menu-btn" id="textureImageApplyMenuBtn" aria-haspopup="menu" aria-expanded="false" aria-label="更多保存方式" title="更多保存方式" style="display: none;" disabled>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true">
                                         <path d="m6 9 6 6 6-6"></path>
                                     </svg>
@@ -1990,7 +2034,7 @@
                 <section class="about-hero">
                     <div class="about-app-name">osu!mania Skin Editor</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.2.3</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.3.0 beta</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>

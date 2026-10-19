@@ -84,19 +84,18 @@ async function dragSelectedKeyTop(page, col, targetSourceHeight) {
     const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, col);
     const rawColWRes = getManiaSkinConfig(getActiveKeyCount(), LML.ColumnWidth, col);
     const rawColW = (rawColWRes && rawColWRes.value > 0) ? rawColWRes.value : 30;
-    const ratio = img._is2x ? 2 : 1;
+    const ratio = (img && img._is2x) ? 2 : 1;
     const stableRefW = rawColW * 1.6 * ratio;
-    const currentDrawHeight = key.w * img.height / stableRefW;
-    const targetDrawHeight = key.w * targetSourceHeight / stableRefW;
-    const pxPerLogical = key.w / stableRefW;
+    const currentSourceHeight = img ? img.height : 0;
+    const pxPerLogical = key ? (key.w * ratio / stableRefW) : 1;
+    const canvasDeltaY = (targetSourceHeight - currentSourceHeight) * pxPerLogical;
     const rect = canvas.getBoundingClientRect();
-    const canvasDelta = (targetDrawHeight - currentDrawHeight) / pxPerLogical;
-    const cssDelta = canvasDelta * rect.height / canvas.height;
+    const cssDelta = canvasDeltaY * rect.height / canvas.height;
     const cssX = (canvasX) => rect.left + canvasX * rect.width / canvas.width;
     const cssY = (canvasY) => rect.top + canvasY * rect.height / canvas.height;
     return {
-      handleX: cssX(key.x + key.w / 2),
-      handleY: cssY(key.keyImageResizeEdgeY),
+      handleX: key ? cssX(key.x + key.w / 2) : 0,
+      handleY: key ? cssY(key.keyImageResizeEdgeY) : 0,
       cssDelta
     };
   }, { col, targetSourceHeight });
@@ -130,8 +129,8 @@ test('KeyImage 可独立增减高度，并在接近其他轨道高度时磁吸',
 
   const exportKeysAfterIncrease = await page.evaluate(() => Array.from(userReplacedTextures.keys()));
   expect(exportKeysAfterIncrease).toEqual([
-    'test-key-1_height_col1.png',
-    'test-key-1d_height_col1d.png'
+    'test-key-1.png',
+    'test-key-1d.png'
   ]);
 
   // 拖到低于原始高度，验证可以向下裁短，而不是只能回到 0 偏移。
@@ -232,21 +231,23 @@ test('画布调整 KeyImage 高度会实时同步到贴图编辑标签且关闭�
   await page.waitForFunction((minimumHeight) => {
     const state = textureImageEditorUi.getState();
     const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
-    return state.workingSize &&
+    return state.previewSize &&
       img &&
       img.height > minimumHeight &&
-      state.workingSize.height === img.height;
-  }, beforeEditor.workingSize.height);
+      state.previewSize.height === img.height;
+  }, beforeEditor.previewSize.height);
 
   const synced = await page.evaluate(() => ({
     editor: textureImageEditorUi.getState(),
     canvas: (() => {
       const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
       return img ? { width: img.width, height: img.height } : null;
-    })()
+    })(),
+    cropBottom: document.getElementById('textureImageCropBottom') ? document.getElementById('textureImageCropBottom').value : null
   }));
-  expect(synced.editor.workingSize.height).toBe(synced.canvas.height);
-  expect(synced.editor.workingSize.height).toBeGreaterThan(beforeEditor.workingSize.height);
+  expect(synced.editor.previewSize.height).toBe(synced.canvas.height);
+  expect(synced.editor.previewSize.height).toBeGreaterThan(beforeEditor.previewSize.height);
+  expect(synced.cropBottom).toBe('48');
   expect(synced.editor.dirtyTabCount).toBe(0);
 
   await page.click('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-close');
@@ -255,7 +256,7 @@ test('画布调整 KeyImage 高度会实时同步到贴图编辑标签且关闭�
     const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
     return img ? img.height : 0;
   });
-  expect(afterClose).toBe(synced.editor.workingSize.height);
+  expect(afterClose).toBe(synced.canvas.height);
   expect(errors).toEqual([]);
 });
 
@@ -272,11 +273,12 @@ test('贴图编辑器保存 KeyImage 后，画布高度不再复用旧基准', a
   await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
 
-  const editorBefore = await page.evaluate(() => textureImageEditorUi.getState());
-  await page.fill('#textureImageCropBottom', '-5');
+  // 画布拖拽后下边界已为 30
+  expect(await page.inputValue('#textureImageCropBottom')).toBe('30');
+  await page.fill('#textureImageCropBottom', '25');
   await page.waitForFunction(
     (height) => textureImageEditorUi.getState().previewSize.height === height,
-    editorBefore.workingSize.height - 5
+    85
   );
   await page.click('#textureImageApplyBtn');
   await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
@@ -287,12 +289,12 @@ test('贴图编辑器保存 KeyImage 后，画布高度不再复用旧基准', a
   const baseline = await page.evaluate(() => {
     const target = collectKeyImageHeightTarget(getActiveKeyCount(), 0);
     return {
-      contentHeight: target.contentFrames[0].height,
+      contentHeight: target.sourceFrames[0].height,
       initialOffset1x: target.initialOffset1x
     };
   });
-  expect(baseline.contentHeight).toBe(saved[0].normal.height);
-  expect(baseline.initialOffset1x).toBe(0);
+  expect(baseline.contentHeight).toBe(60);
+  expect(baseline.initialOffset1x).toBe(25);
 
   await page.click('.texture-image-tab[data-param-key="KeyImage0"] .texture-image-tab-close');
   await page.waitForFunction(() => !document.querySelector('.texture-image-tab[data-param-key="KeyImage0"]'));
@@ -303,5 +305,246 @@ test('贴图编辑器保存 KeyImage 后，画布高度不再复用旧基准', a
   const adjusted = await keyImageSizes(page);
   expect(adjusted[0].normal.height).toBeGreaterThan(saved[0].normal.height);
   expect(adjusted[0].normal.height).not.toBe(raised[0].normal.height);
+  expect(errors).toEqual([]);
+});
+
+test('自建贴图在画布中拖动调整高度，与通用设置的下边界挂钩，并支持在贴图编辑中查看与撤回重做', async ({ page }) => {
+  const errors = await boot(page);
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+    const createdParams = {
+      shape: 'rectangle',
+      spec: '1x',
+      width: 30,
+      height: 40,
+      color: '#33cc88',
+      alpha: 100,
+      cornerRadius: 0,
+      arrowThickness: 20,
+      arrowRoundness: 50,
+      stripped: false,
+      name: 'created-key-box'
+    };
+    saveCreatedTextureParams('created-key-box', createdParams);
+    const canvas = createSolidShapeTexture(createdParams);
+    saveSkinAssetToStore(skinImageStore, 'created-key-box', canvas, false, true, true);
+    saveSkinAssetToStore(skinFallbackImageStore, 'created-key-box', canvas, false, true, true);
+    cfg.KeyImage0 = 'created-key-box';
+    cfg.KeyImage0D = 'created-key-box';
+    cfg.ImageLookups.set('KeyImage0', 'created-key-box');
+    cfg.ImageLookups.set('KeyImage0D', 'created-key-box');
+    cfg.ImageLookups.set('keyimage0', 'created-key-box');
+    cfg.ImageLookups.set('keyimage0d', 'created-key-box');
+    drawFrame();
+  });
+
+  const before = await keyImageSizes(page);
+  expect(before[0].normal.height).toBe(40);
+
+  // 往上抬 20px
+  await dragSelectedKeyTop(page, 0, 60);
+  await page.waitForFunction(() => {
+    const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+    return img && img.height === 60;
+  });
+
+  const raised = await keyImageSizes(page);
+  expect(raised[0].normal.height).toBe(60);
+
+  // 验证通用设置中的下边界已增加为 20
+  const generalParams = await page.evaluate(() => getCreatedTextureGeneralEditParams('created-key-box'));
+  expect(generalParams.bottom).toBe(20);
+
+  // 打开贴图编辑器验证下边界输入框直接显示为 20
+  await page.click('#openTextureImageEditorBtn');
+  await page.evaluate(() => textureImageEditorUi.openLibraryEditor('created-key-box'));
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedBase === 'created-key-box');
+  const cropBottomVal = await page.inputValue('#textureImageCropBottom');
+  expect(cropBottomVal).toBe('20');
+  await page.click('#textureImageEditorCloseBtn');
+  await page.waitForFunction(() => document.getElementById('textureImageEditorModal').style.display === 'none');
+
+  // 撤回
+  await page.evaluate(() => performSkinUndo());
+  const undone = await keyImageSizes(page);
+  expect(undone[0].normal.height).toBe(40);
+  const undoneGeneral = await page.evaluate(() => getCreatedTextureGeneralEditParams('created-key-box'));
+  expect(!undoneGeneral || !undoneGeneral.bottom || undoneGeneral.bottom === 0).toBe(true);
+
+  // 重做
+  await page.evaluate(() => performSkinRedo());
+  const redone = await keyImageSizes(page);
+  expect(redone[0].normal.height).toBe(60);
+  const redoneGeneral = await page.evaluate(() => getCreatedTextureGeneralEditParams('created-key-box'));
+  expect(redoneGeneral.bottom).toBe(20);
+  expect(errors).toEqual([]);
+});
+
+test('KeyImage 被多轨引用时，在画布拖动调整高度提示弹窗，选择独立创建为当前轨独立创建贴图', async ({ page }) => {
+  const errors = await boot(page);
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+    const frame = document.createElement('canvas');
+    frame.width = 30;
+    frame.height = 50;
+    const ctx = frame.getContext('2d');
+    ctx.fillStyle = '#ff8833';
+    ctx.fillRect(0, 0, frame.width, frame.height);
+    saveSkinAssetToStore(skinImageStore, 'shared-drag-key', frame, false, true, true);
+    saveSkinAssetToStore(skinFallbackImageStore, 'shared-drag-key', frame, false, true, true);
+    for (let col = 0; col < 2; col++) {
+      cfg[`KeyImage${col}`] = 'shared-drag-key';
+      cfg[`KeyImage${col}D`] = `down-${col}`;
+      cfg.ImageLookups.set(`KeyImage${col}`, 'shared-drag-key');
+      cfg.ImageLookups.set(`KeyImage${col}D`, `down-${col}`);
+    }
+    drawFrame();
+  });
+
+  // 拖拽第 1 轨 (col 0)
+  await dragSelectedKeyTop(page, 0, 80);
+
+  // 弹窗提示多轨引用
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  await expect(scopeModal).toBeVisible();
+  await expect(page.locator('#textureImageApplyScopeTitle')).toHaveText('贴图被多处引用');
+
+  // 选择“独立创建”
+  await page.click('#textureImageApplyScopeCurrentBtn');
+  await expect(scopeModal).toBeHidden();
+
+  // 验证第 1 轨独立创建了新贴图且高度增加，第 2 轨仍使用原贴图且高度保持原状
+  const afterIndependent = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name1: getManiaNoteTextureName(keys, LML.KeyImage, 1),
+      h0: getManiaSkinImage(keys, LML.KeyImage, 0).height,
+      h1: getManiaSkinImage(keys, LML.KeyImage, 1).height
+    };
+  });
+  expect(afterIndependent.name0).not.toBe('shared-drag-key');
+  expect(afterIndependent.name0).toContain('shared-drag-key');
+  expect(afterIndependent.name1).toBe('shared-drag-key');
+  expect(afterIndependent.h0).toBe(80);
+  expect(afterIndependent.h1).toBe(50);
+
+  // 验证撤回
+  await page.evaluate(() => performSkinUndo());
+  const afterUndo = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name1: getManiaNoteTextureName(keys, LML.KeyImage, 1),
+      h0: getManiaSkinImage(keys, LML.KeyImage, 0).height,
+      h1: getManiaSkinImage(keys, LML.KeyImage, 1).height
+    };
+  });
+  expect(afterUndo.name0).toBe('shared-drag-key');
+  expect(afterUndo.name1).toBe('shared-drag-key');
+  expect(afterUndo.h0).toBe(50);
+  expect(afterUndo.h1).toBe(50);
+  expect(errors).toEqual([]);
+});
+
+test('KeyImage 被多轨引用时，在画布拖动调整高度提示弹窗，选择同步替换更新所有引用', async ({ page }) => {
+  const errors = await boot(page);
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+    const frame = document.createElement('canvas');
+    frame.width = 30;
+    frame.height = 50;
+    const ctx = frame.getContext('2d');
+    ctx.fillStyle = '#8833ff';
+    ctx.fillRect(0, 0, frame.width, frame.height);
+    saveSkinAssetToStore(skinImageStore, 'shared-sync-key', frame, false, true, true);
+    saveSkinAssetToStore(skinFallbackImageStore, 'shared-sync-key', frame, false, true, true);
+    for (let col = 0; col < keys; col++) {
+      cfg[`KeyImage${col}`] = 'shared-sync-key';
+      cfg[`KeyImage${col}D`] = `down-${col}`;
+      cfg.ImageLookups.set(`KeyImage${col}`, 'shared-sync-key');
+      cfg.ImageLookups.set(`KeyImage${col}D`, `down-${col}`);
+    }
+    drawFrame();
+  });
+
+  await dragSelectedKeyTop(page, 0, 75);
+
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  await expect(scopeModal).toBeVisible();
+
+  // 选择“同步替换”
+  await page.click('#textureImageApplyScopeAllBtn');
+  await expect(scopeModal).toBeHidden();
+
+  // 验证两轨均更新为 75，且贴图名保持原名
+  const afterSync = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name1: getManiaNoteTextureName(keys, LML.KeyImage, 1),
+      h0: getManiaSkinImage(keys, LML.KeyImage, 0).height,
+      h1: getManiaSkinImage(keys, LML.KeyImage, 1).height
+    };
+  });
+  expect(afterSync.name0).toBe('shared-sync-key');
+  expect(afterSync.name1).toBe('shared-sync-key');
+  expect(afterSync.h0).toBe(75);
+  expect(afterSync.h1).toBe(75);
+  expect(errors).toEqual([]);
+});
+
+test('KeyImage 被多轨引用时，在画布拖动调整高度提示弹窗，点击取消撤回预览还原原状', async ({ page }) => {
+  const errors = await boot(page);
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+    const frame = document.createElement('canvas');
+    frame.width = 30;
+    frame.height = 50;
+    const ctx = frame.getContext('2d');
+    ctx.fillStyle = '#ff3388';
+    ctx.fillRect(0, 0, frame.width, frame.height);
+    saveSkinAssetToStore(skinImageStore, 'shared-cancel-key', frame, false, true, true);
+    saveSkinAssetToStore(skinFallbackImageStore, 'shared-cancel-key', frame, false, true, true);
+    for (let col = 0; col < keys; col++) {
+      cfg[`KeyImage${col}`] = 'shared-cancel-key';
+      cfg[`KeyImage${col}D`] = `down-${col}`;
+      cfg.ImageLookups.set(`KeyImage${col}`, 'shared-cancel-key');
+      cfg.ImageLookups.set(`KeyImage${col}D`, `down-${col}`);
+    }
+    drawFrame();
+  });
+
+  await dragSelectedKeyTop(page, 0, 75);
+
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  await expect(scopeModal).toBeVisible();
+
+  // 点击取消
+  await page.click('#textureImageApplyScopeCancelBtn');
+  await expect(scopeModal).toBeHidden();
+
+  // 验证两轨均还原为 50
+  const afterCancel = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name1: getManiaNoteTextureName(keys, LML.KeyImage, 1),
+      h0: getManiaSkinImage(keys, LML.KeyImage, 0).height,
+      h1: getManiaSkinImage(keys, LML.KeyImage, 1).height
+    };
+  });
+  expect(afterCancel.name0).toBe('shared-cancel-key');
+  expect(afterCancel.name1).toBe('shared-cancel-key');
+  expect(afterCancel.h0).toBe(50);
+  expect(afterCancel.h1).toBe(50);
   expect(errors).toEqual([]);
 });

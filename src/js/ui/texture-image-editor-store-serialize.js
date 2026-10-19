@@ -10,7 +10,10 @@
             }
             const p = selected.p;
             const is2x = !!frames[0]._is2x;
-            const base = stripTextureName(selected.base) || 'texture';
+            const normalizedBase = normalizeTextureLookupPath(selected.base);
+            const base = (frames.length <= 1 && normalizedBase)
+                ? normalizedBase
+                : (stripTextureName(selected.base) || 'texture');
             const fallbackBase = base.split('/').pop();
             const { aliases, isPerTrack } = getSelectedAliases(selected);
             const keys = selected.keys || getActiveKeyCount();
