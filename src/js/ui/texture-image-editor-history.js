@@ -51,21 +51,23 @@
             const globalRedoEntry = (typeof redoStack !== 'undefined' && redoStack.length > 0)
                 ? redoStack[redoStack.length - 1]
                 : null;
+            const undoDesc = window.I18n.t((undoEntry || globalUndoEntry)?.desc || '上一步操作');
+            const redoDesc = window.I18n.t((redoEntry || globalRedoEntry)?.desc || '已撤回的操作');
 
             if (undoBtn) {
                 undoBtn.disabled = !undoEntry && !globalUndoEntry;
                 undoBtn.title = undoEntry
-                    ? `撤回: ${undoEntry.desc} (Ctrl+Z)`
+                    ? window.I18n.t('撤回: {desc} (Ctrl+Z)', { desc: undoDesc })
                     : (globalUndoEntry
-                        ? `撤回: ${globalUndoEntry.desc} (Ctrl+Z)`
+                        ? window.I18n.t('撤回: {desc} (Ctrl+Z)', { desc: undoDesc })
                         : '暂无可撤回的贴图编辑 (Ctrl+Z)');
             }
             if (redoBtn) {
                 redoBtn.disabled = !redoEntry && !globalRedoEntry;
                 redoBtn.title = redoEntry
-                    ? `重做: ${redoEntry.desc} (Ctrl+Y / Ctrl+Shift+Z)`
+                    ? window.I18n.t('重做: {desc} (Ctrl+Y / Ctrl+Shift+Z)', { desc: redoDesc })
                     : (globalRedoEntry
-                        ? `重做: ${globalRedoEntry.desc} (Ctrl+Y / Ctrl+Shift+Z)`
+                        ? window.I18n.t('重做: {desc} (Ctrl+Y / Ctrl+Shift+Z)', { desc: redoDesc })
                         : '暂无可重做的贴图编辑 (Ctrl+Y / Ctrl+Shift+Z)');
             }
             renderTabs();
@@ -185,7 +187,10 @@
             });
             applyEditorHistoryState(entry.state);
             updateEditorHistoryButtons();
-            showToast('已撤回贴图编辑', `已撤回: ${entry.desc}`);
+            showToast(
+                '已撤回贴图编辑',
+                window.I18n.t('已撤回: {desc}', { desc: window.I18n.t(entry.desc) })
+            );
             return true;
         }
 
@@ -208,6 +213,9 @@
             }
             applyEditorHistoryState(entry.state);
             updateEditorHistoryButtons();
-            showToast('已重做贴图编辑', `已重做: ${entry.desc}`);
+            showToast(
+                '已重做贴图编辑',
+                window.I18n.t('已重做: {desc}', { desc: window.I18n.t(entry.desc) })
+            );
             return true;
         }

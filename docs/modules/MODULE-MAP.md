@@ -18,6 +18,7 @@
 | texture-library-tab | 管理常驻“全部贴图”标签、搜索、副本命名和删除确认流程 | implemented | texture-library-operations, texture-library-view, texture-existing-sources |
 | default-skin-workspace | 在用户选择后建立可编辑默认皮肤工作区，并按谱面键数补齐 Mania 配置 | implemented | mania-config, global-skin-state |
 | startup-actions | 管理启动阶段的谱面/皮肤选择、画布入口、拖拽分流与播放解锁条件 | implemented | beatmap-import, skin-import, default-skin-workspace, global-skin-state |
+| ui-localization | 管理中英文界面切换、osu!mania 术语表、动态 DOM 翻译、可访问属性与语言偏好持久化 | implemented | 无 |
 
 ## 依赖图
 
@@ -44,4 +45,5 @@ graph TD
   startup --> skinImport[skin-import]
   startup --> defaultWorkspace
   startup --> skinState
+  shell[app-shell] --> localization[ui-localization]
 ```

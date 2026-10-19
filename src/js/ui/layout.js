@@ -226,7 +226,10 @@
             ui.stats.diff.innerText = bm.data.metadata.version;
             ui.stats.diff.title = bm.data.metadata.version;
             if (ui.stats.diff.parentElement) {
-                ui.stats.diff.parentElement.title = `难度版本: ${bm.data.metadata.version}`;
+                ui.stats.diff.parentElement.title = window.I18n.t(
+                    '难度版本: {version}',
+                    { version: bm.data.metadata.version }
+                );
             }
             ui.stats.keys.innerText = bm.stats.keys + 'K';
             ui.stats.notes.innerText = bm.stats.notes;
@@ -245,16 +248,21 @@
             const creator = meta.creator || '';
 
             if (titleEl) {
+                titleEl.setAttribute('data-i18n-ignore', '');
                 titleEl.textContent = title;
                 titleEl.title = title;
             }
             if (artistEl) {
+                artistEl.setAttribute('data-i18n-ignore', '');
                 artistEl.textContent = artist;
                 artistEl.title = artist;
             }
             if (mapperEl) {
-                mapperEl.textContent = creator ? `谱师: ${creator}` : '';
-                mapperEl.title = creator ? `谱师: ${creator}` : '';
+                const mapperText = creator
+                    ? window.I18n.t('谱师: {creator}', { creator })
+                    : '';
+                mapperEl.textContent = mapperText;
+                mapperEl.title = mapperText;
             }
 
             // 根据谱面信息自动平滑调整菜单栏宽度，确保每一项都不发生换行
@@ -301,6 +309,7 @@
 
                 const title = document.createElement('span');
                 title.className = 'title';
+                title.setAttribute('data-i18n-ignore', '');
                 title.textContent = (bm.data && bm.data.metadata && bm.data.metadata.version) ? bm.data.metadata.version : `难度 ${idx + 1}`;
 
                 const desc = document.createElement('span');

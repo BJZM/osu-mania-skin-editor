@@ -465,7 +465,7 @@
                     if (!selectedCanvasElement) return;
                     if (selectedCanvasElement.dragType === 'score_percent_width') {
                         const current = getScorePercentPaddingWidth(getActiveKeyCount());
-                        const input = prompt('输入 score-percent 透明垫片的 1x 逻辑宽度 (1 - 2000，1 = 仅隐藏百分号):', current);
+                        const input = prompt(window.I18n.t('输入 score-percent 透明垫片的 1x 逻辑宽度 (1 - 2000，1 = 仅隐藏百分号):'), current);
                         if (input === null) return;
                         const parsed = parseInt(input.trim(), 10);
                         if (isNaN(parsed)) return;
@@ -481,7 +481,7 @@
                     }
                     if (selectedCanvasElement.dragType !== 'lighting_width') return;
                     const current = parseInt(cardWidthValEl.textContent, 10) || 0;
-                    const input = prompt('输入新的打击特效宽度 (0 - 300，480p 虚拟像素；0 = 跟随列宽):', current);
+                    const input = prompt(window.I18n.t('输入新的打击特效宽度 (0 - 300，480p 虚拟像素；0 = 跟随列宽):'), current);
                     if (input === null) return;
                     const parsed = parseInt(input.trim(), 10);
                     if (isNaN(parsed)) return;
@@ -496,7 +496,7 @@
                 cardPosValEl.style.cursor = 'pointer';
                 cardPosValEl.onclick = () => {
                     const current = parseInt(cardPosValEl.textContent, 10) || 0;
-                    const input = prompt('输入新的数值 (0 - 1000):', current);
+                    const input = prompt(window.I18n.t('输入新的数值 (0 - 1000):'), current);
                     if (input !== null) {
                         const parsed = parseInt(input.trim(), 10);
                         if (!isNaN(parsed)) {

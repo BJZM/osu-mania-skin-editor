@@ -25,14 +25,17 @@
 
             if (typeof isStartupSkinReady === 'function' && !isStartupSkinReady()) {
                 if (skinNameEl) {
+                    skinNameEl.removeAttribute('data-i18n-ignore');
                     skinNameEl.textContent = '等待选择皮肤';
                     skinNameEl.title = '等待选择皮肤';
                 }
                 if (skinAuthorEl) {
+                    skinAuthorEl.removeAttribute('data-i18n-ignore');
                     skinAuthorEl.textContent = '请选择默认皮肤或导入皮肤';
                     skinAuthorEl.title = '请选择默认皮肤或导入皮肤';
                 }
                 if (oskFileNameEl) {
+                    oskFileNameEl.removeAttribute('data-i18n-ignore');
                     oskFileNameEl.textContent = '未选择';
                     oskFileNameEl.title = '未选择皮肤';
                     oskFileNameEl.classList.remove('loaded');
@@ -40,24 +43,33 @@
                 return;
             }
 
-            const sName = (currentSkinMetadata && currentSkinMetadata.general && currentSkinMetadata.general.Name)
+            const explicitSkinName = currentSkinMetadata && currentSkinMetadata.general && currentSkinMetadata.general.Name;
+            const sName = explicitSkinName
                 || (currentSkinFileName && currentSkinFileName !== 'Custom_Mania_Skin' ? currentSkinFileName : '默认 / 内置皮肤');
             const sAuthor = (currentSkinMetadata && currentSkinMetadata.general && currentSkinMetadata.general.Author) || '';
 
             if (skinNameEl) {
+                if (explicitSkinName || !isDefaultSkinLoaded) skinNameEl.setAttribute('data-i18n-ignore', '');
+                else skinNameEl.removeAttribute('data-i18n-ignore');
                 skinNameEl.textContent = sName;
                 skinNameEl.title = sName;
             }
             if (skinAuthorEl) {
-                skinAuthorEl.textContent = sAuthor ? `作者: ${sAuthor}` : (isDefaultSkinLoaded ? '官方内置' : '-');
-                skinAuthorEl.title = sAuthor || (isDefaultSkinLoaded ? '官方内置' : '');
+                skinAuthorEl.setAttribute('data-i18n-ignore', '');
+                const authorText = sAuthor
+                    ? window.I18n.t('作者: {author}', { author: sAuthor })
+                    : (isDefaultSkinLoaded ? window.I18n.t('官方内置') : '-');
+                skinAuthorEl.textContent = authorText;
+                skinAuthorEl.title = authorText;
             }
             if (oskFileNameEl) {
                 if (currentSkinFileName && currentSkinFileName !== 'Custom_Mania_Skin' && currentSkinFileName !== '默认皮肤') {
+                    oskFileNameEl.setAttribute('data-i18n-ignore', '');
                     oskFileNameEl.textContent = currentSkinFileName;
                     oskFileNameEl.title = currentSkinFileName;
                     oskFileNameEl.classList.add('loaded');
                 } else {
+                    oskFileNameEl.removeAttribute('data-i18n-ignore');
                     oskFileNameEl.textContent = '默认皮肤';
                     oskFileNameEl.title = '默认皮肤';
                     oskFileNameEl.classList.remove('loaded');

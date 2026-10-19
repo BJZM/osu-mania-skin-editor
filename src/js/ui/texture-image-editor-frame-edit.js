@@ -167,18 +167,29 @@
                 button.disabled = true;
                 button.title = '';
                 targetEl.classList.add('is-idle');
-                targetEl.textContent = '当前贴图尺寸无效，无法计算修复结果。';
+                targetEl.textContent = window.I18n.t('当前贴图尺寸无效，无法计算修复结果。');
                 return;
             }
 
             const currentAxisSize = target.axis === 'width' ? frame.width : frame.height;
             const alreadyFixed = Math.abs(currentAxisSize - target.size) <= 0.5;
+            const targetLabel = window.I18n.t(target.label);
+            const targetDetail = window.I18n.t(target.detail);
             button.disabled = alreadyFixed;
-            button.title = target.detail;
+            button.title = targetDetail;
             targetEl.classList.add('is-ready');
             targetEl.textContent = alreadyFixed
-                ? `当前 ${frame.width} × ${frame.height}px 已符合${target.label}目标。`
-                : `${target.label} ${target.size}px：${frame.width} × ${frame.height}px → ${result.width} × ${result.height}px。${target.detail}`;
+                ? window.I18n.t('当前 {size} 已符合{label}目标。', {
+                    size: `${frame.width} × ${frame.height}px`,
+                    label: targetLabel
+                })
+                : window.I18n.t('{label} {target}px：{before} → {after}。{detail}', {
+                    label: targetLabel,
+                    target: target.size,
+                    before: `${frame.width} × ${frame.height}px`,
+                    after: `${result.width} × ${result.height}px`,
+                    detail: targetDetail
+                });
         }
 
         function resizeFramesUniform(frames, target) {
@@ -224,7 +235,9 @@
                 if (Math.abs(currentAxisSize - target.size) <= 0.5) {
                     state.editorHistoryTransaction = null;
                     updateEditorHistoryButtons();
-                    showToast('无需修复', `当前尺寸已符合${target.label}目标。`);
+                    showToast('无需修复', window.I18n.t('当前尺寸已符合{label}目标。', {
+                        label: window.I18n.t(target.label)
+                    }));
                     return;
                 }
 

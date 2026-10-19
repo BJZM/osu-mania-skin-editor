@@ -1216,6 +1216,93 @@
             background: rgba(255, 77, 109, 0.16);
         }
 
+        .language-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: default;
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        .language-menu-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .language-menu-item .item-text {
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .language-select-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            flex: 0 0 auto;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        .language-select-wrap:focus-within {
+            box-shadow: 0 0 0 2px rgba(255, 102, 170, 0.38);
+        }
+
+        .language-select {
+            appearance: none;
+            -webkit-appearance: none;
+            flex: 0 0 auto;
+            min-width: 108px;
+            height: 30px;
+            padding: 0 30px 0 11px;
+            border: none;
+            border-radius: 8px;
+            outline: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            font: inherit;
+            font-size: 0.74rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: none;
+            color-scheme: dark;
+            transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+        }
+
+        .language-select:hover,
+        .language-select:focus-visible {
+            background: #ffffff;
+            color: #111118;
+            box-shadow: none;
+        }
+
+        .language-select:active {
+            transform: scale(0.97);
+        }
+
+        .language-select-chevron {
+            position: absolute;
+            right: 9px;
+            width: 13px;
+            height: 13px;
+            color: rgba(255, 255, 255, 0.62);
+            pointer-events: none;
+            transition: color 0.15s ease, transform 0.15s ease;
+        }
+
+        .language-select-wrap:hover .language-select-chevron,
+        .language-select-wrap:focus-within .language-select-chevron {
+            color: #111118;
+        }
+
+        .language-select-wrap:active .language-select-chevron {
+            transform: scale(0.92);
+        }
+
+        .language-select option {
+            background: #24212b;
+            color: #ffffff;
+        }
+
         .canvas-top-switch {
             display: flex;
             align-items: center;

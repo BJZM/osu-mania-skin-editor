@@ -300,7 +300,7 @@
             const resetBtn = document.getElementById('resetSkinParamsBtn');
             if (resetBtn) {
                 resetBtn.onclick = () => {
-                    if (confirm('确定要将当前分类下的所有参数恢复为推荐默认值吗？')) {
+                    if (confirm(window.I18n.t('确定要将当前分类下的所有参数恢复为推荐默认值吗？'))) {
                         recordSkinUndoBeforeChange('恢复分类默认值');
                         const items = SKIN_INI_PARAM_SCHEMA.filter(p => p.tab === activeEditorTab && !p.virtual);
                         for (const p of items) onParamChange(p.key, p.default);

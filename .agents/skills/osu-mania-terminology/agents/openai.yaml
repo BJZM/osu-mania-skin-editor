@@ -1,0 +1,7 @@
+interface:
+  display_name: "osu!mania Terminology"
+  short_description: "Standardize osu!mania Chinese-English skin terminology"
+  default_prompt: "Use $osu-mania-terminology to translate osu!mania skin editor UI, help text, and skin.ini parameters consistently."
+
+policy:
+  allow_implicit_invocation: true

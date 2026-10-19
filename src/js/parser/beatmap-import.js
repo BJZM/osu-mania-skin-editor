@@ -6,7 +6,7 @@
         // 导入谱面流程
         ui.osz.addEventListener('change', async (e) => {
             if (isSkinLoading) {
-                alert("正在读取皮肤，请等待皮肤加载完毕！");
+                alert(window.I18n ? window.I18n.t('正在读取皮肤，请等待皮肤加载完毕！') : '正在读取皮肤，请等待皮肤加载完毕！');
                 e.target.value = '';
                 return;
             }
@@ -19,6 +19,7 @@
             }
 
             ui.oszFileName.textContent = file.name;
+            ui.oszFileName.setAttribute('data-i18n-ignore', '');
             ui.oszFileName.classList.add('loaded');
             ui.diff.innerHTML = '<option>正在解析...</option>';
             showProgress('正在解压与解析谱面...');

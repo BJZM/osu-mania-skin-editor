@@ -264,13 +264,15 @@
             const cancelBtn = byId('textureImageUnsavedCancelBtn');
             const backdrop = byId('textureImageUnsavedBackdrop');
 
-            if (titleEl) titleEl.textContent = '保存未提交的编辑？';
+            if (titleEl) titleEl.textContent = window.I18n.t('保存未提交的编辑？');
             if (textEl) {
                 textEl.textContent = options.count > 1
-                    ? `有 ${options.count} 个贴图标签包含未保存的编辑。`
-                    : `“${options.title || '当前贴图'}”有未保存的编辑。`;
+                    ? window.I18n.t('有 {count} 个贴图标签包含未保存的编辑。', { count: options.count })
+                    : window.I18n.t('“{title}”有未保存的编辑。', {
+                        title: window.I18n.t(options.title || '当前贴图')
+                    });
             }
-            if (saveBtn) saveBtn.textContent = options.count > 1 ? '保存全部' : '保存';
+            if (saveBtn) saveBtn.textContent = window.I18n.t(options.count > 1 ? '保存全部' : '保存');
 
             return new Promise((resolve) => {
                 const finish = (decision) => {

@@ -6,6 +6,8 @@ ordered according to the groups below.
 
 ## Core
 
+- `core/i18n-dictionary.js`: Chinese UI source phrases, English terminology and dynamic-message patterns.
+- `core/i18n.js`: language preference, DOM translation, language selector and missing-translation reporting.
 - `core/stage-layout.js`: 480p stage width, track limits and clamping.
 - `core/state.js`: canvas references, mutable runtime state and constants.
 - `core/bootstrap.js`: exposes `window.APP_INFO` and loads core default skin assets before UI scripts finish.

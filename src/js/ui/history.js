@@ -120,10 +120,14 @@
             const modalUndoBtn = document.getElementById('modalUndoBtn');
             const count = undoStack.length;
             const redoCount = redoStack.length;
+            const redoDesc = window.I18n.t(redoStack[redoStack.length - 1]?.desc || '已撤回的操作');
+            const undoDesc = window.I18n.t(undoStack[undoStack.length - 1]?.desc || '上一步操作');
             const redoTitle = redoCount > 0
-                ? `重做: ${redoStack[redoStack.length - 1].desc || '已撤回的操作'} (Ctrl+Y / Ctrl+Shift+Z)`
+                ? window.I18n.t('重做: {desc} (Ctrl+Y / Ctrl+Shift+Z)', { desc: redoDesc })
                 : '暂无可重做的操作 (Ctrl+Y / Ctrl+Shift+Z)';
-            const title = count > 0 ? `撤回: ${undoStack[undoStack.length - 1].desc || '上一步操作'} (Ctrl+Z)` : '暂无可撤回操作 (Ctrl+Z)';
+            const title = count > 0
+                ? window.I18n.t('撤回: {desc} (Ctrl+Z)', { desc: undoDesc })
+                : '暂无可撤回操作 (Ctrl+Z)';
 
             if (redoBtn) {
                 redoBtn.disabled = (redoCount === 0);
@@ -387,7 +391,12 @@
             const previousState = undoStack.pop();
             applySkinSnapshot(previousState);
             syncTextureEditorBaseAfterSkinHistory();
-            showToast('已撤回 (Ctrl+Z)', previousState.desc ? `已撤回: ${previousState.desc}` : '已恢复上一状态');
+            showToast(
+                '已撤回 (Ctrl+Z)',
+                previousState.desc
+                    ? window.I18n.t('已撤回: {desc}', { desc: window.I18n.t(previousState.desc) })
+                    : '已恢复上一状态'
+            );
         }
 
         function performSkinRedo() {
@@ -406,7 +415,12 @@
             const nextState = redoStack.pop();
             applySkinSnapshot(nextState);
             syncTextureEditorBaseAfterSkinHistory();
-            showToast('已重做 (Ctrl+Y)', nextState.desc ? `已重做: ${nextState.desc}` : '已恢复操作');
+            showToast(
+                '已重做 (Ctrl+Y)',
+                nextState.desc
+                    ? window.I18n.t('已重做: {desc}', { desc: window.I18n.t(nextState.desc) })
+                    : '已恢复操作'
+            );
         }
 
         function saveInitialSkinSnapshot() {
@@ -435,7 +449,7 @@
                 return;
             }
 
-            if (!confirm('确定要将所有参数和贴图复原为皮肤导入时的初始状态吗？未导出的修改将被丢弃。')) {
+            if (!confirm(window.I18n.t('确定要将所有参数和贴图复原为皮肤导入时的初始状态吗？未导出的修改将被丢弃。'))) {
                 return;
             }
 
@@ -454,7 +468,7 @@
 
         async function startFromDefaultSkin(options = {}) {
             const skipConfirm = options && options.skipConfirm === true;
-            if (!skipConfirm && !confirm('确定要清空当前皮肤，并从 osu!stable 默认皮肤重新开始吗？未导出的修改将被丢弃。')) {
+            if (!skipConfirm && !confirm(window.I18n.t('确定要清空当前皮肤，并从 osu!stable 默认皮肤重新开始吗？未导出的修改将被丢弃。'))) {
                 return false;
             }
 

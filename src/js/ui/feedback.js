@@ -54,6 +54,7 @@
 
         // 统一控制加载遮罩
         function showProgress(title) {
+            const localizedTitle = window.I18n ? window.I18n.t(title) : title;
             // 加载谱面或皮肤时，直接暂停播放并禁用进度条与控制器
             if (isPlaying) {
                 pauseAudioAndBeatmap();
@@ -68,10 +69,10 @@
                 ui.playPauseBtn.disabled = true;
             }
 
-            ui.loadingTitle.innerText = title;
+            ui.loadingTitle.innerText = localizedTitle;
             ui.loadingPercent.innerText = '0%';
             ui.progressBarFill.style.width = '0%';
-            ui.loadingFileText.innerText = '正在初始化...';
+            ui.loadingFileText.innerText = window.I18n ? window.I18n.t('正在初始化...') : '正在初始化...';
             canvas.classList.add('blurred');
             ui.loadingOverlay.classList.add('active');
         }
@@ -99,6 +100,9 @@
 
         // 现代化紧凑 osu! 风格通知弹窗
         function showToast(title, message, duration = 3800, manualClose = false) {
+            const localizedTitle = window.I18n ? window.I18n.t(title) : title;
+            const localizedMessage = window.I18n ? window.I18n.t(message) : message;
+            const closeLabel = window.I18n ? window.I18n.t('关闭') : '关闭';
             const toast = document.createElement('div');
             toast.className = 'toast';
 
@@ -113,16 +117,16 @@
             }
 
             const closeBtnHtml = manualClose
-                ? `<button class="toast-close-btn" title="关闭" aria-label="关闭">&times;</button>`
+                ? `<button class="toast-close-btn" title="${closeLabel}" aria-label="${closeLabel}">&times;</button>`
                 : '';
 
             toast.innerHTML = `
                 <div class="toast-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${iconSvg}</svg>
-                    <span>${title}</span>
+                    <span>${localizedTitle}</span>
                     ${closeBtnHtml}
                 </div>
-                <div class="toast-msg">${message}</div>
+                <div class="toast-msg">${localizedMessage}</div>
             `;
             if (ui.toastContainer) {
                 ui.toastContainer.appendChild(toast);

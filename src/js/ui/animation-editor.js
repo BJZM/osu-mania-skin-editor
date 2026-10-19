@@ -99,7 +99,7 @@
                     ctx.font = '12px sans-serif';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    ctx.fillText('等待添加帧贴图...', canvas.width / 2, canvas.height / 2);
+                    ctx.fillText(window.I18n.t('等待添加帧贴图...'), canvas.width / 2, canvas.height / 2);
                     ctx.restore();
                     return;
                 }
@@ -316,7 +316,7 @@
                 if (fpsVal) fpsVal.textContent = '30';
 
                 const playBtn = document.getElementById('animPlayToggleBtn');
-                if (playBtn) playBtn.textContent = '⏸ 暂停';
+                if (playBtn) playBtn.textContent = window.I18n.t('⏸ 暂停');
 
                 updateAnimSpecButtons();
                 renderAnimFramesGrid();
@@ -653,7 +653,7 @@
             if (animPlayToggleBtn) {
                 animPlayToggleBtn.onclick = () => {
                     animEditorState.isPlaying = !animEditorState.isPlaying;
-                    animPlayToggleBtn.textContent = animEditorState.isPlaying ? '⏸ 暂停' : '▶ 播放';
+                    animPlayToggleBtn.textContent = window.I18n.t(animEditorState.isPlaying ? '⏸ 暂停' : '▶ 播放');
                 };
             }
 

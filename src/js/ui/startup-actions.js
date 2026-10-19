@@ -113,27 +113,30 @@
             const beatmapDesc = document.getElementById('startupBeatmapDesc');
             const skinDesc = document.getElementById('startupSkinDesc');
             const defaultDesc = document.getElementById('startupDefaultDesc');
+            const t = window.I18n
+                ? window.I18n.t.bind(window.I18n)
+                : (value, vars = {}) => String(value).replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
 
             if (beatmapDesc) {
                 beatmapDesc.textContent = startupWorkflowBeatmapReady
                     ? (startupWorkflowSkinReady
-                        ? `已载入 ${startupWorkflowBeatmapName || '谱面'}，点击可更换`
-                        : `已载入 ${startupWorkflowBeatmapName || '谱面'}，等待导入皮肤（点击可更换）`)
-                    : '点击或拖拽 .osz / .zip / .osu 文件';
+                        ? t('已载入 {name}，点击可更换', { name: startupWorkflowBeatmapName || '谱面' })
+                        : t('已载入 {name}，等待导入皮肤（点击可更换）', { name: startupWorkflowBeatmapName || '谱面' }))
+                    : t('点击或拖拽 .osz / .zip / .osu 文件');
             }
             if (skinDesc) {
                 skinDesc.textContent = startupWorkflowSkinReady
                     ? (startupWorkflowBeatmapReady
-                        ? `已使用 ${startupWorkflowSkinName || '当前皮肤'}，点击可更换`
-                        : `已使用 ${startupWorkflowSkinName || '当前皮肤'}，等待导入谱面（点击可更换）`)
-                    : '点击或拖拽 .osk / .zip 皮肤包';
+                        ? t('已使用 {name}，点击可更换', { name: startupWorkflowSkinName || '当前皮肤' })
+                        : t('已使用 {name}，等待导入谱面（点击可更换）', { name: startupWorkflowSkinName || '当前皮肤' }))
+                    : t('点击或拖拽 .osk / .zip 皮肤包');
             }
             if (defaultDesc) {
                 defaultDesc.textContent = startupWorkflowSkinReady
                     ? (startupWorkflowBeatmapReady
-                        ? '当前已选择皮肤来源'
-                        : '皮肤来源已就绪，请继续导入谱面')
-                    : '使用 osu!stable 官方默认皮肤作为工作区';
+                        ? t('当前已选择皮肤来源')
+                        : t('皮肤来源已就绪，请继续导入谱面'))
+                    : t('使用 osu!stable 官方默认皮肤作为工作区');
             }
         }
 

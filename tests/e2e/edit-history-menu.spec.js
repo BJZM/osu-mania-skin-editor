@@ -43,8 +43,10 @@ test('顶部菜单按文件、难度与操作、其他分组，判定演示位�
   await expect(page.locator('#otherMenu .dropdown-item .title')).toHaveText([
     '恢复初始状态',
     '帮助',
-    '关于'
+    '关于',
+    '界面语言 / Language'
   ]);
+  await expect(page.locator('#otherMenu [data-language-select]')).toHaveValue('zh-CN');
   await expect(page.locator('#sidebarRevertSkinBtn')).toHaveClass(/is-danger/);
   await expect(page.locator('#canvasRedoBtn')).toBeDisabled();
   await expect(page.locator('#canvasUndoBtn')).toBeDisabled();
