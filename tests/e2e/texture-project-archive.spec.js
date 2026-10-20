@@ -6,6 +6,7 @@ const JSZip = require('../../vendor/jszip.min.js');
 
 const ROOT = path.resolve(__dirname, '../..');
 const SKIN = path.join(ROOT, 'samples', 'skins', 'Kumakalerki.osk');
+const OPAQUE_TAIL_SKIN = path.join(ROOT, 'samples', 'skins', 'Gyoo.osk');
 const BEATMAP = path.join(ROOT, 'samples', 'beatmaps', '1790742 MIMI - Kuu ni Naru.osz');
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'texture-project-e2e-'));
 test.setTimeout(90000);
@@ -14,7 +15,7 @@ test.afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-async function boot(page) {
+async function boot(page, skinPath = SKIN) {
   const errors = [];
   page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
@@ -25,7 +26,7 @@ async function boot(page) {
     () => typeof exportSkin === 'function' &&
       typeof readTextureProjectFromArchive === 'function'
   );
-  await page.setInputFiles('#oskInput', SKIN);
+  await page.setInputFiles('#oskInput', skinPath);
   await page.waitForFunction(() => isSkinLoading === false, null, { timeout: 60000 });
   await page.setInputFiles('#oszInput', BEATMAP);
   await page.waitForFunction(() => beatmaps.length > 0, null, { timeout: 60000 });
@@ -36,6 +37,51 @@ async function boot(page) {
   );
   await page.waitForTimeout(400);
   return errors;
+}
+
+async function bootDefaultSkin(page) {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+  });
+  await page.goto('/index.html');
+  await page.waitForFunction(() => typeof textureImageEditorUi !== 'undefined');
+  await page.setInputFiles('#oszInput', BEATMAP);
+  await page.waitForFunction(() => isStartupBeatmapReady(), null, { timeout: 60000 });
+  await page.click('#startupUseDefaultSkinBtn');
+  await page.waitForFunction(() => isStartupWorkspaceReady(), null, { timeout: 60000 });
+  await page.waitForTimeout(350);
+  return errors;
+}
+
+async function openTexturePicker(page, paramKey) {
+  await page.evaluate((key) => {
+    textureImageEditorUi.open();
+    textureImageEditorUi.selectByParamKey(key);
+  }, paramKey);
+  await page.waitForFunction(
+    (key) => textureImageEditorUi.getState().selectedKey === key,
+    paramKey
+  );
+}
+
+async function installLongBodyHeight(page, height) {
+  await page.evaluate((bodyHeight) => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+    const currentBody = getManiaSkinImage(keys, LML.HoldNoteBodyImage, 0);
+    const body = document.createElement('canvas');
+    body.width = Math.max(4, currentBody ? currentBody.width : 4);
+    body.height = bodyHeight;
+    const ctx = body.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, body.width, body.height);
+    const bodyName = `longbody_height_${bodyHeight}`;
+    saveSkinAssetToStore(skinImageStore, bodyName, body, false, true, true);
+    cfg.ImageLookups.set('NoteImage0L', bodyName);
+  }, height);
 }
 
 async function seedTextureProjectState(page) {
@@ -153,7 +199,15 @@ test('导出方式可选，可编辑模式写入工程源图而发布模式保�
   expect(manifest.longBodies).toHaveLength(1);
   expect(manifest.longBodies[0].settings.targetHeight).toBe(40000);
   const sourceFiles = editableEntries.filter((name) => name.startsWith('_skin-editor/sources/') && !name.endsWith('/'));
-  expect(sourceFiles).toHaveLength(2);
+  const longBodyBodyFiles = editableEntries.filter(
+    (name) => name.startsWith('_skin-editor/longbody/body/') && !name.endsWith('/')
+  );
+  const longBodyTailFiles = editableEntries.filter(
+    (name) => name.startsWith('_skin-editor/longbody/tail/') && !name.endsWith('/')
+  );
+  expect(sourceFiles).toHaveLength(1);
+  expect(longBodyBodyFiles).toHaveLength(1);
+  expect(longBodyTailFiles).toHaveLength(1);
 
   const projectStateBeforeRelease = await page.evaluate(() => ({
     created: createdSkinTextureParams.size,
@@ -274,5 +328,172 @@ test('发布版再次导入不恢复工程状态，投皮会话仍可被全局�
     return longBodyComposerSessions.get(sessionKey).targetHeight;
   });
   expect(undoRestored).toBe(40000);
+  expect(errors).toEqual([]);
+});
+
+test('一键投皮导出可编辑包后，再次导入仍能找到并继续编辑长条身体', async ({ page }) => {
+  const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await installLongBodyHeight(page, 4999);
+  await openTexturePicker(page, 'NoteImage0L');
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() =>
+    document.getElementById('textureImageApplyScopeModal').style.display === 'flex'
+  );
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(
+    () => textureImageEditorUi.getState().dirtyTabCount === 0,
+    null,
+    { timeout: 60000 }
+  );
+
+  const beforeExport = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const body = getManiaSkinImage(keys, LML.HoldNoteBodyImage, 0);
+    const cfg = getManiaConfigForKeys(keys);
+    return {
+      bodyHeight: body ? body.height : 0,
+      lookup: cfg.ImageLookups.get('NoteImage0L') || '',
+      outputFiles: Object.keys(currentSkinZip.files)
+        .filter((name) => name.toLowerCase().includes('longbody-body_col1l')),
+      replacedFiles: Array.from(userReplacedTextures.keys())
+        .filter((name) => name.toLowerCase().includes('longbody-body_col1l')),
+      ini: generateSkinIniText()
+    };
+  });
+  expect(beforeExport.bodyHeight).toBe(40000);
+  expect(beforeExport.lookup).toBeTruthy();
+  expect(beforeExport.replacedFiles.length).toBeGreaterThan(0);
+  expect(beforeExport.ini).toContain('NoteImage0L:');
+
+  const editableDownload = await exportViaMode(page, 'osk', 'editable');
+  const exportPath = path.join(tmpDir, 'longbody-editable.osk');
+  await editableDownload.saveAs(exportPath);
+  const exportedZip = await JSZip.loadAsync(fs.readFileSync(exportPath));
+  const exportedNames = Object.keys(exportedZip.files);
+  expect(exportedNames).toContain('_skin-editor/texture-project.json');
+  expect(exportedNames.some((name) => name.toLowerCase().includes('longbody-body')))
+    .toBe(true);
+
+  await page.setInputFiles('#oskInput', exportPath);
+  await page.waitForFunction(
+    () => isSkinLoading === false && hasActiveTextureProjectImport(),
+    null,
+    { timeout: 60000 }
+  );
+  await page.waitForTimeout(350);
+
+  const afterImport = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const body = getManiaSkinImage(keys, LML.HoldNoteBodyImage, 0);
+    const cfg = getManiaConfigForKeys(keys);
+    return {
+      bodyHeight: body ? body.height : 0,
+      lookup: cfg.ImageLookups.get('NoteImage0L') || '',
+      hasStoreEntry: !!skinImageStore.get(normalizeSkinKey(cfg.ImageLookups.get('NoteImage0L') || '')),
+      sessionHeight: (longBodyComposerSessions.get(`${keys}|NoteImage0L`) || {}).targetHeight || 0
+    };
+  });
+  expect(afterImport.lookup).toBe(beforeExport.lookup);
+  expect(afterImport.hasStoreEntry).toBe(true);
+  expect(afterImport.bodyHeight).toBe(40000);
+  expect(afterImport.sessionHeight).toBe(40000);
+
+  await openTexturePicker(page, 'NoteImage0L');
+  const reopened = await page.evaluate(() => {
+    const param = getTextureTabParams().find((item) => item.key === 'NoteImage0L');
+    const target = buildEditorTarget(param);
+    return {
+      active: textureImageEditorUi.getState().longBody.active,
+      targetState: target ? target.state : null
+    };
+  });
+  expect(reopened.active).toBe(true);
+  expect(['ok', 'set']).toContain(reopened.targetState);
+  expect(errors).toEqual([]);
+});
+
+test('默认皮肤一键投皮的可编辑导出包含最终身体和隐藏身体/尾巴源图', async ({ page }) => {
+  const errors = await bootDefaultSkin(page);
+  await installLongBodyHeight(page, 4999);
+  await openTexturePicker(page, 'NoteImage0L');
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() =>
+    document.getElementById('textureImageApplyScopeModal').style.display === 'flex'
+  );
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(
+    () => textureImageEditorUi.getState().dirtyTabCount === 0,
+    null,
+    { timeout: 60000 }
+  );
+
+  const editableDownload = await exportViaMode(page, 'osk', 'editable');
+  const exportPath = path.join(tmpDir, 'default-longbody-editable.osk');
+  await editableDownload.saveAs(exportPath);
+  const exportedZip = await JSZip.loadAsync(fs.readFileSync(exportPath));
+  const exportedNames = Object.keys(exportedZip.files);
+  const manifest = JSON.parse(
+    await exportedZip.file('_skin-editor/texture-project.json').async('string')
+  );
+
+  expect(manifest.longBodies).toHaveLength(4);
+  expect(manifest.longBodies[0].baseFrames).toHaveLength(1);
+  expect(manifest.longBodies[0].tailFrame).toBeTruthy();
+  expect(exportedNames.some((name) => name.toLowerCase().includes('longbody-body_col1l')))
+    .toBe(true);
+  const sourceFiles = exportedNames.filter(
+    (name) => name.startsWith('_skin-editor/longbody/') && !name.endsWith('/')
+  );
+  expect(sourceFiles.some((name) => name.startsWith('_skin-editor/longbody/body/')))
+    .toBe(true);
+  expect(sourceFiles.some((name) => name.startsWith('_skin-editor/longbody/tail/')))
+    .toBe(true);
+
+  await page.setInputFiles('#oskInput', exportPath);
+  await page.waitForFunction(
+    () => isSkinLoading === false && hasActiveTextureProjectImport(),
+    null,
+    { timeout: 60000 }
+  );
+  await page.waitForTimeout(350);
+  const reimported = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return Array.from({ length: keys }, (_, column) => {
+      const body = getManiaSkinImage(keys, LML.HoldNoteBodyImage, column);
+      return body ? { width: body.width, height: body.height } : null;
+    });
+  });
+  expect(reimported.every((body) => body && body.height === 40000)).toBe(true);
+
+  await openTexturePicker(page, 'NoteImage0L');
+  expect(await page.evaluate(() => textureImageEditorUi.getState().longBody.active)).toBe(true);
+  await page.fill('#textureImageLongBodyCoverage', '200');
+  await page.waitForTimeout(250);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() =>
+    document.getElementById('textureImageApplyScopeModal').style.display === 'flex'
+  );
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(
+    () => textureImageEditorUi.getState().dirtyTabCount === 0,
+    null,
+    { timeout: 60000 }
+  );
+  const reedited = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodies: Array.from({ length: keys }, (_, column) => {
+        const body = getManiaSkinImage(keys, LML.HoldNoteBodyImage, column);
+        return body ? body.height : 0;
+      }),
+      coverage: (longBodyComposerSessions.get(`${keys}|NoteImage0L`) || {}).coverage || 0
+    };
+  });
+  expect(reedited.bodies.every((height) => height === 40000)).toBe(true);
+  expect(reedited.coverage).toBe(200);
   expect(errors).toEqual([]);
 });

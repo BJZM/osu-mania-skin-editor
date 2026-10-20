@@ -204,6 +204,7 @@
             composer.fade = session ? session.fade : 0;
             composer.tailPreset = session ? (session.tailPreset || 'none') : 'none';
             composer.presetHeight = session ? (session.presetHeight || 0) : 0;
+            composer.preserveImportedOutput = !!(session && session.preserveImportedOutput);
             composer.previousNoteBodyStyle = null;
             state.savedLongBodyComposer = session
                 ? captureLongBodyComposerState(composer)

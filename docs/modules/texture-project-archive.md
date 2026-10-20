@@ -33,10 +33,12 @@
 - 使用浏览器 Canvas 编解码 PNG；不访问网络或本地磁盘。
 
 ## 非功能
-- 源图按内容哈希去重，路径固定为 `_skin-editor/sources/<hash>.png`。
+- 普通贴图源图按内容哈希去重，路径为 `_skin-editor/sources/<hash>.png`。
+- 投皮身体与尾巴使用可辨认路径：`_skin-editor/longbody/body/<source>-<hash>.png` 和 `_skin-editor/longbody/tail/<source>-<hash>.png`。
 - 只保存当前编辑前源图，不保存历史版本；JSON 不嵌入 Base64 图片。
 - 清单版本固定为 `1`，未知版本安全回退到普通皮肤导入。
 - 隐藏源图在普通资源枚举和“全部贴图”中不可见。
+- 恢复后的投皮会话首次打开只生成编辑预览，不得用缩小预览覆盖导入的最终长条 PNG。
 - 工程写入不改变当前编辑状态，因此可连续导出可编辑版和发布版。
 
 ## 深度评估

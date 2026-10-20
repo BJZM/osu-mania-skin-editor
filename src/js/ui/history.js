@@ -165,7 +165,8 @@
                 coverage: Number(session.coverage) || 0,
                 fade: Number(session.fade) || 0,
                 tailPreset: session.tailPreset || 'none',
-                presetHeight: Number(session.presetHeight) || 0
+                presetHeight: Number(session.presetHeight) || 0,
+                preserveImportedOutput: !!session.preserveImportedOutput
             };
         }
 

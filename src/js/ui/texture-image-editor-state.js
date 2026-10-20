@@ -68,6 +68,7 @@
                     fade: 0,
                     tailPreset: 'none',
                     presetHeight: 0,
+                    preserveImportedOutput: false,
                     previousNoteBodyStyle: null
                 },
                 savedLongBodyComposer: null,

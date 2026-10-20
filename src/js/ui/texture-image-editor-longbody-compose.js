@@ -438,13 +438,16 @@
             updateCropInputs(state.cropRect);
             state.snapGuides = null;
             state.contentBoundsCache = null;
-            installFramesToStores(state.previewFrames, state.selected, { persist: false });
+            if (!composer.preserveImportedOutput) {
+                installFramesToStores(state.previewFrames, state.selected, { persist: false });
+            }
             updateMeta();
             updateLongBodyComposerUI();
         }
 
         function scheduleLongBodyRegenerate() {
             if (state.longBodyRegenerateTimer) clearTimeout(state.longBodyRegenerateTimer);
+            state.longBodyComposer.preserveImportedOutput = false;
             state.longBodyRegenerateTimer = setTimeout(() => {
                 state.longBodyRegenerateTimer = null;
                 regenerateLongBodyComposite();

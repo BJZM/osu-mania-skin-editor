@@ -69,6 +69,19 @@
             };
         }
 
+        function sanitizeTextureProjectSourceName(value, fallback = 'texture') {
+            const clean = String(value || '')
+                .replace(/\\/g, '/')
+                .split('/')
+                .pop()
+                .replace(/\.(png|jpe?g)$/i, '')
+                .replace(/@2x$/i, '')
+                .replace(/[^a-z0-9_-]+/gi, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 64);
+            return clean || fallback;
+        }
+
         function frameFromTextureProjectDescriptor(image, descriptor) {
             const flags = descriptor && descriptor.flags || {};
             const canvas = document.createElement('canvas');
@@ -118,12 +131,21 @@
             return `${(hash >>> 0).toString(16).padStart(8, '0')}${bytes.length.toString(16)}`;
         }
 
-        async function writeTextureProjectFrame(zip, frame, writeState) {
+        async function writeTextureProjectFrame(zip, frame, writeState, options = {}) {
             if (!frame) return null;
             const blob = await textureProjectCanvasToBlob(frame);
             const arrayBuffer = await blob.arrayBuffer();
             const hash = await hashTextureProjectBuffer(arrayBuffer);
-            const file = `${TEXTURE_PROJECT_SOURCE_ROOT}/${hash}.png`;
+            const sourceGroup = String(options.sourceGroup || 'sources')
+                .split('/')
+                .filter(Boolean)
+                .join('/');
+            const sourceName = options.sourceName
+                ? `${sanitizeTextureProjectSourceName(options.sourceName)}-`
+                : '';
+            const file = sourceGroup === 'sources'
+                ? `${TEXTURE_PROJECT_SOURCE_ROOT}/${hash}.png`
+                : `${TEXTURE_PROJECT_ROOT}/${sourceGroup}/${sourceName}${hash}.png`;
             if (!writeState.files.has(file)) {
                 zip.file(file, arrayBuffer);
                 writeState.files.add(file);
@@ -136,10 +158,20 @@
             };
         }
 
-        async function writeTextureProjectFrames(zip, frames, writeState) {
+        async function writeTextureProjectFrames(zip, frames, writeState, options = {}) {
             const descriptors = [];
-            for (const frame of frames || []) {
-                const descriptor = await writeTextureProjectFrame(zip, frame, writeState);
+            const sourceFrames = frames || [];
+            for (let index = 0; index < sourceFrames.length; index++) {
+                const frame = sourceFrames[index];
+                const sourceName = typeof options.sourceName === 'function'
+                    ? options.sourceName(index)
+                    : options.sourceName;
+                const descriptor = await writeTextureProjectFrame(zip, frame, writeState, {
+                    sourceGroup: options.sourceGroup,
+                    sourceName: sourceFrames.length > 1 && sourceName
+                        ? `${sourceName}-${index}`
+                        : sourceName
+                });
                 if (descriptor) descriptors.push(descriptor);
             }
             return descriptors;
@@ -211,15 +243,27 @@
             }
             const column = textureProjectLongBodyColumn(sessionKey);
             const outputBase = column == null ? '' : `longbody-body_col${column + 1}L`;
+            const bodySourceName = session.bodySourceName || outputBase || 'body';
+            const tailSourceName = session.tailSourceName || (column == null ? 'tail' : `tail_col${column + 1}`);
+            const baseFrames = await writeTextureProjectFrames(zip, session.baseFrames, writeState, {
+                sourceGroup: 'longbody/body',
+                sourceName: bodySourceName
+            });
+            const tailFrame = session.tailFrame
+                ? await writeTextureProjectFrame(zip, session.tailFrame, writeState, {
+                    sourceGroup: 'longbody/tail',
+                    sourceName: tailSourceName
+                })
+                : null;
             return {
                 sessionKey,
                 column,
                 outputBase,
                 outputFiles: Array.from(collectTextureProjectOutputFiles(zip, outputBase)),
-                baseFrames: await writeTextureProjectFrames(zip, session.baseFrames, writeState),
-                tailFrame: session.tailFrame
-                    ? await writeTextureProjectFrame(zip, session.tailFrame, writeState)
-                    : null,
+                baseFrames,
+                tailFrame,
+                bodySourceFiles: baseFrames.map((frame) => frame.file),
+                tailSourceFile: tailFrame ? tailFrame.file : null,
                 bodySourceName: session.bodySourceName || '',
                 tailSourceName: session.tailSourceName || '',
                 settings: {
@@ -434,6 +478,7 @@
                 longBodyComposerSessions.set(sessionKey, {
                     baseFrames,
                     tailFrame,
+                    preserveImportedOutput: true,
                     bodySourceName: record.bodySourceName || '',
                     tailSourceName: record.tailSourceName || '',
                     targetHeight: Number(settings.targetHeight) || LONG_BODY_DEFAULT_HEIGHT,

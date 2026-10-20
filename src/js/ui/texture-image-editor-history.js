@@ -164,6 +164,7 @@
                 state.longBodyComposer.fade = snapshot.longBodyComposer.fade;
                 state.longBodyComposer.tailPreset = snapshot.longBodyComposer.tailPreset || 'none';
                 state.longBodyComposer.presetHeight = snapshot.longBodyComposer.presetHeight || 0;
+                state.longBodyComposer.preserveImportedOutput = false;
                 if (typeof updateLongBodyControlValues === 'function') updateLongBodyControlValues();
                 if (typeof regenerateLongBodyComposite === 'function') regenerateLongBodyComposite();
             }

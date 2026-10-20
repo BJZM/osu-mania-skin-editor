@@ -104,6 +104,7 @@
                         0,
                         Math.min(state.longBodyComposer.targetHeight, Math.round(nextCoverage))
                     );
+                    state.longBodyComposer.preserveImportedOutput = false;
                     regenerateLongBodyComposite();
                     event.preventDefault();
                     return;

@@ -163,6 +163,7 @@
                     clearTimeout(state.longBodyRegenerateTimer);
                     state.longBodyRegenerateTimer = null;
                 }
+                state.longBodyComposer.preserveImportedOutput = false;
                 regenerateLongBodyComposite();
                 commitEditorHistory();
             });

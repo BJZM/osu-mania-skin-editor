@@ -217,7 +217,9 @@
             updateSelectionSummary();
             updateLongBodyComposerUI();
             updateEditorHistoryButtons();
-            if (options.installPreview !== false && state.selected && state.previewFrames.length > 0) {
+            if (options.installPreview !== false &&
+                !state.longBodyComposer.preserveImportedOutput &&
+                state.selected && state.previewFrames.length > 0) {
                 installFramesToStores(state.previewFrames, state.selected, { persist: false });
             }
             setViews(false);
