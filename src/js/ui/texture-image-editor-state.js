@@ -17,6 +17,7 @@
         const LONG_BODY_OPEN_HEIGHT_LIMIT = 5000;
         const LONG_BODY_PREVIEW_HEIGHT = 800;
         const LONG_BODY_FADE_MAX = 100;
+        const LONG_BODY_EDIT_LOCK_MESSAGE = '一键投皮开启时不能修改其他参数，请先关闭一键投皮。';
         const longBodyComposerSessions = new Map();
         const textureEditRecipes = new Map();
 
@@ -58,7 +59,9 @@
                 longBodyComposer: {
                     active: false,
                     sessionKey: null,
+                    hasOpened: false,
                     baseFrames: [],
+                    preComposerState: null,
                     tailFrame: null,
                     bodySourceName: '',
                     tailSourceName: '',
@@ -124,6 +127,20 @@
                     : null,
                 anchorX: Number.isFinite(Number(source.anchorX)) ? Number(source.anchorX) : 0.5,
                 anchorY: Number.isFinite(Number(source.anchorY)) ? Number(source.anchorY) : 0.5
+            };
+        }
+
+        function cloneLongBodyPreComposerState(value) {
+            if (!value) return null;
+            return {
+                workingFrames: (value.workingFrames || []).map((frame) =>
+                    typeof cloneFrame === 'function' ? cloneFrame(frame) : frame
+                ),
+                cropRect: value.cropRect ? { ...value.cropRect } : null,
+                imageTransform: cloneImageTransform(value.imageTransform),
+                rgbAdjustment: typeof cloneRgbAdjustment === 'function'
+                    ? cloneRgbAdjustment(value.rgbAdjustment)
+                    : { ...(value.rgbAdjustment || { r: 100, g: 100, b: 100 }) }
             };
         }
 
@@ -250,14 +267,34 @@
         }
 
         function updateImageTransformControlAvailability() {
-            const disabled = !state.selected || state.longBodyComposer.active;
+            const baseEditingLocked = !!state.selected && state.longBodyComposer.active;
+            const disabled = !state.selected || baseEditingLocked;
             for (const id of [
+                'textureImageCropLeft',
+                'textureImageCropRight',
+                'textureImageCropTop',
+                'textureImageCropBottom',
+                'textureImageCropX',
+                'textureImageCropY',
+                'textureImageCropWidth',
+                'textureImageCropHeight',
                 'textureImageScalePercent',
                 'textureImageStretchX',
-                'textureImageStretchY'
+                'textureImageStretchY',
+                'textureImageStretchFixBtn'
             ]) {
                 const input = byId(id);
-                if (input) input.disabled = disabled;
+                if (!input) continue;
+                if (!input.dataset.unlockTitleStored) {
+                    input.dataset.unlockTitleStored = 'true';
+                    input.dataset.unlockTitle = input.title || '';
+                }
+                input.disabled = disabled;
+                input.title = baseEditingLocked
+                    ? LONG_BODY_EDIT_LOCK_MESSAGE
+                    : (input.dataset.unlockTitle || '');
+                if (baseEditingLocked) input.setAttribute('aria-disabled', 'true');
+                else input.removeAttribute('aria-disabled');
             }
         }
 
@@ -292,7 +329,8 @@
         }
 
         function updateRgbAdjustmentControlAvailability() {
-            const disabled = !state.selected;
+            const baseEditingLocked = !!state.selected && state.longBodyComposer.active;
+            const disabled = !state.selected || baseEditingLocked;
             for (const id of [
                 'textureImageRgbR',
                 'textureImageRgbRValue',
@@ -303,7 +341,17 @@
                 'textureImageRgbResetBtn'
             ]) {
                 const input = byId(id);
-                if (input) input.disabled = disabled;
+                if (!input) continue;
+                if (!input.dataset.unlockTitleStored) {
+                    input.dataset.unlockTitleStored = 'true';
+                    input.dataset.unlockTitle = input.title || '';
+                }
+                input.disabled = disabled;
+                input.title = baseEditingLocked
+                    ? LONG_BODY_EDIT_LOCK_MESSAGE
+                    : (input.dataset.unlockTitle || '');
+                if (baseEditingLocked) input.setAttribute('aria-disabled', 'true');
+                else input.removeAttribute('aria-disabled');
             }
         }
 

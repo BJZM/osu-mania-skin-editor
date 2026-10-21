@@ -852,16 +852,15 @@
                 ctx.restore();
             }
 
-            const fillTransparentEnabled = !!(options.fillTransparentEnabled || options.transparentFillEnabled);
             const fillTransparentAlpha = normalizeTextureSolidAlpha(
                 options.fillTransparentAlpha !== undefined
                     ? options.fillTransparentAlpha
-                    : (options.transparentFillAlpha !== undefined ? options.transparentFillAlpha : 100)
+                    : (options.transparentFillAlpha !== undefined ? options.transparentFillAlpha : 0)
             );
             const fillTransparentColor = normalizeTextureHexColor(
                 options.fillTransparentColor || options.transparentFillColor || '#000000'
             );
-            if (fillTransparentEnabled && fillTransparentAlpha > 0) {
+            if (fillTransparentAlpha > 0) {
                 const transRgba = textureHexToRgba(fillTransparentColor, fillTransparentAlpha);
                 ctx.save();
                 ctx.globalCompositeOperation = 'destination-over';

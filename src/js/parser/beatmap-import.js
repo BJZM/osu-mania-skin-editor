@@ -3,19 +3,16 @@
 // 依赖：parser/beatmap-format.js、parser/zip-timing.js、parser/beatmap-load.js、UI 提示层
 // ============================================================================
 
-        // 导入谱面流程
-        ui.osz.addEventListener('change', async (e) => {
+        // 文件选择与拖拽共用同一导入入口，避免依赖伪造 input 事件。
+        async function importBeatmapFile(file) {
             if (isSkinLoading) {
                 alert(window.I18n ? window.I18n.t('正在读取皮肤，请等待皮肤加载完毕！') : '正在读取皮肤，请等待皮肤加载完毕！');
-                e.target.value = '';
-                return;
+                return false;
             }
-            const file = e.target.files[0];
-            if (!file) return;
+            if (!file) return false;
             if (!/\.(osz|zip|osu)$/i.test(file.name)) {
                 showToast('文件类型不支持', '请选择 .osz、.zip 或 .osu 文件。');
-                e.target.value = '';
-                return;
+                return false;
             }
 
             ui.oszFileName.textContent = file.name;
@@ -28,6 +25,7 @@
                 disposeStoryboardPlayback();
                 beatmaps = [];
                 ui.diff.innerHTML = '';
+                renderDiffDropdownMenu();
                 loadedOszForBg = false;
                 if (pageBgUrl) { URL.revokeObjectURL(pageBgUrl); pageBgUrl = null; }
 
@@ -185,16 +183,30 @@
                         markStartupBeatmapReady(file.name);
                     }
                     showToast('谱面导入成功', `已自动加载第 1 难度背景与谱面 (共 ${beatmaps.length} 个难度)`);
+                    return true;
                 } else {
                     ui.diff.innerHTML = '<option>未找到 Mania 谱面</option>';
                     renderDiffDropdownMenu();
                     showToast('提示', '压缩包内未找到有效 Mania 模式谱面');
                     setTimeout(hideProgress, 300);
+                    return false;
                 }
             } catch (err) {
                 console.error("谱面文件解析异常:", err);
                 showToast('错误', '谱面文件解析失败: ' + (err.message || '未知错误'));
                 setTimeout(hideProgress, 300);
+                renderDiffDropdownMenu();
+                return false;
+            }
+        }
+
+        ui.osz.addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            try {
+                await importBeatmapFile(file);
+            } finally {
+                // 允许用户通过文件选择器再次选中同一个文件。
+                e.target.value = '';
             }
         });
 

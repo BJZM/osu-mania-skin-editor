@@ -162,6 +162,133 @@ test('KeyImage 可独立增减高度，并在接近其他轨道高度时磁吸',
   expect(errors).toEqual([]);
 });
 
+test('已缩放 KeyImage 连续拖高时复用原图，并让 KeyImageD 共用同一下边界增量', async ({ page }) => {
+  const errors = await boot(page);
+  await installPerTrackKeyImages(page);
+
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+  await page.fill('#textureImageScalePercent', '150');
+  await page.waitForFunction(() => textureImageEditorUi.getState().imageTransform.scalePercent === 150);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+  await page.evaluate(() => {
+    const dialog = document.getElementById('textureImageEditorDialog');
+    dialog.style.left = '920px';
+    dialog.style.right = 'auto';
+  });
+
+  const dragHeightBy = async (logicalPixels) => {
+    const geometry = await page.evaluate((deltaLogical) => {
+      const key = canvasInteractiveElements.find((item) => item.id === 'key_0');
+      const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+      const rawColWRes = getManiaSkinConfig(getActiveKeyCount(), LML.ColumnWidth, 0);
+      const rawColW = (rawColWRes && rawColWRes.value > 0) ? rawColWRes.value : 30;
+      const ratio = img && img._is2x ? 2 : 1;
+      const stableRefW = rawColW * 1.6 * ratio;
+      const rect = canvas.getBoundingClientRect();
+      const canvasDeltaY = deltaLogical * (key.w / stableRefW);
+      return {
+        x: rect.left + (key.x + key.w / 2) * rect.width / canvas.width,
+        y: rect.top + key.keyImageResizeEdgeY * rect.height / canvas.height,
+        deltaY: canvasDeltaY * rect.height / canvas.height
+      };
+    }, logicalPixels);
+
+    await page.mouse.move(geometry.x, geometry.y);
+    await page.mouse.down();
+    await page.waitForFunction(() => selectedCanvasElement && selectedCanvasElement.id === 'key_0');
+    await page.mouse.move(geometry.x, geometry.y - geometry.deltaY, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(250);
+  };
+
+  await dragHeightBy(20);
+  const first = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const normal = getManiaSkinImage(keys, LML.KeyImage, 0);
+    const down = getManiaSkinImage(keys, LML.KeyImageDown, 0);
+    return {
+      normalHeight: normal.height,
+      downHeight: down.height,
+      cropBottom: document.getElementById('textureImageCropBottom').value,
+      editorTransform: textureImageEditorUi.getState().imageTransform,
+      target: (() => {
+        const target = collectKeyImageHeightTarget(keys, 0);
+        return target ? {
+          sourceHeight: target.sourceFrames[0].height,
+          initialOffset1x: target.initialOffset1x,
+          params: target.currentParams
+        } : null;
+      })(),
+      downTarget: (() => {
+        const target = collectKeyImageDownHeightTarget(keys, 0);
+        return target ? {
+          sourceHeight: target.sourceFrames[0].height,
+          initialOffset1x: target.initialOffset1x,
+          transform: target.editParams.imageTransform
+        } : null;
+      })()
+    };
+  });
+  expect(first.normalHeight).toBe(120);
+  expect(first.downHeight).toBe(105);
+  expect(first.cropBottom).toBe('20');
+  expect(first.editorTransform.scalePercent).toBe(150);
+  expect(first.target.sourceHeight).toBe(60);
+  expect(first.target.initialOffset1x).toBe(20);
+  expect(first.downTarget).toEqual({
+    sourceHeight: 50,
+    initialOffset1x: 20,
+    transform: expect.objectContaining({ scalePercent: 150 })
+  });
+
+  await dragHeightBy(20);
+  const second = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const normal = getManiaSkinImage(keys, LML.KeyImage, 0);
+    const down = getManiaSkinImage(keys, LML.KeyImageDown, 0);
+    return {
+      normalHeight: normal.height,
+      downHeight: down.height,
+      cropBottom: document.getElementById('textureImageCropBottom').value,
+      editorTransform: textureImageEditorUi.getState().imageTransform,
+      target: (() => {
+        const target = collectKeyImageHeightTarget(keys, 0);
+        return target ? {
+          sourceHeight: target.sourceFrames[0].height,
+          initialOffset1x: target.initialOffset1x,
+          params: target.currentParams
+        } : null;
+      })()
+    };
+  });
+  expect(second.normalHeight).toBeGreaterThan(first.normalHeight);
+  expect(second.downHeight).toBeGreaterThan(first.downHeight);
+  expect(Number(second.cropBottom)).toBeGreaterThan(Number(first.cropBottom));
+  expect(second.editorTransform.scalePercent).toBe(150);
+  expect(second.target.sourceHeight).toBe(60);
+  expect(second.target.initialOffset1x).toBe(Number(second.cropBottom));
+  expect(second.normalHeight - first.normalHeight).toBeCloseTo(
+    second.downHeight - first.downHeight,
+    5
+  );
+
+  await page.evaluate(() => performSkinUndo());
+  const undone = await keyImageSizes(page);
+  expect(undone[0].normal.height).toBe(first.normalHeight);
+  expect(undone[0].down.height).toBe(first.downHeight);
+  expect(await page.inputValue('#textureImageCropBottom')).toBe(first.cropBottom);
+
+  await page.evaluate(() => performSkinRedo());
+  const redone = await keyImageSizes(page);
+  expect(redone[0].normal.height).toBe(second.normalHeight);
+  expect(redone[0].down.height).toBe(second.downHeight);
+  expect(await page.inputValue('#textureImageCropBottom')).toBe(second.cropBottom);
+  expect(errors).toEqual([]);
+});
+
 test('选中 KeyImage 后点击更换贴图会定位并高亮同轨 KeyImage 与 KeyImageD', async ({ page }) => {
   const errors = await boot(page);
   await installPerTrackKeyImages(page);

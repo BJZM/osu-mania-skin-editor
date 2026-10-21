@@ -1359,6 +1359,41 @@ test('自建贴图在一键投皮中以叠加通用设置后的最终结果为�
   });
   expect(composerBaseWidth).toBe(40);
 
+  await page.click('#textureImageApplyBtn');
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  await expect(scopeModal).toBeVisible();
+  await page.click('#textureImageApplyScopeAllBtn');
+  await expect(scopeModal).toBeHidden();
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+  const savedLongBodyCrop = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const session = longBodyComposerSessions.get(`${keys}|NoteImage0L`);
+    return session && session.preComposerState
+      ? session.preComposerState.cropRect
+      : null;
+  });
+  expect(savedLongBodyCrop).toMatchObject({ x: 10, width: 40 });
+
+  await page.click('#textureImageEditorCloseBtn');
+  await expect(page.locator('#textureImageEditorModal')).toBeHidden();
+  await page.evaluate(() => {
+    textureImageEditorUi.open();
+    textureImageEditorUi.selectByParamKey('NoteImage0L');
+  });
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.selectedKey === 'NoteImage0L' && state.longBody.active;
+  });
+  expect(await page.inputValue('#textureImageCropLeft')).toBe('-10');
+  expect(await page.inputValue('#textureImageCropRight')).toBe('-10');
+  expect(await page.evaluate(() => textureImageEditorUi.getState().previewSize.width)).toBe(40);
+
+  await page.uncheck('#textureImageLongBodyEnable', { force: true });
+  await page.waitForFunction(() => !textureImageEditorUi.getState().longBody.active);
+  expect(await page.inputValue('#textureImageCropLeft')).toBe('-10');
+  expect(await page.inputValue('#textureImageCropRight')).toBe('-10');
+  expect(await page.evaluate(() => textureImageEditorUi.getState().previewSize.width)).toBe(40);
+
   expect(errors).toEqual([]);
 });
 
@@ -1371,30 +1406,25 @@ test('创建贴图支持填充透明区域颜色，支持二次编辑与撤销�
   const section = page.locator('#textureImageCreateFillTransparentSection');
   await expect(section).toBeVisible();
   const controls = page.locator('#textureImageCreateFillTransparentControls');
-  await expect(controls).toBeHidden();
-  const switchToggle = page.locator('#textureImageCreateFillTransparentEnabled');
-  await expect(switchToggle).not.toBeChecked();
-
-  // 2. 开启透明区域填充
-  await page.click('#textureImageCreateFillTransparentSection .texture-image-switch');
-  await expect(switchToggle).toBeChecked();
   await expect(controls).toBeVisible();
+  await expect(page.locator('#textureImageCreateFillTransparentEnabled')).toHaveCount(0);
+  expect(await page.inputValue('#textureImageCreateFillTransparentAlphaValue')).toBe('0');
 
-  // 3. 配置参数：100x100 圆形，中心红色，透明区域填充纯蓝色
+  // 2. 配置参数：100x100 圆形，中心红色，透明区域填充纯蓝色
   await page.fill('#textureImageCreateName', 'created-trans-fill-test');
   await page.fill('#textureImageCreateWidth', '100');
   await page.fill('#textureImageCreateHeight', '100');
   await page.click('#textureImageCreateShapeGrid [data-shape="circle"]');
   await page.fill('#textureImageCreateColorHex', '#ff0000');
   await page.fill('#textureImageCreateFillTransparentColorHex', '#0000ff');
+  await page.fill('#textureImageCreateFillTransparentAlphaValue', '100');
 
   expect(await page.evaluate(() => textureImageEditorUi.getState().creator)).toMatchObject({
-    fillTransparentEnabled: true,
     fillTransparentColor: '#0000ff',
     fillTransparentAlpha: 100
   });
 
-  // 4. 确认创建贴图
+  // 3. 确认创建贴图
   await page.click('#textureImageCreateConfirmBtn');
   await page.waitForFunction(() => {
     return document.getElementById('textureImageLibraryView').style.display !== 'none';
@@ -1428,15 +1458,15 @@ test('创建贴图支持填充透明区域颜色，支持二次编辑与撤销�
   expect(pixelCheck1.corner[2]).toBe(255);
   expect(pixelCheck1.corner[3]).toBe(255);
 
-  // 5. 引用至 StageLeft 并二次编辑生成设置
+  // 4. 引用至 StageLeft 并二次编辑生成设置
   await referenceCreatedTextureInMenu(page, 'created-trans-fill-test');
   let modeMenu = await openCreatedTextureEditMenu(page);
   await modeMenu.locator('[data-edit-mode="generation"]').click();
 
   await expect(page.locator('#textureImageCreatorView')).toBeVisible();
-  await expect(switchToggle).toBeChecked();
   await expect(controls).toBeVisible();
   expect(await page.inputValue('#textureImageCreateFillTransparentColorHex')).toBe('#0000ff');
+  expect(await page.inputValue('#textureImageCreateFillTransparentAlphaValue')).toBe('100');
 
   // 修改透明区域填充颜色为绿色 #00ff00
   await page.fill('#textureImageCreateFillTransparentColorHex', '#00ff00');
@@ -1460,7 +1490,7 @@ test('创建贴图支持填充透明区域颜色，支持二次编辑与撤销�
   expect(pixelCheck2[2]).toBe(0);
   expect(pixelCheck2[3]).toBe(255);
 
-  // 6. 验证撤销与重做链路
+  // 5. 验证撤销与重做链路
   await page.keyboard.press('Control+z');
   await page.waitForTimeout(200);
 
@@ -1513,6 +1543,27 @@ test('创建贴图支持填充透明区域颜色，支持二次编辑与撤销�
   await modeMenu.locator('[data-edit-mode="generation"]').click();
   await expect(page.locator('#textureImageCreatorView')).toBeVisible();
   expect(await page.inputValue('#textureImageCreateFillTransparentColorHex')).toBe('#00ff00');
+
+  // 6. 旧版“关闭透明区域填充”的参数读取后迁移为透明度 0
+  await page.locator('.texture-image-tab.is-active .texture-image-tab-close').click();
+  await page.evaluate(() => {
+    const path = 'created-trans-fill-test';
+    createdSkinTextureParams.set(normalizeSkinKey(path), {
+      ...getCreatedTextureParams(path),
+      fillTransparentEnabled: false,
+      transparentFillEnabled: false,
+      fillTransparentAlpha: 100
+    });
+  });
+  await page.click('.texture-image-tab[data-tab-id="menu"]');
+  modeMenu = await openCreatedTextureEditMenu(page);
+  await modeMenu.locator('[data-edit-mode="generation"]').click();
+  await expect(page.locator('#textureImageCreatorView')).toBeVisible();
+  expect(await page.inputValue('#textureImageCreateFillTransparentAlphaValue')).toBe('0');
+  expect(await page.evaluate(() => textureImageEditorUi.getState().creator))
+    .toMatchObject({ fillTransparentAlpha: 0 });
+  expect(await page.evaluate(() => getCreatedTextureParams('created-trans-fill-test')))
+    .not.toHaveProperty('fillTransparentEnabled');
 
   expect(errors).toEqual([]);
 });

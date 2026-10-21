@@ -158,7 +158,11 @@
                     }
                     return;
                 }
-                libraryState.sources = collectExistingTextureSources();
+                libraryState.sources = collectExistingTextureSources(
+                    null,
+                    currentSkinZip,
+                    { expandAnimationFrames: true }
+                );
                 libraryState.visibleSources = filterExistingTextureSources(
                     libraryState.sources,
                     search ? search.value : ''

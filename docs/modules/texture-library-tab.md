@@ -8,7 +8,7 @@
 - `textureLibraryUi.refresh()` / `getState()`：供编辑器刷新和历史恢复使用。
 
 ## 输入
-- 当前皮肤图片仓库、搜索词和用户选择的操作。
+- 当前皮肤图片仓库、搜索词和用户选择的操作；动画资源按真实帧路径逐项枚举。
 - **前置条件**：`texture-library-operations` 与 `texture-library-view` 已加载。
 
 ## 输出

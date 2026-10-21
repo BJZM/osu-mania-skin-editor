@@ -53,8 +53,12 @@ test('全部贴图显示逻辑与点击引用界面保持排列和样式相同',
   const grid = page.locator('#textureImageLibraryGrid');
   await expect(grid).toHaveClass(/texture-existing-grid/);
 
-  // 3. 验证卡片数量与已有贴图总数匹配
-  const total = await page.evaluate(() => collectExistingTextureSources().length);
+  // 3. 验证卡片数量与全部贴图逐帧展开后的总数匹配
+  const total = await page.evaluate(() => {
+    return collectExistingTextureSources(null, currentSkinZip, {
+      expandAnimationFrames: true
+    }).length;
+  });
   expect(total).toBeGreaterThan(1);
   await expect(countEl).toHaveText(`${total} / ${total} 项`);
 
@@ -82,7 +86,10 @@ test('全部贴图显示逻辑与点击引用界面保持排列和样式相同',
   });
   await page.fill('#textureImageLibrarySearch', candidate);
   const filteredTotal = await page.evaluate((keyword) => {
-    return filterExistingTextureSources(collectExistingTextureSources(), keyword).length;
+    return filterExistingTextureSources(
+      collectExistingTextureSources(null, currentSkinZip, { expandAnimationFrames: true }),
+      keyword
+    ).length;
   }, candidate);
   expect(filteredTotal).toBeGreaterThan(0);
   await expect(page.locator('#textureImageLibraryGrid .texture-existing-card')).toHaveCount(filteredTotal);
@@ -92,6 +99,67 @@ test('全部贴图显示逻辑与点击引用界面保持排列和样式相同',
   await page.fill('#textureImageLibrarySearch', '');
   await expect(page.locator('#textureImageLibraryGrid .texture-existing-card')).toHaveCount(total);
   await expect(countEl).toHaveText(`${total} / ${total} 项`);
+
+  expect(errors).toEqual([]);
+});
+
+test('全部贴图逐帧展开，引用候选仍保留动画基名', async ({ page }) => {
+  const errors = await boot(page);
+  const libraryTab = page.locator('.texture-image-tab[data-tab-id="texture-library"]');
+  await libraryTab.click();
+
+  const sources = await page.evaluate(() => {
+    const grouped = collectExistingTextureSources();
+    const expanded = collectExistingTextureSources(null, currentSkinZip, {
+      expandAnimationFrames: true
+    });
+    const animation = grouped.find((source) => source.isAnimation);
+    return {
+      animation: animation
+        ? {
+            path: animation.path,
+            frameCount: animation.frames.length
+          }
+        : null,
+      expandedPaths: expanded.map((source) => source.path),
+      expandedAnimationFrames: expanded.filter((source) => source.isAnimationFrame),
+      animationFramePaths: animation
+        ? expanded
+            .filter((source) => source.animationBasePath === animation.path)
+            .map((source) => source.path)
+        : []
+    };
+  });
+
+  expect(sources.animation).not.toBeNull();
+  expect(sources.expandedPaths).not.toContain(sources.animation.path);
+  expect(sources.animationFramePaths).toHaveLength(sources.animation.frameCount);
+  expect(sources.expandedAnimationFrames.every((source) => source.frames.length === 1)).toBe(true);
+
+  for (const framePath of sources.animationFramePaths) {
+    await expect(
+      page.locator(`#textureImageLibraryGrid .texture-library-card[data-texture-path="${framePath}"]`)
+    ).toHaveCount(1);
+  }
+  await expect(
+    page.locator(
+      `#textureImageLibraryGrid .texture-library-card[data-texture-path="${sources.animation.path}"]`
+    )
+  ).toHaveCount(0);
+  await expect(
+    page.locator(
+      `#textureImageLibraryGrid .texture-library-card[data-texture-path="${sources.animationFramePaths[0]}"] .texture-existing-badge.is-animation`
+    )
+  ).toHaveCount(0);
+
+  const pickerCount = await page.evaluate(() => collectExistingTextureSources().length);
+  expect(pickerCount).toBeLessThan(
+    await page.evaluate(() => {
+      return collectExistingTextureSources(null, currentSkinZip, {
+        expandAnimationFrames: true
+      }).length;
+    })
+  );
 
   expect(errors).toEqual([]);
 });

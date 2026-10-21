@@ -255,6 +255,26 @@
                     sourceName: tailSourceName
                 })
                 : null;
+            const preComposerState = session.preComposerState &&
+                Array.isArray(session.preComposerState.workingFrames) &&
+                session.preComposerState.workingFrames.length > 0
+                ? {
+                    workingFrames: await writeTextureProjectFrames(
+                        zip,
+                        session.preComposerState.workingFrames,
+                        writeState
+                    ),
+                    cropRect: cloneTextureProjectValue(session.preComposerState.cropRect, null),
+                    imageTransform: cloneTextureProjectValue(
+                        session.preComposerState.imageTransform,
+                        null
+                    ),
+                    rgbAdjustment: cloneTextureProjectValue(
+                        session.preComposerState.rgbAdjustment,
+                        null
+                    )
+                }
+                : null;
             return {
                 sessionKey,
                 column,
@@ -262,6 +282,7 @@
                 outputFiles: Array.from(collectTextureProjectOutputFiles(zip, outputBase)),
                 baseFrames,
                 tailFrame,
+                preComposerState,
                 bodySourceFiles: baseFrames.map((frame) => frame.file),
                 tailSourceFile: tailFrame ? tailFrame.file : null,
                 bodySourceName: session.bodySourceName || '',
@@ -474,9 +495,34 @@
                 const baseFrames = await readTextureProjectFrames(zip, record.baseFrames, cache);
                 if (baseFrames.length === 0) continue;
                 const tailFrame = await readTextureProjectFrame(zip, record.tailFrame, cache);
+                const preComposerRecord = record.preComposerState || null;
+                const preComposerFrames = preComposerRecord
+                    ? await readTextureProjectFrames(
+                        zip,
+                        preComposerRecord.workingFrames,
+                        cache
+                    )
+                    : [];
                 const settings = record.settings || {};
                 longBodyComposerSessions.set(sessionKey, {
                     baseFrames,
+                    preComposerState: preComposerFrames.length > 0
+                        ? {
+                            workingFrames: preComposerFrames,
+                            cropRect: cloneTextureProjectValue(
+                                preComposerRecord.cropRect,
+                                null
+                            ),
+                            imageTransform: cloneTextureProjectValue(
+                                preComposerRecord.imageTransform,
+                                null
+                            ),
+                            rgbAdjustment: cloneTextureProjectValue(
+                                preComposerRecord.rgbAdjustment,
+                                null
+                            )
+                        }
+                        : null,
                     tailFrame,
                     preserveImportedOutput: true,
                     bodySourceName: record.bodySourceName || '',

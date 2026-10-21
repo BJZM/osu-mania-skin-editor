@@ -1154,12 +1154,8 @@
                                         <div>
                                             <div class="texture-image-control-title">透明区域填充</div>
                                         </div>
-                                        <label class="texture-image-switch" title="开启透明区域填充">
-                                            <input type="checkbox" id="textureImageCreateFillTransparentEnabled">
-                                            <span class="texture-image-switch-track"></span>
-                                        </label>
                                     </div>
-                                    <div id="textureImageCreateFillTransparentControls" style="display: none;">
+                                    <div id="textureImageCreateFillTransparentControls">
                                         <div class="texture-image-creator-color-row">
                                             <label class="texture-image-creator-color">
                                                 <span>填充颜色</span>
@@ -1172,8 +1168,8 @@
                                         </div>
                                         <div class="texture-image-creator-alpha" style="margin-top: 0;">
                                             <span>透明度</span>
-                                            <input type="range" id="textureImageCreateFillTransparentAlpha" min="0" max="100" step="1" value="100" class="texture-image-range">
-                                            <input type="number" id="textureImageCreateFillTransparentAlphaValue" min="0" max="100" step="1" value="100">
+                                            <input type="range" id="textureImageCreateFillTransparentAlpha" min="0" max="100" step="1" value="0" class="texture-image-range">
+                                            <input type="number" id="textureImageCreateFillTransparentAlphaValue" min="0" max="100" step="1" value="0">
                                             <span>%</span>
                                         </div>
                                     </div>
@@ -2105,7 +2101,7 @@
                 <section class="about-hero">
                     <div class="about-app-name">osu!mania Skin Editor</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.3.0 beta</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.3.0</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>

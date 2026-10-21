@@ -271,8 +271,20 @@
             });
         }
 
+        function syncDifficultySelectorAvailability() {
+            const enabled = Array.isArray(beatmaps) && beatmaps.length > 0;
+            if (ui.diff) {
+                ui.diff.disabled = !enabled;
+            }
+            if (ui.diffBtn) {
+                ui.diffBtn.disabled = !enabled;
+                ui.diffBtn.setAttribute('aria-disabled', String(!enabled));
+            }
+        }
+
         // 渲染与导出皮肤相同样式的顶部谱面难度下拉列表
         function renderDiffDropdownMenu() {
+            syncDifficultySelectorAvailability();
             if (!ui.diffMenu) return;
             ui.diffMenu.innerHTML = '';
 

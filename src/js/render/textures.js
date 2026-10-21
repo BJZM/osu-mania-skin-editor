@@ -203,21 +203,20 @@
                     if (userImg) return userImg;
                     const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName, allowNestedFallback);
                     if (userFrames && userFrames.length > 0) return userFrames[0];
-                    // 默认皮肤工作区里，内置默认资源就是当前可编辑皮肤的一部分。
-                    // 显式路径（如编辑单键后固定的 NoteImage0H）也必须能解析到这些资源，
-                    // 否则参数面板会显示「未找到」，与「全部贴图」列表不一致。
-                    if (typeof isEditableDefaultSkinWorkspaceActive === 'function' &&
-                        isEditableDefaultSkinWorkspaceActive()) {
-                        const defaultImg = getSkinAnimationFromStore(defaultSkinImageStore, targetName, allowNestedFallback);
-                        if (defaultImg) return defaultImg;
-                        const defaultFrames = getSkinAnimationFramesFromStore(
-                            defaultSkinImageStore,
-                            targetName,
-                            allowNestedFallback
-                        );
-                        if (defaultFrames && defaultFrames.length > 0) return defaultFrames[0];
-                    }
-                    // 找不到对应图片则不显示（不回退到默认文件名或默认皮肤）
+                    // osu!stable 在皮肤缺少显式引用文件时继续使用默认皮肤资源补全。
+                    const defaultImg = getSkinAnimationFromStore(
+                        defaultSkinImageStore,
+                        targetName,
+                        allowNestedFallback
+                    );
+                    if (defaultImg) return defaultImg;
+                    const defaultFrames = getSkinAnimationFramesFromStore(
+                        defaultSkinImageStore,
+                        targetName,
+                        allowNestedFallback
+                    );
+                    if (defaultFrames && defaultFrames.length > 0) return defaultFrames[0];
+                    // 默认皮肤也不存在对应图片时才视为缺失。
                     return null;
                 }
                 return null;
@@ -323,22 +322,20 @@
                     if (userFrames && userFrames.length > 0) return userFrames;
                     const userSingle = getSkinAnimationFromStore(skinImageStore, targetName, allowNestedFallback);
                     if (userSingle) return [userSingle];
-                    if (typeof isEditableDefaultSkinWorkspaceActive === 'function' &&
-                        isEditableDefaultSkinWorkspaceActive()) {
-                        const defaultFrames = getSkinAnimationFramesFromStore(
-                            defaultSkinImageStore,
-                            targetName,
-                            allowNestedFallback
-                        );
-                        if (defaultFrames && defaultFrames.length > 0) return defaultFrames;
-                        const defaultSingle = getSkinAnimationFromStore(
-                            defaultSkinImageStore,
-                            targetName,
-                            allowNestedFallback
-                        );
-                        if (defaultSingle) return [defaultSingle];
-                    }
-                    // 找不到对应图片则不显示
+                    // 与 stable 一致：显式文件缺失时回退到默认皮肤中的同名资源。
+                    const defaultFrames = getSkinAnimationFramesFromStore(
+                        defaultSkinImageStore,
+                        targetName,
+                        allowNestedFallback
+                    );
+                    if (defaultFrames && defaultFrames.length > 0) return defaultFrames;
+                    const defaultSingle = getSkinAnimationFromStore(
+                        defaultSkinImageStore,
+                        targetName,
+                        allowNestedFallback
+                    );
+                    if (defaultSingle) return [defaultSingle];
+                    // 默认皮肤也不存在对应图片时才视为缺失。
                     return null;
                 }
                 return null;

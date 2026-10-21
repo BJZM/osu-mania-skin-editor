@@ -158,6 +158,7 @@
             if (!session) return null;
             return {
                 baseFrames: (session.baseFrames || []).map((frame) => cloneFrame(frame)),
+                preComposerState: cloneLongBodyPreComposerState(session.preComposerState),
                 tailFrame: session.tailFrame ? cloneFrame(session.tailFrame) : null,
                 bodySourceName: session.bodySourceName || '',
                 tailSourceName: session.tailSourceName || '',
@@ -410,6 +411,9 @@
             }
             if (typeof updateEditorBaseAfterSave === 'function') {
                 updateEditorBaseAfterSave();
+            }
+            if (typeof refreshTextureImageEditorAfterSkinHistory === 'function') {
+                refreshTextureImageEditorAfterSkinHistory();
             }
         }
 

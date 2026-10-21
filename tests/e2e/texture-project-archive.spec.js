@@ -66,6 +66,16 @@ async function openTexturePicker(page, paramKey) {
   );
 }
 
+async function saveEditedTextureForCurrentTrack(page) {
+  await page.click('#textureImageApplyBtn');
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  if (await scopeModal.isVisible()) {
+    await page.click('#textureImageApplyScopeCurrentBtn');
+    await expect(scopeModal).toBeHidden();
+  }
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+}
+
 async function installLongBodyHeight(page, height) {
   await page.evaluate((bodyHeight) => {
     const keys = getActiveKeyCount();
@@ -335,6 +345,8 @@ test('一键投皮导出可编辑包后，再次导入仍能找到并继续编�
   const errors = await boot(page, OPAQUE_TAIL_SKIN);
   await installLongBodyHeight(page, 4999);
   await openTexturePicker(page, 'NoteImage0L');
+  await page.fill('#textureImageCropLeft', '-5');
+  await page.fill('#textureImageCropRight', '-5');
   await page.click('.texture-image-switch-track');
   await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
   await page.click('#textureImageApplyBtn');
@@ -411,6 +423,8 @@ test('一键投皮导出可编辑包后，再次导入仍能找到并继续编�
   });
   expect(reopened.active).toBe(true);
   expect(['ok', 'set']).toContain(reopened.targetState);
+  expect(await page.inputValue('#textureImageCropLeft')).toBe('-5');
+  expect(await page.inputValue('#textureImageCropRight')).toBe('-5');
   expect(errors).toEqual([]);
 });
 
@@ -495,5 +509,91 @@ test('默认皮肤一键投皮的可编辑导出包含最终身体和隐藏身�
   });
   expect(reedited.bodies.every((height) => height === 40000)).toBe(true);
   expect(reedited.coverage).toBe(200);
+  expect(errors).toEqual([]);
+});
+
+test('默认皮肤编辑单键后，可编辑导出再导入仍由默认皮肤补全长条头', async ({ page }) => {
+  const errors = await bootDefaultSkin(page);
+  const before = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const note = getManiaSkinImage(keys, LML.NoteImage, 0);
+    const head = getManiaSkinImage(keys, LML.HoldNoteHeadImage, 0);
+    return {
+      noteWidth: note ? note.width : 0,
+      headSize: head ? { width: head.width, height: head.height } : null
+    };
+  });
+  expect(before.noteWidth).toBeGreaterThan(0);
+  expect(before.headSize).not.toBeNull();
+
+  await openTexturePicker(page, 'NoteImage0');
+  await page.fill('#textureImageCropRight', '4');
+  await page.waitForFunction(
+    (width) => textureImageEditorUi.getState().previewSize.width === width,
+    before.noteWidth + 4
+  );
+  await saveEditedTextureForCurrentTrack(page);
+
+  const edited = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    const schema = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === 'HoldNoteHeadImage');
+    const headParam = expandPerTrackTextureParams(schema, keys, true)
+      .find((item) => item.key === 'NoteImage0H');
+    const resolved = resolveTextureParam(keys, headParam);
+    return {
+      headLookup: cfg.ImageLookups.get('NoteImage0H') || '',
+      headState: resolved.state,
+      headSize: resolved.img
+        ? { width: resolved.img.width, height: resolved.img.height }
+        : null
+    };
+  });
+  expect(edited.headLookup.toLowerCase()).toBe('mania-note1h');
+  expect(edited.headState).toBe('ok');
+  expect(edited.headSize).toEqual(before.headSize);
+
+  const editableDownload = await exportViaMode(page, 'osk', 'editable');
+  const exportPath = path.join(tmpDir, 'default-edited-note-editable.osk');
+  await editableDownload.saveAs(exportPath);
+  const exportedZip = await JSZip.loadAsync(fs.readFileSync(exportPath));
+  const exportedNames = Object.keys(exportedZip.files);
+  const exportedHead = exportedNames.find((name) => {
+    const normalized = name
+      .replace(/\\/g, '/')
+      .replace(/@2x\.png$/i, '')
+      .replace(/\.png$/i, '')
+      .toLowerCase();
+    return normalized === edited.headLookup.toLowerCase();
+  });
+  expect(exportedHead).toBeUndefined();
+  const exportedIniName = exportedNames.find((name) => /(?:^|\/)skin\.ini$/i.test(name));
+  const exportedIni = await exportedZip.file(exportedIniName).async('string');
+  expect(exportedIni).toMatch(/NoteImage0H\s*:\s*mania-note1h/i);
+
+  await page.setInputFiles('#oskInput', exportPath);
+  await page.waitForFunction(
+    () => isSkinLoading === false && hasActiveTextureProjectImport(),
+    null,
+    { timeout: 60000 }
+  );
+  await page.waitForTimeout(350);
+
+  const reimported = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const schema = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === 'HoldNoteHeadImage');
+    const headParam = expandPerTrackTextureParams(schema, keys, true)
+      .find((item) => item.key === 'NoteImage0H');
+    const resolved = resolveTextureParam(keys, headParam);
+    const head = getManiaSkinImage(keys, LML.HoldNoteHeadImage, 0);
+    return {
+      defaultWorkspace: isEditableDefaultSkinWorkspaceActive(),
+      headState: resolved.state,
+      headSize: head ? { width: head.width, height: head.height } : null
+    };
+  });
+  expect(reimported.defaultWorkspace).toBe(false);
+  expect(reimported.headState).toBe('ok');
+  expect(reimported.headSize).toEqual(before.headSize);
   expect(errors).toEqual([]);
 });

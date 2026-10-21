@@ -9,11 +9,12 @@
 - “全部贴图”不提供单卡编辑入口；编辑方式选择由“菜单”中引用该贴图的参数项承担。
 
 ## 输入
-- `collectExistingTextureSources()` 产生的候选数组、创建参数字典与用户搜索词。
+- `collectExistingTextureSources(..., { expandAnimationFrames: true })` 产生的逐帧候选数组、创建参数字典与用户搜索词。
 - **前置条件**：贴图编辑器弹窗 DOM 已加载。
 
 ## 输出
 - 带 `data-texture-path` 的贴图库卡片网格。
+- 动画帧按 `base-0`、`base-1` 等真实路径分别显示，不再以单个动画基名卡片和帧数角标合并。
 - **后置条件**：只更新 DOM，不直接修改皮肤状态。
 
 ## 依赖模块

@@ -221,6 +221,9 @@
                 const bottom = Number(params.bottom) || 0;
                 const baseW = sourceFrames[0].width;
                 const baseH = sourceFrames[0].height;
+                tab.state.imageTransform = cloneImageTransform(
+                    params.imageTransform || tab.state.imageTransform
+                );
                 tab.state.cropRect = {
                     x: -left,
                     y: -top,
@@ -237,8 +240,8 @@
                     width: copied[0].width,
                     height: copied[0].height
                 };
+                tab.state.imageTransform = createDefaultImageTransform();
             }
-            tab.state.imageTransform = createDefaultImageTransform();
             tab.state.previewBaseViewport = null;
             tab.state.previewViewport = null;
             tab.state.snapGuides = null;
@@ -247,6 +250,19 @@
             tab.state.editorRedoStack = [];
             tab.state.editorHistoryTransaction = null;
             tab.state.keyImageEditRecipe = keyImageEditRecipe;
+            return true;
+        }
+
+        function applyKeyImageHeightCropInputOverride(tab, target) {
+            const params = target && target.currentParams;
+            if (!params || !Number.isFinite(Number(params.keyImageHeightOffset1x))) return false;
+            const bottomInput = byId('textureImageCropBottom');
+            if (!bottomInput) return false;
+            const value = String(Math.round(Number(params.keyImageHeightOffset1x)));
+            bottomInput.value = value;
+            if (tab.state.cropInputSnapshot && tab.state.cropInputSnapshot.values) {
+                tab.state.cropInputSnapshot.values.bottom = Number(value);
+            }
             return true;
         }
 
@@ -274,6 +290,7 @@
                 applyExternalFramesToTab(tab, copiedFrames, target);
                 if (tab.id === activeTabId) {
                     syncActiveTabView({ installPreview: false });
+                    applyKeyImageHeightCropInputOverride(tab, target);
                 }
             }
             const pickerView = byId('textureImagePickerView');
@@ -337,6 +354,15 @@
         function absorbExternalChanges() {
             if (!externalChangesPending || !editorBaseSnapshot) return false;
             const activeTab = getActiveTab();
+            const preservedRecipes = new Map();
+            for (const update of externalFrameUpdates.values()) {
+                for (const paramKey of (update.target && update.target.paramKeys) || []) {
+                    const recipeKey = `${getActiveKeyCount()}|${paramKey}`;
+                    if (textureEditRecipes.has(recipeKey)) {
+                        preservedRecipes.set(recipeKey, textureEditRecipes.get(recipeKey));
+                    }
+                }
+            }
             if (activeTab && activeTab.kind === 'texture' && activeTab.state.previewSnapshot) {
                 applySkinSnapshot(activeTab.state.previewSnapshot, { preserveNonTextureSettings: true });
             }
@@ -348,6 +374,9 @@
                 if (appliedUpdates.has(identity)) continue;
                 appliedUpdates.add(identity);
                 installExternalUpdateFrames(update);
+            }
+            for (const [recipeKey, recipe] of preservedRecipes.entries()) {
+                textureEditRecipes.set(recipeKey, recipe);
             }
             for (const [name, buffer] of persistedTextures.entries()) {
                 const normalized = normalizeSkinKey(name);

@@ -32,11 +32,10 @@
                     cornerRadius: (saved && Number.isFinite(saved.cornerRadius)) ? saved.cornerRadius : 24,
                     arrowThickness: (saved && Number.isFinite(saved.arrowThickness)) ? saved.arrowThickness : 20,
                     arrowRoundness: (saved && Number.isFinite(saved.arrowRoundness)) ? saved.arrowRoundness : 50,
-                    fillTransparentEnabled: !!(saved && (saved.fillTransparentEnabled || saved.transparentFillEnabled)),
                     fillTransparentColor: (saved && (saved.fillTransparentColor || saved.transparentFillColor)) || '#000000',
                     fillTransparentAlpha: (saved && Number.isFinite(saved.fillTransparentAlpha !== undefined ? saved.fillTransparentAlpha : saved.transparentFillAlpha))
                         ? (saved.fillTransparentAlpha !== undefined ? saved.fillTransparentAlpha : saved.transparentFillAlpha)
-                        : 100
+                        : 0
                 };
             }
             return {
@@ -59,9 +58,8 @@
                 cornerRadius: 24,
                 arrowThickness: 20,
                 arrowRoundness: 50,
-                fillTransparentEnabled: false,
                 fillTransparentColor: '#000000',
-                fillTransparentAlpha: 100
+                fillTransparentAlpha: 0
             };
         }
 
@@ -181,7 +179,6 @@
                         : 0,
                     arrowThickness: textureCreatorState.arrowThickness,
                     arrowRoundness: textureCreatorState.arrowRoundness,
-                    fillTransparentEnabled: textureCreatorState.fillTransparentEnabled,
                     fillTransparentColor: textureCreatorState.fillTransparentColor,
                     fillTransparentAlpha: textureCreatorState.fillTransparentAlpha / 100
                 });
@@ -229,7 +226,6 @@
                     cornerRadius: textureCreatorState.cornerRadius * scale,
                     arrowThickness: textureCreatorState.arrowThickness,
                     arrowRoundness: textureCreatorState.arrowRoundness,
-                    fillTransparentEnabled: textureCreatorState.fillTransparentEnabled,
                     fillTransparentColor: textureCreatorState.fillTransparentColor,
                     fillTransparentAlpha: textureCreatorState.fillTransparentAlpha / 100
                 });
@@ -368,25 +364,17 @@
         }
 
         function updateTextureCreatorFillTransparentInputs() {
-            const enabledInput = byId('textureImageCreateFillTransparentEnabled');
-            const controls = byId('textureImageCreateFillTransparentControls');
             const colorInput = byId('textureImageCreateFillTransparentColor');
             const colorHexInput = byId('textureImageCreateFillTransparentColorHex');
             const alphaRange = byId('textureImageCreateFillTransparentAlpha');
             const alphaNumber = byId('textureImageCreateFillTransparentAlphaValue');
 
-            if (enabledInput) {
-                enabledInput.checked = !!textureCreatorState.fillTransparentEnabled;
-            }
-            if (controls) {
-                controls.style.display = textureCreatorState.fillTransparentEnabled ? 'block' : 'none';
-            }
             const color = normalizeTextureHexColor(textureCreatorState.fillTransparentColor || '#000000');
             if (colorInput) colorInput.value = color;
             if (colorHexInput) colorHexInput.value = color;
             const alpha = Number.isFinite(textureCreatorState.fillTransparentAlpha)
                 ? textureCreatorState.fillTransparentAlpha
-                : 100;
+                : 0;
             if (alphaRange) {
                 alphaRange.value = String(alpha);
                 updateTextureRangeFill(alphaRange);
@@ -596,10 +584,6 @@
                 ? Math.max(0, Math.min(100, Math.round(roundnessValue)))
                 : textureCreatorState.arrowRoundness;
 
-            const fillTransparentEnabledInput = byId('textureImageCreateFillTransparentEnabled');
-            const fillTransparentEnabled = fillTransparentEnabledInput
-                ? fillTransparentEnabledInput.checked
-                : !!textureCreatorState.fillTransparentEnabled;
             const fillTransparentColorInput = byId('textureImageCreateFillTransparentColor');
             const fillTransparentColorHexInput = byId('textureImageCreateFillTransparentColorHex');
             const rawFillTransparentColor = (fillTransparentColorHexInput && fillTransparentColorHexInput.value) ||
@@ -612,7 +596,7 @@
             );
             const fillTransparentAlpha = Number.isFinite(fillTransparentAlphaValue)
                 ? Math.max(0, Math.min(100, Math.round(fillTransparentAlphaValue)))
-                : (Number.isFinite(textureCreatorState.fillTransparentAlpha) ? textureCreatorState.fillTransparentAlpha : 100);
+                : (Number.isFinite(textureCreatorState.fillTransparentAlpha) ? textureCreatorState.fillTransparentAlpha : 0);
 
             textureCreatorState.name = rawName;
             textureCreatorState.width = width;
@@ -624,7 +608,6 @@
             textureCreatorState.cornerRadius = cornerRadius;
             textureCreatorState.arrowThickness = arrowThickness;
             textureCreatorState.arrowRoundness = arrowRoundness;
-            textureCreatorState.fillTransparentEnabled = fillTransparentEnabled;
             textureCreatorState.fillTransparentColor = fillTransparentColor;
             textureCreatorState.fillTransparentAlpha = fillTransparentAlpha;
             return {
@@ -643,12 +626,8 @@
                 cornerRadius,
                 arrowThickness,
                 arrowRoundness,
-                fillTransparentEnabled,
                 fillTransparentColor,
-                fillTransparentAlpha,
-                transparentFillEnabled: fillTransparentEnabled,
-                transparentFillColor: fillTransparentColor,
-                transparentFillAlpha: fillTransparentAlpha
+                fillTransparentAlpha
             };
         }
 
@@ -837,12 +816,6 @@
             refreshTextureCreatorPreview();
         }
 
-        function applyTextureCreatorFillTransparentEnabled(enabled) {
-            textureCreatorState.fillTransparentEnabled = !!enabled;
-            updateTextureCreatorFillTransparentInputs();
-            refreshTextureCreatorPreview();
-        }
-
         function applyTextureCreatorFillTransparentColor(rawValue) {
             textureCreatorState.fillTransparentColor = normalizeTextureHexColor(rawValue);
             updateTextureCreatorFillTransparentInputs();
@@ -906,7 +879,6 @@
             const strokeWidthNumber = byId('textureImageCreateStrokeWidthValue');
             const strokeAlphaRange = byId('textureImageCreateStrokeAlpha');
             const strokeAlphaNumber = byId('textureImageCreateStrokeAlphaValue');
-            const fillTransparentEnabledInput = byId('textureImageCreateFillTransparentEnabled');
             const fillTransparentColorInput = byId('textureImageCreateFillTransparentColor');
             const fillTransparentColorHexInput = byId('textureImageCreateFillTransparentColorHex');
             const fillTransparentAlphaRange = byId('textureImageCreateFillTransparentAlpha');
@@ -1024,11 +996,6 @@
             if (strokeAlphaNumber) {
                 strokeAlphaNumber.addEventListener('input', () => {
                     applyTextureCreatorStrokeAlpha(strokeAlphaNumber.value);
-                });
-            }
-            if (fillTransparentEnabledInput) {
-                fillTransparentEnabledInput.addEventListener('change', () => {
-                    applyTextureCreatorFillTransparentEnabled(fillTransparentEnabledInput.checked);
                 });
             }
             if (fillTransparentColorInput) {

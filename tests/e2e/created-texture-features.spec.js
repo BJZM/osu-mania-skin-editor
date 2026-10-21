@@ -335,6 +335,42 @@ test('自建长条身体贴图进入通用编辑支持一键投皮，激活并�
   // 开启一键投皮
   await longBodyEnable.check({ force: true });
   await expect(page.locator('#textureImageLongBodyControls')).toBeVisible();
+  await expect(page.locator('#textureImageCropLeft')).toBeDisabled();
+  await expect(page.locator('#textureImageScalePercent')).toBeDisabled();
+  await expect(page.locator('#textureImageRgbR')).toBeDisabled();
+  await expect(page.locator('#textureImageStretchFixBtn')).toBeDisabled();
+  await expect(page.locator('#textureImageBlankBtn')).toBeDisabled();
+  await expect(page.locator('#textureImageResetBtn')).toBeDisabled();
+  await expect(page.locator('#textureImageLongBodyStatus')).toContainText(
+    '如需修改裁切、拉伸、RGB 等基础参数，请先关闭一键投皮。'
+  );
+  await page.fill('#textureImageLongBodyCoverage', '120');
+  await page.fill('#textureImageLongBodyFade', '35');
+  const longBodySettingsBeforeToggle = await page.evaluate(() => {
+    const longBody = textureImageEditorUi.getState().longBody;
+    return {
+      targetHeight: longBody.targetHeight,
+      coverage: longBody.coverage,
+      fade: longBody.fade,
+      tailPreset: longBody.tailPreset,
+      presetHeight: longBody.presetHeight
+    };
+  });
+  await longBodyEnable.uncheck({ force: true });
+  await expect(page.locator('#textureImageCropLeft')).toBeEnabled();
+  await expect(page.locator('#textureImageScalePercent')).toBeEnabled();
+  await expect(page.locator('#textureImageRgbR')).toBeEnabled();
+  await longBodyEnable.check({ force: true });
+  expect(await page.evaluate(() => {
+    const longBody = textureImageEditorUi.getState().longBody;
+    return {
+      targetHeight: longBody.targetHeight,
+      coverage: longBody.coverage,
+      fade: longBody.fade,
+      tailPreset: longBody.tailPreset,
+      presetHeight: longBody.presetHeight
+    };
+  })).toEqual(longBodySettingsBeforeToggle);
 
   // 点击应用保存
   await page.click('#textureImageApplyBtn');

@@ -308,8 +308,14 @@ test('从默认皮肤开始时引用和全部贴图能正确列出默认皮肤�
   await page.click('#startupUseDefaultSkinBtn');
   await page.waitForFunction(() => isStartupWorkspaceReady(), null, { timeout: 60000 });
 
-  const total = await page.evaluate(() => collectExistingTextureSources().length);
-  expect(total).toBeGreaterThan(10);
+  const counts = await page.evaluate(() => ({
+    picker: collectExistingTextureSources().length,
+    library: collectExistingTextureSources(null, currentSkinZip, {
+      expandAnimationFrames: true
+    }).length
+  }));
+  expect(counts.picker).toBeGreaterThan(10);
+  expect(counts.library).toBeGreaterThan(counts.picker);
 
   await page.click('#openTextureImageEditorBtn');
   await page.waitForFunction(() => document.getElementById('textureImageEditorModal').classList.contains('active'));
@@ -318,7 +324,7 @@ test('从默认皮肤开始时引用和全部贴图能正确列出默认皮肤�
   await libraryTab.click();
   await expect(page.locator('#textureImageLibraryView')).toBeVisible();
   const libraryCardsCount = await page.locator('#textureImageLibraryGrid .texture-existing-card').count();
-  expect(libraryCardsCount).toBe(total);
+  expect(libraryCardsCount).toBe(counts.library);
   await expect(page.locator('#textureImageLibraryEmpty')).toBeHidden();
 
   const menuTab = page.locator('.texture-image-tab[data-tab-id="menu"]');
@@ -333,7 +339,7 @@ test('从默认皮肤开始时引用和全部贴图能正确列出默认皮肤�
   await existingItem.click();
 
   await expect(page.locator('#textureExistingPickerModal')).toHaveCSS('display', 'flex');
-  expect(await page.evaluate(() => textureExistingPickerUi.getState().sourceCount)).toBe(total);
+  expect(await page.evaluate(() => textureExistingPickerUi.getState().sourceCount)).toBe(counts.picker);
   await expect(page.locator('#textureExistingPickerEmpty')).toBeHidden();
 
   await page.fill('#textureExistingPickerSearch', 'mania-note2');

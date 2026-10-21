@@ -31,6 +31,36 @@
             if (getActiveTab() === savedTab) state.selected = target;
         }
 
+        function refreshTextureImageEditorAfterSkinHistory() {
+            const modal = byId('textureImageEditorModal');
+            if (!modal || !modal.classList.contains('active')) return false;
+            const tab = getActiveTab();
+            if (!tab || tab.kind !== 'texture' || !tab.target || !tab.target.p) {
+                syncActiveTabView({ installPreview: false });
+                return false;
+            }
+            if (typeof isEditingKeyImageParam !== 'function' ||
+                !isEditingKeyImageParam(tab.target.p)) {
+                syncActiveTabView({ installPreview: false });
+                return false;
+            }
+            const p = getTextureTabParams().find((item) => item.key === tab.target.p.key);
+            const target = p ? buildEditorTarget(p) : null;
+            if (!target || !target.selectable) {
+                syncActiveTabView({ installPreview: false });
+                return false;
+            }
+            tab.target = target;
+            initializeTextureTab(tab);
+            state = tab.state;
+            syncActiveTabView({ installPreview: false });
+            const recipe = getStoredTextureEditRecipe(tab.target);
+            if (recipe && typeof applyKeyImageHeightCropInputOverride === 'function') {
+                applyKeyImageHeightCropInputOverride(tab, { currentParams: recipe.params });
+            }
+            return true;
+        }
+
         function getTextureEditSourcePath(selected) {
             if (!selected) return '';
             if (selected.kind === 'library') {

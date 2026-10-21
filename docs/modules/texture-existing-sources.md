@@ -3,9 +3,10 @@
 **一句话职责：** 把当前皮肤图片仓库转换成可搜索、可预览的已有贴图候选列表。
 
 ## 接口
-- `collectExistingTextureSources(storeMap = skinImageStore, zip = currentSkinZip)` 返回按路径稳定排序的资源数组。
+- `collectExistingTextureSources(storeMap = skinImageStore, zip = currentSkinZip, options = {})` 返回按路径稳定排序的资源数组。
+- `options.expandAnimationFrames` 为 `true` 时把动画拆成真实帧路径（如 `score-0`、`score-1`）；默认合并为动画基名，供路径引用。
 - `filterExistingTextureSources(sources, query)` 按完整路径或文件名过滤候选。
-- 资源包含 `path`、`basename`、`image`、`frames`、尺寸、`is2x`、`isAnimation`。
+- 资源包含 `path`、`storeKey`、`basename`、`image`、`frames`、尺寸、`is2x`、`isAnimation`；逐帧展开时另含 `isAnimationFrame`、`animationBasePath`、`animationFrameIndex`、`animationFrameCount`。
 
 ## 输入
 - `storeMap`：皮肤图片仓库 Map。
@@ -13,7 +14,7 @@
 - **前置条件**：皮肤资源已解析并存入 `skinImageStore`。
 
 ## 输出
-- 去重后的贴图候选列表；动画只保留 base 条目，帧条目不重复显示。
+- 去重后的贴图候选列表；默认动画只保留 base 条目，开启逐帧展开后每个实际帧单独返回。
 - **后置条件**：不修改图片仓库、压缩包或 skin.ini。
 
 ## 依赖模块

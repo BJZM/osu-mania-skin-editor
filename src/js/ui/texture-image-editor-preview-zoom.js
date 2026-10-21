@@ -265,7 +265,7 @@
             if (status) {
                 status.classList.toggle('is-ready', composer.active || info.eligible);
                 if (composer.active) {
-                    status.textContent = `已开启：将生成 ${composer.targetHeight}px 高身体，并把 NoteBodyStyle 设为 1。`;
+                    status.textContent = `已开启：将生成 ${composer.targetHeight}px 高身体，并把 NoteBodyStyle 设为 1。如需修改裁切、拉伸、RGB 等基础参数，请先关闭一键投皮。`;
                 } else if (info.eligible) {
                     status.textContent = `当前长条身体高度为 ${info.bodyHeight}px，小于 ${LONG_BODY_OPEN_HEIGHT_LIMIT}px，可开启一键投皮。`;
                 } else if (info.bodyHeight > 0) {
@@ -276,6 +276,8 @@
             }
             updateLongBodyControlValues();
             updateImageTransformControlAvailability();
+            updateRgbAdjustmentControlAvailability();
+            updateSelectionSummary();
         }
 
         function setNoteBodyStyleOne(recordUndo = false, applyAll = true) {

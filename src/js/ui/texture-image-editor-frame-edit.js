@@ -141,6 +141,13 @@
             const button = byId('textureImageStretchFixBtn');
             const targetEl = byId('textureImageStretchTarget');
             if (!button || !targetEl) return;
+            if (state.longBodyComposer.active) {
+                button.disabled = true;
+                button.title = LONG_BODY_EDIT_LOCK_MESSAGE;
+                targetEl.classList.add('is-idle');
+                targetEl.textContent = '如需使用拉伸修复，请先关闭一键投皮。';
+                return;
+            }
 
             const frame = state.previewFrames[0] || state.workingFrames[0];
             const target = getStretchFixTarget(state.selected, frame);

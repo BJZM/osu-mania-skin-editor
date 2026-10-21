@@ -227,6 +227,9 @@
             }
 
             if (kind === 'beatmap') {
+                if (typeof importBeatmapFile === 'function') {
+                    return importBeatmapFile(file);
+                }
                 return dispatchDroppedFile(ui.osz, file);
             }
             if (kind === 'skin') {

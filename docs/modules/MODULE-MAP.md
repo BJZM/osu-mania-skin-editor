@@ -9,7 +9,7 @@
 | texture-rgb-adjustment | 对单张 canvas 按 RGB 通道增益调整颜色，保留透明度 | implemented | 无 |
 | texture-solid-shape-factory | 按尺寸、填充 RGBA、可选像素边界描边与形状蒙版生成 canvas | implemented | 无 |
 | texture-image-editor | 组合多草稿纯色形状创建、像素边界描边、通用编辑参数、单图覆盖保存、共享引用同步/独立副本决策、KeyImage 分状态参数同步、历史记录与贴图保存流程 | implemented | texture-solid-shape-factory, texture-rgb-adjustment |
-| texture-existing-sources | 枚举当前皮肤的已有贴图，支持动画去重、原路径大小写恢复与搜索 | implemented | skin-assets, global-skin-state |
+| texture-existing-sources | 枚举当前皮肤的已有贴图，支持动画默认去重或逐帧展开、原路径大小写恢复与搜索 | implemented | skin-assets, global-skin-state |
 | texture-param-lookup | 将一个贴图参数及其别名统一指向已有贴图路径 | implemented | texture-resolve, global-skin-state |
 | texture-existing-picker-view | 渲染已有贴图候选网格、缩略图、规格角标与空状态 | implemented | texture-existing-sources |
 | texture-existing-picker | 组合已有贴图选择、路径写回、撤销记录与界面刷新 | implemented | texture-existing-sources, texture-existing-picker-view, texture-param-lookup |

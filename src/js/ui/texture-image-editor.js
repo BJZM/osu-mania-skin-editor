@@ -179,6 +179,7 @@
             const input = byId(id);
             if (input) {
                 input.addEventListener('input', () => {
+                    if (state.longBodyComposer.active) return;
                     beginEditorHistory('调整裁剪与扩边', { group: 'crop-input', autoCommitMs: 450 });
                     scheduleLivePreview();
                 });
@@ -188,6 +189,7 @@
             const input = byId(id);
             if (input) {
                 input.addEventListener('input', () => {
+                    if (state.longBodyComposer.active) return;
                     if (input.value === '') return;
                     beginEditorHistory('调整拉伸与缩放', {
                         group: 'image-transform-input',
@@ -228,6 +230,7 @@
                 const range = byId(`textureImageRgb${channel.toUpperCase()}`);
                 const number = byId(`textureImageRgb${channel.toUpperCase()}Value`);
                 const onInput = (rawValue) => {
+                    if (state.longBodyComposer.active) return;
                     if (rawValue === '') return;
                     const value = normalizeRgbAdjustmentChannel(rawValue);
                     beginEditorHistory('调整贴图RGB通道', {
@@ -257,6 +260,7 @@
             const rgbResetBtn = byId('textureImageRgbResetBtn');
             if (rgbResetBtn) {
                 rgbResetBtn.onclick = () => {
+                    if (state.longBodyComposer.active) return;
                     beginEditorHistory('重置贴图RGB通道', { group: 'rgb-adjustment-reset' });
                     resetRgbAdjustmentInputs();
                     scheduleLivePreview();
@@ -378,9 +382,8 @@
                         strokeWidth: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeWidth : 0,
                         strokeColor: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeColor : '#000000',
                         strokeAlpha: typeof textureCreatorState !== 'undefined' ? textureCreatorState.strokeAlpha : 100,
-                        fillTransparentEnabled: typeof textureCreatorState !== 'undefined' ? !!textureCreatorState.fillTransparentEnabled : false,
                         fillTransparentColor: typeof textureCreatorState !== 'undefined' ? (textureCreatorState.fillTransparentColor || '#000000') : '#000000',
-                        fillTransparentAlpha: typeof textureCreatorState !== 'undefined' ? (Number.isFinite(textureCreatorState.fillTransparentAlpha) ? textureCreatorState.fillTransparentAlpha : 100) : 100,
+                        fillTransparentAlpha: typeof textureCreatorState !== 'undefined' ? (Number.isFinite(textureCreatorState.fillTransparentAlpha) ? textureCreatorState.fillTransparentAlpha : 0) : 0,
                         spec: typeof textureCreatorState !== 'undefined' ? textureCreatorState.spec : '1x'
                     },
                     longBody: {

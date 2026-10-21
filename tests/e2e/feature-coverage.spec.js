@@ -372,6 +372,23 @@ test('A3 启动面板支持拖拽导入皮肤与谱面', async ({ page }) => {
   expect(ready.canPlay).toBe(true);
   expect(ready.controlsDisabled).toBe(false);
   expect(ready.playDisabled).toBe(false);
+
+  const difficultyCount = await page.evaluate(() => beatmaps.length);
+  expect(difficultyCount).toBeGreaterThan(1);
+  await page.click('#diffSelectBtn');
+  await expect(page.locator('#diffDropdownWrapper')).toHaveClass(/open/);
+  const secondDifficulty = page.locator('#diffMenu .dropdown-item').nth(1);
+  const secondDifficultyTitle = (await secondDifficulty.locator('.title').textContent()).trim();
+  await secondDifficulty.click();
+  await expect.poll(() => page.evaluate(() => ({
+    index: Number(document.getElementById('diffSelect').value),
+    version: currentBeatmap && currentBeatmap.metadata && currentBeatmap.metadata.version,
+    label: document.getElementById('diffSelectLabel').textContent.trim()
+  }))).toEqual({
+    index: 1,
+    version: secondDifficultyTitle,
+    label: expect.stringContaining(secondDifficultyTitle)
+  });
   expect(errors).toEqual([]);
 });
 

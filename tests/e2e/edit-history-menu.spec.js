@@ -1,4 +1,8 @@
 const { test, expect } = require('@playwright/test');
+const path = require('path');
+
+const ROOT = path.resolve(__dirname, '../..');
+const MINIMAL_BEATMAP = path.join(ROOT, 'samples', 'beatmaps', 'minimal-4k.osu');
 
 test('顶部菜单按文件、难度与操作、其他分组，判定演示位于播放栏', async ({ page }) => {
   await page.goto('/index.html');
@@ -19,6 +23,13 @@ test('顶部菜单按文件、难度与操作、其他分组，判定演示位�
     'exportSkinBtn',
     'otherMenuBtn'
   ]);
+
+  await page.setInputFiles('#oszInput', MINIMAL_BEATMAP);
+  await page.waitForFunction(
+    () => Array.isArray(beatmaps) && beatmaps.length > 0,
+    null,
+    { timeout: 30000 }
+  );
 
   await expect(page.locator('#fileMenu')).toBeHidden();
   await page.click('#fileMenuBtn');

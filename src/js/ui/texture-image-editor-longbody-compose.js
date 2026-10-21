@@ -432,9 +432,22 @@
             const output = buildLongBodyComposite(LONG_BODY_PREVIEW_HEIGHT);
             if (!output) return;
 
-            state.workingFrames = [output];
             state.previewFrames = [output];
-            state.cropRect = { x: 0, y: 0, width: output.width, height: output.height };
+            const preComposer = composer.preComposerState;
+            if (preComposer && preComposer.workingFrames.length > 0) {
+                state.workingFrames = preComposer.workingFrames.map(cloneFrame);
+                state.cropRect = preComposer.cropRect
+                    ? { ...preComposer.cropRect }
+                    : {
+                        x: 0,
+                        y: 0,
+                        width: state.workingFrames[0].width,
+                        height: state.workingFrames[0].height
+                    };
+            } else {
+                state.workingFrames = [output];
+                state.cropRect = { x: 0, y: 0, width: output.width, height: output.height };
+            }
             updateCropInputs(state.cropRect);
             state.snapGuides = null;
             state.contentBoundsCache = null;

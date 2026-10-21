@@ -4,7 +4,7 @@
 
 [在线使用](https://osu-mania-skin-editor.pages.dev/) · [下载 Windows 便携版](https://github.com/BJZM/osu-mania-skin-editor/releases) · [反馈问题](https://github.com/BJZM/osu-mania-skin-editor/issues)
 
-![version](https://img.shields.io/badge/version-0.3.0_beta-blue)
+![version](https://img.shields.io/badge/version-0.3.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![platform](https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey)
 
@@ -109,11 +109,11 @@ npm install
 npm run dist:win
 ```
 
-生成的文件位于 `dist/osu-mania-skin-editor-0.3.0-beta-x64.exe`。
+生成的文件位于 `dist/osu-mania-skin-editor-0.3.0-x64.exe`。
 
 ## 反馈与帮助
 
-当前版本为 `v0.3.0 beta`，仍在持续迭代。遇到问题或希望补充新的编辑功能，可以通过 [GitHub Issues](https://github.com/BJZM/osu-mania-skin-editor/issues) 反馈。
+当前版本为 `v0.3.0`，后续仍会持续迭代。遇到问题或希望补充新的编辑功能，可以通过 [GitHub Issues](https://github.com/BJZM/osu-mania-skin-editor/issues) 反馈。
 
 界面内的「帮助」按钮提供贴图规则速查，「关于」按钮会展示版本、许可与第三方声明。
 

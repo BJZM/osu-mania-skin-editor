@@ -377,7 +377,8 @@
                 cropBottom: physicalBottom,
                 cropY: -Number(target.editParams.top || 0),
                 cropHeight: contentHeight + Number(target.editParams.top || 0) + physicalBottom,
-                heightDelta: Number(target.editParams.top || 0) + physicalBottom
+                heightDelta: Number(target.editParams.top || 0) + physicalBottom,
+                keyImageHeightOffset1x: clamped
             };
             target.currentParams = currentParams;
 
@@ -420,14 +421,21 @@
             const downTarget = dragState.keyImageDownHeightTarget;
             const hit = dragState.element;
             if (downTarget && hit && hit.w > 0) {
-                const normalDrawHeight = hit.w * target.outputFrames[0].height / target.stableRefW;
                 const downContentHeight = downTarget.sourceFrames[0].height;
                 const downPixelRatio = downTarget.pixelRatio || (downTarget.is2x ? 2 : 1);
-                const matchingDownOffset = clampKeyImageHeightOffset(
-                    (normalDrawHeight * downTarget.stableRefW / hit.w - downContentHeight) / downPixelRatio,
-                    downContentHeight,
-                    downPixelRatio
-                );
+                const hasPairTransform =
+                    (typeof hasImageTransform === 'function' &&
+                        hasImageTransform(normalOutput.params.imageTransform)) ||
+                    (typeof hasImageTransform === 'function' &&
+                        hasImageTransform(downTarget.editParams && downTarget.editParams.imageTransform));
+                const matchingDownOffset = hasPairTransform
+                    ? normalOutput.offset1x
+                    : clampKeyImageHeightOffset(
+                        (hit.w * target.outputFrames[0].height / target.stableRefW *
+                            downTarget.stableRefW / hit.w - downContentHeight) / downPixelRatio,
+                        downContentHeight,
+                        downPixelRatio
+                    );
                 const downOutput = buildKeyImageHeightOutputFrames(downTarget, matchingDownOffset);
                 downTarget.outputFrames = downOutput.frames;
                 installKeyImageHeightTargetFrames(downTarget, downTarget.outputFrames, keys);
@@ -670,6 +678,43 @@
                     installKeyImageHeightTargetFrames(downTarget, downTarget.outputFrames, keys);
                     syncTextureImageEditorTarget(downTarget);
                     targetsToPersist.push(downTarget);
+                }
+
+                // syncExternalFrames 会主动移除旧 recipe；外部帧同步完成后必须用
+                // 本次拖拽的原图与参数重新登记，否则下一次拖拽会把已缩放输出当成原图。
+                if (!target.isCreated) {
+                    for (const ref of allRefs) {
+                        if (ref && ref.key) {
+                            saveKeyImageRecipe(
+                                keys,
+                                ref.key,
+                                sourcePath,
+                                target.sourceFrames,
+                                target.currentParams,
+                                target.outputFrames
+                            );
+                        }
+                    }
+                }
+                if (dragState.keyImageDownHeightTarget && !dragState.keyImageDownHeightTarget.isCreated) {
+                    const downTarget = dragState.keyImageDownHeightTarget;
+                    const downSourcePath = normalizeTextureLookupPath(downTarget.base);
+                    const downRefs = typeof collectTexturePathReferences === 'function'
+                        ? collectTexturePathReferences(downSourcePath)
+                        : [];
+                    const allDownRefs = downRefs.length > 0 ? downRefs : [{ key: `KeyImage${col}D` }];
+                    for (const ref of allDownRefs) {
+                        if (ref && ref.key) {
+                            saveKeyImageRecipe(
+                                keys,
+                                ref.key,
+                                downSourcePath,
+                                downTarget.sourceFrames,
+                                downTarget.currentParams,
+                                downTarget.outputFrames
+                            );
+                        }
+                    }
                 }
 
                 await persistKeyImageHeightTargets(targetsToPersist, persistGeneration);

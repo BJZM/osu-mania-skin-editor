@@ -79,9 +79,10 @@
                 return;
             }
 
+            const baseEditingLocked = state.longBodyComposer.active;
             if (applyBtn) applyBtn.disabled = false;
-            if (resetBtn) resetBtn.disabled = false;
-            if (blankBtn) blankBtn.disabled = false;
+            if (resetBtn) resetBtn.disabled = baseEditingLocked;
+            if (blankBtn) blankBtn.disabled = baseEditingLocked;
             if (cancelBtn) cancelBtn.disabled = false;
 
             const keyImageMenuAvailable = isKeyImageSaveMenuAvailable();

@@ -265,13 +265,44 @@
             if (!path || typeof createdSkinTextureParams === 'undefined') return null;
             const key = normalizeSkinKey(path);
             const params = createdSkinTextureParams.get(key);
-            return params ? { ...params } : null;
+            return params ? normalizeCreatedTextureTransparentFillParams(params) : null;
+        }
+
+        function normalizeCreatedTextureTransparentFillParams(params) {
+            if (!params || typeof params !== 'object') return params;
+            const normalized = { ...params };
+            const hasLegacyEnabledFlag =
+                Object.prototype.hasOwnProperty.call(params, 'fillTransparentEnabled') ||
+                Object.prototype.hasOwnProperty.call(params, 'transparentFillEnabled');
+            const legacyEnabled = !!(
+                params.fillTransparentEnabled ||
+                params.transparentFillEnabled
+            );
+            const rawAlpha = params.fillTransparentAlpha !== undefined
+                ? params.fillTransparentAlpha
+                : params.transparentFillAlpha;
+            const parsedAlpha = Number(rawAlpha);
+            normalized.fillTransparentColor =
+                params.fillTransparentColor ||
+                params.transparentFillColor ||
+                '#000000';
+            normalized.fillTransparentAlpha = hasLegacyEnabledFlag && !legacyEnabled
+                ? 0
+                : (Number.isFinite(parsedAlpha) ? parsedAlpha : 0);
+            delete normalized.fillTransparentEnabled;
+            delete normalized.transparentFillEnabled;
+            delete normalized.transparentFillColor;
+            delete normalized.transparentFillAlpha;
+            return normalized;
         }
 
         function saveCreatedTextureParams(path, params) {
             if (!path || !params || typeof createdSkinTextureParams === 'undefined') return;
             const key = normalizeSkinKey(path);
-            createdSkinTextureParams.set(key, { ...params, name: path });
+            createdSkinTextureParams.set(
+                key,
+                { ...normalizeCreatedTextureTransparentFillParams(params), name: path }
+            );
         }
 
         function deleteCreatedTextureParams(path) {
@@ -421,11 +452,10 @@
                 cornerRadius: payload.cornerRadius,
                 arrowThickness: payload.arrowThickness,
                 arrowRoundness: payload.arrowRoundness,
-                fillTransparentEnabled: !!(payload.fillTransparentEnabled || payload.transparentFillEnabled),
                 fillTransparentColor: payload.fillTransparentColor || payload.transparentFillColor || '#000000',
                 fillTransparentAlpha: Number.isFinite(payload.fillTransparentAlpha !== undefined ? payload.fillTransparentAlpha : payload.transparentFillAlpha)
                     ? (payload.fillTransparentAlpha !== undefined ? payload.fillTransparentAlpha : payload.transparentFillAlpha)
-                    : 100,
+                    : 0,
                 generalEditParams
             });
 

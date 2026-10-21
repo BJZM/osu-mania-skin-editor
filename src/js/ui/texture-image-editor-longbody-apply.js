@@ -82,6 +82,56 @@
             };
         }
 
+        function createLongBodyPreComposerStateFromRecipe(recipe) {
+            if (!recipe || !recipe.params || !Array.isArray(recipe.sourceFrames) ||
+                recipe.sourceFrames.length === 0) {
+                return null;
+            }
+            const workingFrames = recipe.sourceFrames.map(cloneFrame);
+            let cropRect = {
+                x: 0,
+                y: 0,
+                width: workingFrames[0].width,
+                height: workingFrames[0].height
+            };
+            try {
+                const edited = buildEditedFrames(workingFrames, recipe.params);
+                if (edited && edited.cropRect) cropRect = { ...edited.cropRect };
+            } catch (_) {}
+            return {
+                workingFrames,
+                cropRect,
+                imageTransform: cloneImageTransform(recipe.params.imageTransform),
+                rgbAdjustment: cloneRgbAdjustment(recipe.params.rgbAdjustment)
+            };
+        }
+
+        function getLongBodyPreComposerStateForColumn(column, selectedColumn) {
+            if (column === selectedColumn && state.longBodyComposer.preComposerState) {
+                return cloneLongBodyPreComposerState(state.longBodyComposer.preComposerState);
+            }
+            const bodyParam = getLongBodyParamForTrack(LML.HoldNoteBodyImage, column);
+            const target = bodyParam ? buildEditorTarget(bodyParam) : null;
+            const recipe = target ? getStoredTextureEditRecipe(target) : null;
+            if (recipe) return createLongBodyPreComposerStateFromRecipe(recipe);
+            const resolved = target && target.resolved;
+            const sourcePath = resolved ? normalizeTextureLookupPath(resolved.name) : '';
+            const createdParams = sourcePath && typeof getCreatedTextureParams === 'function'
+                ? getCreatedTextureParams(sourcePath)
+                : null;
+            if (!createdParams || !createdParams.generalEditParams ||
+                typeof createSolidShapeTexture !== 'function') {
+                return null;
+            }
+            const generated = createSolidShapeTexture(createdParams);
+            generated._is2x = createdParams.spec === '2x';
+            generated._isRootLevel = !sourcePath.includes('/');
+            return createLongBodyPreComposerStateFromRecipe({
+                sourceFrames: [generated],
+                params: createdParams.generalEditParams
+            });
+        }
+
         function getLongBodyApplyPlan(column, selectedColumn, selectedSource) {
             const session = column === selectedColumn
                 ? null
@@ -110,6 +160,7 @@
                 column,
                 sourceKey,
                 reusesSelectedOutput,
+                preComposerState: getLongBodyPreComposerStateForColumn(column, selectedColumn),
                 baseFrames: compositeSource.baseFrames || [],
                 bodySourceName: compositeSource.bodySourceName || '',
                 // “应用到全部轨道”复用当前轨道的投皮配方；各轨只保留自己的身体底图来源。
@@ -155,6 +206,18 @@
 
         function enableLongBodyComposer(session = null) {
             if (!isHoldBodySelected()) return false;
+            const composer = state.longBodyComposer;
+            const nextSessionKey = getLongBodySessionKey();
+            const reuseDraft = !session &&
+                composer.hasOpened &&
+                composer.sessionKey === nextSessionKey;
+            const draft = reuseDraft ? {
+                targetHeight: composer.targetHeight,
+                coverage: composer.coverage,
+                fade: composer.fade,
+                tailPreset: composer.tailPreset || 'none',
+                presetHeight: composer.presetHeight || 0
+            } : null;
             const info = session ? null : getLongBodySourceInfo();
             if (!session && info && !info.eligible) {
                 showToast(
@@ -164,21 +227,25 @@
                 updateLongBodyComposerUI();
                 return false;
             }
-            const composer = state.longBodyComposer;
             const selectedColumn = getSelectedTrackIndex();
             const currentTrackSource = session && selectedColumn != null
                 ? readLongBodyTrackSource(selectedColumn)
                 : null;
             if (!session) {
-                composer.preComposerState = {
+                composer.preComposerState = cloneLongBodyPreComposerState({
                     workingFrames: state.workingFrames.map(cloneFrame),
                     cropRect: state.cropRect ? { ...state.cropRect } : null,
                     imageTransform: cloneImageTransform(state.imageTransform),
                     rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
-                };
+                });
+            } else {
+                composer.preComposerState = cloneLongBodyPreComposerState(
+                    session.preComposerState
+                );
             }
             composer.active = true;
-            composer.sessionKey = getLongBodySessionKey();
+            composer.sessionKey = nextSessionKey;
+            composer.hasOpened = true;
             const currentEffectiveFrame = state.previewFrames[0] || (buildPreviewFrames()[0] || state.workingFrames[0]);
             composer.baseFrames = (session ? session.baseFrames : [currentEffectiveFrame]).map(cloneFrame);
             if (composer.baseFrames[0] && state.originalFrames[0]) {
@@ -197,13 +264,21 @@
             composer.tailScaledHeight = composer.tailFrame
                 ? Math.max(1, Math.round(composer.tailFrame.height * composer.baseFrames[0].width / Math.max(1, composer.tailFrame.width)))
                 : 0;
-            composer.targetHeight = session ? session.targetHeight : LONG_BODY_DEFAULT_HEIGHT;
+            composer.targetHeight = session
+                ? session.targetHeight
+                : (draft ? draft.targetHeight : LONG_BODY_DEFAULT_HEIGHT);
             composer.coverage = session
                 ? session.coverage
-                : (composer.tailScaledHeight || Math.min(120, composer.baseFrames[0].height));
-            composer.fade = session ? session.fade : 0;
-            composer.tailPreset = session ? (session.tailPreset || 'none') : 'none';
-            composer.presetHeight = session ? (session.presetHeight || 0) : 0;
+                : (draft
+                    ? draft.coverage
+                    : (composer.tailScaledHeight || Math.min(120, composer.baseFrames[0].height)));
+            composer.fade = session ? session.fade : (draft ? draft.fade : 0);
+            composer.tailPreset = session
+                ? (session.tailPreset || 'none')
+                : (draft ? draft.tailPreset : 'none');
+            composer.presetHeight = session
+                ? (session.presetHeight || 0)
+                : (draft ? draft.presetHeight : 0);
             composer.preserveImportedOutput = !!(session && session.preserveImportedOutput);
             composer.previousNoteBodyStyle = null;
             state.savedLongBodyComposer = session
@@ -256,6 +331,7 @@
                 if (!plan || !plan.baseFrames || plan.baseFrames.length === 0) continue;
                 longBodyComposerSessions.set(`${keys}|NoteImage${plan.column}L`, {
                     baseFrames: plan.baseFrames.map(cloneFrame),
+                    preComposerState: cloneLongBodyPreComposerState(plan.preComposerState),
                     tailFrame: plan.tailFrame ? cloneFrame(plan.tailFrame) : null,
                     bodySourceName: plan.bodySourceName || '',
                     tailSourceName: plan.tailSourceName || '',

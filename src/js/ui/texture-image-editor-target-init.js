@@ -49,6 +49,9 @@
             state = tab.state;
             state.selected = target;
             const session = longBodyComposerSessions.get(getLongBodySessionKey(target));
+            const sessionPreComposerState = cloneLongBodyPreComposerState(
+                session && session.preComposerState
+            );
             const savedRecipe = session ? null : getStoredTextureEditRecipe(target);
             const isCreated = typeof hasCreatedTextureParams === 'function' &&
                 hasCreatedTextureParams(target.base);
@@ -63,7 +66,10 @@
             const effectiveRecipe = targetRecipe || savedRecipe;
             let sourceFrames;
             if (session && session.baseFrames) {
-                sourceFrames = session.baseFrames;
+                sourceFrames = sessionPreComposerState &&
+                    sessionPreComposerState.workingFrames.length > 0
+                    ? sessionPreComposerState.workingFrames
+                    : session.baseFrames;
             } else if (isCreated && typeof createSolidShapeTexture === 'function') {
                 const cParams = getCreatedTextureParams(target.base);
                 if (cParams) {
@@ -106,8 +112,33 @@
                     ...cloneKeyImageEditSources(savedRecipe.keyImageOriginalSources)
                 }
                 : pairOriginalSources;
-            const restored = effectiveRecipe &&
-                applyStoredTextureEditRecipe(state, effectiveRecipe);
+            let restored = false;
+            if (sessionPreComposerState) {
+                state.cropRect = sessionPreComposerState.cropRect
+                    ? { ...sessionPreComposerState.cropRect }
+                    : {
+                        x: 0,
+                        y: 0,
+                        width: state.workingFrames[0].width,
+                        height: state.workingFrames[0].height
+                    };
+                state.imageTransform = cloneImageTransform(
+                    sessionPreComposerState.imageTransform
+                );
+                state.rgbAdjustment = cloneRgbAdjustment(
+                    sessionPreComposerState.rgbAdjustment
+                );
+                state.previewFrames = buildPreviewFrames().map((frame) =>
+                    applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
+                );
+                updateCropInputs(state.cropRect);
+                updateImageTransformInputs();
+                updateRgbAdjustmentInputs();
+                restored = true;
+            } else {
+                restored = !!(effectiveRecipe &&
+                    applyStoredTextureEditRecipe(state, effectiveRecipe));
+            }
             if (!restored) {
                 if (savedRecipe) removeTextureEditRecipe(target);
                 resetTransformInputs();

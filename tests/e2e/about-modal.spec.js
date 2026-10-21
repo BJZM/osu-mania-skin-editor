@@ -9,7 +9,7 @@ test('关于弹窗展示版本、版权与第三方许可', async ({ page }) => 
   await page.click('#otherMenuBtn');
   await page.click('#topAboutBtn');
   await expect(page.locator('#aboutModal')).toBeVisible();
-  await expect(page.locator('#aboutAppVersion')).toHaveText('0.3.0 beta');
+  await expect(page.locator('#aboutAppVersion')).toHaveText('0.3.0');
   await expect(page.locator('#aboutModal')).toContainText('MIT');
   await expect(page.locator('#aboutModal')).toContainText('ppy Pty Ltd');
   await expect(page.locator('#aboutModal')).toContainText('JSZip');

@@ -123,7 +123,25 @@
                 deletedSkinTexturePaths.has(`${cleanPath}@2x.png`);
         }
 
-        function collectExistingTextureSources(storeMap = null, zip = currentSkinZip) {
+        function buildExistingTextureSource(key, path, image, frames, options = {}) {
+            const basename = path.split('/').pop() || path;
+            const width = image.naturalWidth || image.videoWidth || image.width || 0;
+            const height = image.naturalHeight || image.videoHeight || image.height || 0;
+            return {
+                path,
+                storeKey: key,
+                basename,
+                image,
+                frames,
+                width,
+                height,
+                is2x: !!image._is2x,
+                isAnimation: frames.length > 1,
+                ...options
+            };
+        }
+
+        function collectExistingTextureSources(storeMap = null, zip = currentSkinZip, options = {}) {
             const targetStore = resolveEffectiveTextureStoreMap(storeMap, zip);
             if (!targetStore || typeof targetStore.entries !== 'function') return [];
             const allKeys = Array.from(targetStore.keys());
@@ -155,20 +173,28 @@
                 const image = frames[0] || (typeof resolveEntrySingle === 'function' ? resolveEntrySingle(entry) : null);
                 if (!image) continue;
 
-                const basename = path.split('/').pop() || path;
-                const width = image.naturalWidth || image.videoWidth || image.width || 0;
-                const height = image.naturalHeight || image.videoHeight || image.height || 0;
-                sources.push({
-                    path,
-                    storeKey: key,
-                    basename,
-                    image,
-                    frames,
-                    width,
-                    height,
-                    is2x: !!image._is2x,
-                    isAnimation: frames.length > 1
-                });
+                if (options.expandAnimationFrames && frames.length > 1) {
+                    frames.forEach((frame, index) => {
+                        const frameKey = `${key}-${index}`;
+                        const framePath = originalPaths.get(frameKey) || frameKey;
+                        if (isExistingTextureSourceDeleted(frameKey, framePath)) return;
+                        sources.push(buildExistingTextureSource(
+                            frameKey,
+                            framePath,
+                            frame,
+                            [frame],
+                            {
+                                isAnimationFrame: true,
+                                animationBasePath: path,
+                                animationFrameIndex: index,
+                                animationFrameCount: frames.length
+                            }
+                        ));
+                    });
+                    continue;
+                }
+
+                sources.push(buildExistingTextureSource(key, path, image, frames));
             }
 
             return sources.sort(compareExistingTextureSources);
