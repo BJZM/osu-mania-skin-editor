@@ -186,7 +186,7 @@ test('KeyImage 可独立增减高度，并在接近其他轨道高度时磁吸',
   expect(errors).toEqual([]);
 });
 
-test('默认皮肤打开 KeyImage 编辑器后于画布抬高高度时直接覆盖原贴图并保持共享引用', async ({ page }) => {
+test('默认皮肤打开 KeyImage 编辑器后于画布抬高高度时询问是否独立应用', async ({ page }) => {
   const errors = await bootDefaultSkin(page);
 
   await page.click('#openTextureImageEditorBtn');
@@ -213,7 +213,11 @@ test('默认皮肤打开 KeyImage 编辑器后于画布抬高高度时直接覆�
   expect(before.name3).toBe('mania-key1');
 
   await dragSelectedKeyTop(page, 0, before.height0 + 24);
-  await expect(page.locator('#textureImageApplyScopeModal')).toBeHidden();
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  await expect(scopeModal).toBeVisible();
+  await expect(page.locator('#textureImageApplyScopeTitle')).toHaveText('贴图被多处引用');
+  await page.click('#textureImageApplyScopeAllBtn');
+  await expect(scopeModal).toBeHidden();
   await page.waitForFunction(
     (height) => getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0).height > height,
     before.height0

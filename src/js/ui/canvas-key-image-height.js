@@ -581,13 +581,7 @@
             });
 
             let decision = 'all';
-            const overwriteDefaultSource = shouldOverwriteDefaultKeyImageSource({
-                key: `KeyImage${col}`,
-                _trackLookup: target.lookup
-            });
-            if (otherReferences.length > 0 &&
-                !overwriteDefaultSource &&
-                typeof requestLongBodyApplyScope === 'function') {
+            if (otherReferences.length > 0 && typeof requestLongBodyApplyScope === 'function') {
                 decision = await requestLongBodyApplyScope({
                     title: '贴图被多处引用',
                     text: `“${sourcePath}”还被其他 ${otherReferences.length} 个地方引用。是否同步替换所有引用？选择“同步替换”将直接更新原贴图；选择“独立创建”将为当前轨道独立创建贴图。`,
