@@ -180,7 +180,7 @@ test.describe('Chinese and English interface', () => {
 
     await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
     await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
-    await expect(page.locator('.texture-image-tab.is-active .texture-image-tab-label')).toHaveText(/Lane 1 key texture/);
+    await expect(page.locator('.texture-image-tab.is-active .texture-image-tab-label')).toHaveText(/Column 1 key texture/);
     expect(await collectVisibleHan(page)).toEqual([]);
 
     await page.click('#textureImageApplyMenuBtn');
@@ -203,7 +203,7 @@ test.describe('Chinese and English interface', () => {
       openTextureExistingPicker(target, getActiveKeyCount());
     });
     await expect(page.locator('#textureExistingPickerModal')).toBeVisible();
-    await expect(page.locator('#textureExistingPickerTargetLabel')).toHaveText('Lane 1 normal-note texture');
+    await expect(page.locator('#textureExistingPickerTargetLabel')).toHaveText('Column 1 normal-note texture');
     expect(await collectVisibleHan(page)).toEqual([]);
     await page.click('#textureExistingPickerCancelBtn');
 

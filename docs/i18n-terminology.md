@@ -7,7 +7,7 @@
 | 谱面 | Beatmap | 不把 beatmap 译成 map |
 | 难度 | Difficulty | |
 | 键数 | Key count | 4K、7K 等保持不变 |
-| 轨道 | Lane | 玩家击打的一条纵向区域 |
+| 轨道 | Column | 玩家击打的一条纵向区域 |
 | 列 / 列宽 | Column / Column width | `ColumnWidth` 字段不翻译 |
 | 音符 | Note | |
 | 单键 / 普通音符 | Note | 与长按音符相对时用 normal note |
@@ -40,6 +40,6 @@
 ## 翻译原则
 
 - osu! 官方字段、文件名、参数键、游戏等级（300g、300、200、100、50、Miss）和格式扩展名保持原样。
-- 同一概念只使用一个英文词：Lane 不混用 track，Texture 不混用 image，Judgement 不写成 judgment。
-- 面向操作时使用动词开头的短句，例如 Import skin、Apply to all lanes、Save to skin。
+- 同一概念只使用一个英文词：Column 不混用 track，Texture 不混用 image，Judgement 不写成 judgment。
+- 面向操作时使用动词开头的短句，例如 Import skin、Apply to all Columns、Save to skin。
 - 英文界面不显示中文说明；`中文` 语言名称作为语言自称保留。

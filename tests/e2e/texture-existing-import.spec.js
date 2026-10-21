@@ -138,7 +138,9 @@ test('从已有贴图导入站内自建贴图后可撤回路径', async ({ page 
   const targetRow = page.locator('#param-card-NoteImage0');
   await expect(targetRow).toBeVisible();
   await targetRow.locator('.texture-upload-dropdown').hover();
-  await targetRow.locator('.texture-upload-menu-item.item-existing').click();
+  // Hover already exercises the dropdown interaction; force the click because
+  // adjacent cards can transiently overlap the animated menu after scrolling.
+  await targetRow.locator('.texture-upload-menu-item.item-existing').click({ force: true });
 
   await expect(page.locator('#textureExistingPickerModal')).toHaveCSS('display', 'flex');
   await page.fill('#textureExistingPickerSearch', createdPath);
