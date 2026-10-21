@@ -112,6 +112,40 @@ test.describe('Chinese and English interface', () => {
     expect(missing).toEqual([]);
   });
 
+  test('canvas selection controls stay in English', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('osu-mania-skin-editor.language', 'en');
+    });
+    await page.goto('/index.html');
+    await page.setInputFiles('#oskInput', SKIN);
+    await page.waitForFunction(() => isStartupSkinReady(), null, { timeout: 60000 });
+    await page.setInputFiles('#oszInput', BEATMAP);
+    await page.waitForFunction(() => isStartupWorkspaceReady(), null, { timeout: 60000 });
+    await page.evaluate(() => {
+      ensureManiaConfigForKeys(getActiveKeyCount());
+      drawFrame();
+    });
+
+    const candidateIds = ['track_col_1', 'key_0', 'judgement', 'healthDisplay', 'combo'];
+    const selectedIds = [];
+    for (const id of candidateIds) {
+      const selected = await page.evaluate((elementId) => {
+        const element = canvasInteractiveElements.find((item) => item.id === elementId);
+        if (!element) return false;
+        selectedCanvasElement = element;
+        syncCanvasSelectedCard(element);
+        return true;
+      }, id);
+      if (!selected) continue;
+      selectedIds.push(id);
+      await page.waitForTimeout(50);
+      expect(await collectVisibleHan(page), `Chinese text after selecting ${id}`).toEqual([]);
+    }
+
+    expect(selectedIds.length).toBeGreaterThan(0);
+    expect(selectedIds).toEqual(expect.arrayContaining(['track_col_1', 'key_0']));
+  });
+
   test('notifications and post-beatmap skin prompts are fully localized', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('osu-mania-skin-editor.language', 'en');
