@@ -1455,6 +1455,58 @@ test('长条身体高度小于 5000px 时可开启一键投皮，不再依赖尾
   expect(errors).toEqual([]);
 });
 
+test('一键投皮主预览绘制合成图并随参数实时更新', async ({ page }) => {
+  const errors = await boot(page);
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    if (!cfg.ImageLookups) cfg.ImageLookups = new Map();
+
+    const body = document.createElement('canvas');
+    body.width = 80;
+    body.height = 40;
+    const bodyCtx = body.getContext('2d');
+    bodyCtx.fillStyle = '#ffffff';
+    bodyCtx.fillRect(0, 0, body.width, body.height);
+    saveSkinAssetToStore(skinImageStore, 'longbody_preview_body', body, false, true, true);
+    cfg.ImageLookups.set('NoteImage0L', 'longbody_preview_body');
+
+    const tail = document.createElement('canvas');
+    tail.width = 1;
+    tail.height = 1;
+    saveSkinAssetToStore(skinImageStore, 'longbody_preview_transparent_tail', tail, false, true, true);
+    cfg.ImageLookups.set('NoteImage0T', 'longbody_preview_transparent_tail');
+  });
+
+  await selectLongBodyImage(page);
+  await page.locator('#textureImageLongBodyEnable').check({ force: true });
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.longBody.active && state.previewSize.height === 800;
+  });
+
+  const samplePreview = () => page.evaluate(() => {
+    const canvas = document.getElementById('textureImagePreviewCanvas');
+    const ctx = canvas.getContext('2d');
+    return Array.from(ctx.getImageData(Math.floor(canvas.width / 2), 200, 1, 1).data);
+  });
+  const initial = await samplePreview();
+  expect(initial[0]).toBeGreaterThan(200);
+
+  await page.fill('#textureImageLongBodyCoverage', '120');
+  await page.fill('#textureImageLongBodyFade', '80');
+  await page.waitForFunction(() => {
+    const longBody = textureImageEditorUi.getState().longBody;
+    return longBody.coverage === 120 && longBody.fade === 80;
+  });
+  await page.waitForTimeout(180);
+
+  const adjusted = await samplePreview();
+  expect(adjusted[0]).toBeGreaterThan(0);
+  expect(adjusted[0]).toBeLessThan(initial[0]);
+  expect(errors).toEqual([]);
+});
+
 test('长条身体高度等于 5000px 时禁用一键投皮', async ({ page }) => {
   const errors = await boot(page);
   await installLongBodyHeight(page, 5000);

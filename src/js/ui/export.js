@@ -67,7 +67,66 @@
             }
         }
 
-        // 11. 导出更新后的完整皮肤包 (.osk 或 .zip)
+        // 11. 构建最新完整皮肤包，供普通导出和 Agent 导出共用
+        async function buildSkinArchiveBlob(format = 'osk', options = {}) {
+            const mode = normalizeTextureExportMode(
+                typeof options === 'string' ? options : options.mode
+            );
+            let zip = currentSkinZip ? currentSkinZip : new JSZip();
+            stripUnsafeSkinArchiveEntries(zip);
+            stripTextureProjectFromArchive(zip);
+            if (deletedSkinTexturePaths.size > 0) {
+                for (const filename of Object.keys(zip.files)) {
+                    if (deletedSkinTexturePaths.has(filename.replace(/\\/g, '/').toLowerCase())) {
+                        zip.remove(filename);
+                    }
+                }
+            }
+
+            // 1. 生成最新完整 skin.ini 文本并覆盖写入
+            const newIniText = generateSkinIniText();
+            let iniFilename = 'skin.ini';
+            for (const filename of Object.keys(zip.files)) {
+                if (filename.toLowerCase().endsWith('skin.ini')) {
+                    iniFilename = filename;
+                    break;
+                }
+            }
+            zip.file(iniFilename, newIniText);
+
+            // 2. 将所有用户上传替换的贴图写入压缩包
+            for (const [texPath, texData] of userReplacedTextures.entries()) {
+                zip.file(texPath, texData);
+                // 若替换的是 1x 普通贴图且原压缩包里存在同名 @2x 贴图，移除旧 @2x，防止 osu! 启动时优先读取旧的高清贴图
+                if (!texPath.includes('@2x')) {
+                    const baseName = texPath.replace(/\.png$/i, '');
+                    const old2xName = `${baseName}@2x.png`;
+                    if (zip.file(old2xName) && !userReplacedTextures.has(old2xName)) {
+                        zip.remove(old2xName);
+                    }
+                }
+            }
+
+            // 3. 开始执行异步压缩
+            const projectSummary = mode === 'editable'
+                ? await writeTextureProjectToArchive(zip, { includeSources: true })
+                : null;
+            const blob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            }, (meta) => {
+                updateProgress(Math.round(meta.percent), 100, `正在压缩资源 (${Math.round(meta.percent)}%)...`);
+            });
+
+            const rawName = (currentSkinMetadata.general && currentSkinMetadata.general.Name) || currentSkinFileName || 'Mania_Custom_Skin';
+            const cleanName = rawName.replace(/\.(osk|zip)$/i, '').replace(/[\\/:*?"<>|]/g, '_');
+            const suffix = mode === 'editable' ? '_editable' : '_release';
+            const exportFileName = `${cleanName}${suffix}.${format}`;
+            return { blob, exportFileName, mode, format, projectSummary };
+        }
+
+        // 12. 导出更新后的完整皮肤包 (.osk 或 .zip)
         async function exportSkin(format = 'osk', options = {}) {
             const mode = normalizeTextureExportMode(
                 typeof options === 'string' ? options : options.mode
@@ -75,59 +134,7 @@
             const modeLabel = mode === 'editable' ? '可继续编辑' : '仅发布';
             showProgress(`正在打包生成 ${format.toUpperCase()} 皮肤文件（${modeLabel}）...`);
             try {
-                let zip = currentSkinZip ? currentSkinZip : new JSZip();
-                stripUnsafeSkinArchiveEntries(zip);
-                stripTextureProjectFromArchive(zip);
-                if (deletedSkinTexturePaths.size > 0) {
-                    for (const filename of Object.keys(zip.files)) {
-                        if (deletedSkinTexturePaths.has(filename.replace(/\\/g, '/').toLowerCase())) {
-                            zip.remove(filename);
-                        }
-                    }
-                }
-
-                // 1. 生成最新完整 skin.ini 文本并覆盖写入
-                const newIniText = generateSkinIniText();
-                let iniFilename = 'skin.ini';
-                for (const filename of Object.keys(zip.files)) {
-                    if (filename.toLowerCase().endsWith('skin.ini')) {
-                        iniFilename = filename;
-                        break;
-                    }
-                }
-                zip.file(iniFilename, newIniText);
-
-                // 2. 将所有用户上传替换的贴图写入压缩包
-                for (const [texPath, texData] of userReplacedTextures.entries()) {
-                    zip.file(texPath, texData);
-                    // 若替换的是 1x 普通贴图且原压缩包里存在同名 @2x 贴图，移除旧 @2x，防止 osu! 启动时优先读取旧的高清贴图
-                    if (!texPath.includes('@2x')) {
-                        const baseName = texPath.replace(/\.png$/i, '');
-                        const old2xName = `${baseName}@2x.png`;
-                        if (zip.file(old2xName) && !userReplacedTextures.has(old2xName)) {
-                            zip.remove(old2xName);
-                        }
-                    }
-                }
-
-                // 3. 开始执行异步压缩
-                const projectSummary = mode === 'editable'
-                    ? await writeTextureProjectToArchive(zip, { includeSources: true })
-                    : null;
-                const blob = await zip.generateAsync({
-                    type: 'blob',
-                    compression: 'DEFLATE',
-                    compressionOptions: { level: 6 }
-                }, (meta) => {
-                    updateProgress(Math.round(meta.percent), 100, `正在压缩资源 (${Math.round(meta.percent)}%)...`);
-                });
-
-                // 4. 触发浏览器保存下载
-                const rawName = (currentSkinMetadata.general && currentSkinMetadata.general.Name) || currentSkinFileName || 'Mania_Custom_Skin';
-                const cleanName = rawName.replace(/\.(osk|zip)$/i, '').replace(/[\\/:*?"<>|]/g, '_');
-                const suffix = mode === 'editable' ? '_editable' : '_release';
-                const exportFileName = `${cleanName}${suffix}.${format}`;
-
+                const { blob, exportFileName, projectSummary } = await buildSkinArchiveBlob(format, { mode });
                 const downloadUrl = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = downloadUrl;

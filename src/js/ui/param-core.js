@@ -183,8 +183,33 @@
                     cfg.UpsideDown = !!value;
                 }
             } else if (schema.tab === 'fonts') {
-                if (key === 'ScorePrefix') skinFontsConfig.scorePrefix = value;
-                else if (key === 'ScoreOverlap') skinFontsConfig.scoreOverlap = parseInt(value, 10) || 0;
+                if (key === 'ScorePrefix') {
+                    const v = value ? String(value).trim() : '';
+                    skinFontsConfig.scorePrefix = v;
+                    // [Mania] FontScore 优先于 [Fonts] ScorePrefix；同步已有覆盖，
+                    // 避免面板改完前缀后画布仍使用导入皮肤里的旧字体。
+                    for (const [, cfgItem] of maniaSkinConfigurations) {
+                        if (cfgItem && cfgItem.FontScore != null) cfgItem.FontScore = v || null;
+                    }
+                }
+                else if (key === 'ScoreOverlap') {
+                    const parsed = parseInt(value, 10);
+                    appliedValue = Number.isNaN(parsed) ? 0 : parsed;
+                    skinFontsConfig.scoreOverlap = appliedValue;
+                    skinFontsConfig.hasExplicitScoreOverlap = true;
+                    // [Mania] ScoreOverlap 的优先级高于 [Fonts] ScoreOverlap。
+                    // 已有覆盖时同步新值，保证滑块拖动能实时反映到当前画布。
+                    for (const [, cfgItem] of maniaSkinConfigurations) {
+                        if (cfgItem && cfgItem.ScoreOverlap != null) cfgItem.ScoreOverlap = appliedValue;
+                    }
+                    // ComboOverlap 未显式设置时会继承 ScoreOverlap，面板同步显示继承后的值。
+                    if (!skinFontsConfig.hasExplicitComboOverlap) {
+                        const currentManiaCfg = getManiaConfigForKeys(activeEditorKeyCount);
+                        if (!currentManiaCfg || currentManiaCfg.ComboOverlap == null) {
+                            syncParamInputValue('ComboOverlap', appliedValue);
+                        }
+                    }
+                }
                 else if (key === 'ComboPrefix') {
                     const v = value ? String(value).trim() : '';
                     skinFontsConfig.comboPrefix = v || 'combo';
@@ -196,9 +221,22 @@
                         if (cfgItem && cfgItem.FontCombo != null) cfgItem.FontCombo = v || null;
                     }
                 }
-                else if (key === 'ComboOverlap') skinFontsConfig.comboOverlap = parseInt(value, 10) || 0;
+                else if (key === 'ComboOverlap') {
+                    const parsed = parseInt(value, 10);
+                    appliedValue = Number.isNaN(parsed) ? 0 : parsed;
+                    skinFontsConfig.comboOverlap = appliedValue;
+                    skinFontsConfig.hasExplicitComboOverlap = true;
+                    // 与 ScoreOverlap 相同：已有 [Mania] 覆盖时同步，避免旧值压住面板修改。
+                    for (const [, cfgItem] of maniaSkinConfigurations) {
+                        if (cfgItem && cfgItem.ComboOverlap != null) cfgItem.ComboOverlap = appliedValue;
+                    }
+                }
                 else if (key === 'HitCirclePrefix') skinFontsConfig.hitCirclePrefix = value;
-                else if (key === 'HitCircleOverlap') skinFontsConfig.hitCircleOverlap = parseInt(value, 10) || 0;
+                else if (key === 'HitCircleOverlap') {
+                    const parsed = parseInt(value, 10);
+                    appliedValue = Number.isNaN(parsed) ? 0 : parsed;
+                    skinFontsConfig.hitCircleOverlap = appliedValue;
+                }
             } else if (schema.tab === 'general') {
                 if (!currentSkinMetadata.general) currentSkinMetadata.general = {};
                 currentSkinMetadata.general[key] = value;

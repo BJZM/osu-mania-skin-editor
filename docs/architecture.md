@@ -25,6 +25,9 @@ The dependency groups are:
 7. `cursor.js`: skin cursor overlay.
 8. `ui/`: feedback, player controls, parameter panel, texture workflows,
    history, shortcuts and startup.
+9. `ui/agent-session.js`: Agent-facing semantic session loaded after the editor
+   UI is fully initialized. Access is limited to a versioned, loopback-only
+   Electron bridge with a per-launch token.
 
 Classic scripts intentionally share the global lexical environment. This keeps
 `file://` compatibility and preserves the public globals used by existing tests.
@@ -62,6 +65,8 @@ load-time access remain ordered correctly.
 - `ui/texture-image-editor.js`: live crop and transparent padding preview/save workflow.
 - `ui/canvas-interactions.js`: canvas hit testing and dragging.
 - `ui/app-shell.js`: final DOM wiring and application startup.
+- `ui/agent-session.js`: transaction-safe semantic commands for the companion
+  MCP project; it reuses texture upload, history, preview and export modules.
 
 ## Non-Runtime Data
 

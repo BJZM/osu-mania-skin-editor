@@ -1,6 +1,6 @@
 {
   "name": "osu-mania-skin-editor",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "private": true,
   "description": "Visual editor and previewer for osu!stable mania skins",
   "author": "BJZM",
@@ -23,9 +23,9 @@
     "deploy:pages": "npm run build:site && node tools/deploy-pages.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.0",
     "@electron/asar": "3.4.1",
     "@electron/get": "5.1.0",
+    "@playwright/test": "1.64.0",
     "electron": "44.7.0",
     "electron-builder": "26.15.3",
     "extract-zip": "2.0.1"

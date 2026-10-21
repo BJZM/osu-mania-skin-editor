@@ -245,16 +245,22 @@
                     } else if (p.tab === 'mania' || p.tab === 'textures') {
                         if (cfg[p.key] !== undefined && cfg[p.key] !== null) val = cfg[p.key];
                     } else if (p.tab === 'fonts') {
-                        if (p.key === 'ScorePrefix') val = skinFontsConfig.scorePrefix || 'score';
-                        else if (p.key === 'ScoreOverlap') val = skinFontsConfig.scoreOverlap || 0;
+                        if (p.key === 'ScorePrefix') {
+                            val = (cfg && cfg.FontScore) || skinFontsConfig.scorePrefix || 'score';
+                        }
+                        else if (p.key === 'ScoreOverlap') val = getSkinFontOverlap('score', keys);
                         else if (p.key === 'ComboPrefix') {
                             // 显示「实际生效」的连击字体前缀：ini 显式指定了 [Mania] FontCombo / [Fonts] Combo 才有值，
                             // 都没有时留空 (占位符会说明实际沿用 score 字体贴图)，避免面板与画布不一致
                             val = getExplicitComboFontPrefix(keys) || '';
                         }
-                        else if (p.key === 'ComboOverlap') val = skinFontsConfig.comboOverlap || 0;
+                        else if (p.key === 'ComboOverlap') val = getSkinFontOverlap('combo', keys);
                         else if (p.key === 'HitCirclePrefix') val = skinFontsConfig.hitCirclePrefix || 'default';
-                        else if (p.key === 'HitCircleOverlap') val = skinFontsConfig.hitCircleOverlap || -2;
+                        else if (p.key === 'HitCircleOverlap') {
+                            val = skinFontsConfig.hitCircleOverlap != null
+                                ? skinFontsConfig.hitCircleOverlap
+                                : -2;
+                        }
                     } else if (p.tab === 'general') {
                         if (currentSkinMetadata.general && currentSkinMetadata.general[p.key] !== undefined) {
                             val = currentSkinMetadata.general[p.key];

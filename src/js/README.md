@@ -84,3 +84,5 @@ ordered according to the groups below.
 - `ui/canvas-interactions.js`: canvas selection and drag behavior.
 - `ui/shortcuts.js`: keyboard shortcuts.
 - `ui/app-shell.js`: final startup wiring.
+- `ui/agent-session.js`: semantic Agent session, revision checks, transaction undo,
+  preview capture, validation and archive export for the local Agent Bridge.

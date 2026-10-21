@@ -11,6 +11,22 @@
                 .replace(/@2x$/i, '');
         }
 
+        function shouldOverwriteDefaultKeyImageSource(paramOrTarget) {
+            if (typeof isEditableDefaultSkinWorkspaceActive !== 'function' ||
+                !isEditableDefaultSkinWorkspaceActive()) {
+                return false;
+            }
+            const p = paramOrTarget && paramOrTarget.p
+                ? paramOrTarget.p
+                : paramOrTarget;
+            if (!p) return false;
+            if (typeof isEditingKeyImageParam === 'function') {
+                return isEditingKeyImageParam(p);
+            }
+            return p._trackLookup === LML.KeyImage ||
+                p._trackLookup === LML.KeyImageDown;
+        }
+
         function assignTextureParamLookup(keys, p, selectedPath) {
             if (!p || !p.key) throw new Error('缺少目标贴图参数');
             const normalizedPath = normalizeTextureLookupPath(selectedPath);

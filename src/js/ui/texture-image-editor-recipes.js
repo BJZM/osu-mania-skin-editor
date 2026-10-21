@@ -363,11 +363,11 @@
                     }
                 }
             }
+            const persistedTextures = new Map(userReplacedTextures);
             if (activeTab && activeTab.kind === 'texture' && activeTab.state.previewSnapshot) {
                 applySkinSnapshot(activeTab.state.previewSnapshot, { preserveNonTextureSettings: true });
             }
 
-            const persistedTextures = new Map(userReplacedTextures);
             const appliedUpdates = new Set();
             for (const update of externalFrameUpdates.values()) {
                 const identity = update.target.storeKey || update.target.base || update.target.paramKeys.join('|');

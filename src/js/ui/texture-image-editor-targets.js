@@ -33,6 +33,7 @@
 
             if (p._trackCol == null) return base;
             if (typeof hasCreatedTextureParams === 'function' && hasCreatedTextureParams(base)) return base;
+            if (shouldOverwriteDefaultKeyImageSource(p)) return base;
 
             const col = p._trackCol;
             const colRegex = new RegExp(`(?:col|track|轨)[-_]?${col + 1}\\b`, 'i');

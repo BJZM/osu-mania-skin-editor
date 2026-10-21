@@ -20,6 +20,8 @@
 | startup-actions | 管理启动阶段的谱面/皮肤选择、画布入口、拖拽分流与播放解锁条件 | implemented | beatmap-import, skin-import, default-skin-workspace, global-skin-state |
 | ui-localization | 管理中英文界面切换、osu!mania 术语表、动态 DOM 翻译、可访问属性与语言偏好持久化 | implemented | 无 |
 | texture-project-archive | 在 `.osk` / `.zip` 内保存和恢复可续编的创建参数、普通贴图源图与投皮会话，并支持干净发布导出 | implemented | skin-assets, global-skin-state, texture-image-editor-recipes, texture-image-editor-state, JSZip |
+| skin-agent-session | 为 Agent 提供描述、贴图与参数事务、预览、校验和归档导出，并保证批次级撤回与 revision 并发保护 | implemented | history, texture-upload, texture-resolve, export-skin, global-skin-state |
+| agent-bridge | 通过鉴权本机 HTTP、Electron IPC 与 preload 将 MCP 请求转发给可信 Renderer | implemented | skin-agent-session, electron-ipc |
 
 ## 依赖图
 
@@ -54,4 +56,11 @@ graph TD
   projectArchive --> jsZip[JSZip]
   exportSkin[export-skin] --> projectArchive
   skinImport --> projectArchive
+  agentSession[skin-agent-session] --> history
+  agentSession --> textureUpload[texture-upload]
+  agentSession --> textureResolve[texture-resolve]
+  agentSession --> exportSkin
+  agentSession --> skinState
+  agentBridge[agent-bridge] --> agentSession
+  agentBridge --> electronIpc[electron-ipc]
 ```

@@ -228,12 +228,13 @@
             }
             if (!state.previewViewport) return;
             const { scale, offsetX, offsetY } = state.previewViewport;
+            const renderedFrame = state.previewFrames[0] || frame;
 
             if (state.longBodyComposer.active) {
                 const previewLeft = offsetX;
                 const previewTop = offsetY;
-                const previewWidth = Math.max(1, frame.width * scale);
-                const previewHeight = Math.max(1, frame.height * scale);
+                const previewWidth = Math.max(1, renderedFrame.width * scale);
+                const previewHeight = Math.max(1, renderedFrame.height * scale);
                 drawPreviewTransparencyBackground(
                     ctx,
                     previewLeft,
@@ -242,7 +243,7 @@
                     previewHeight
                 );
                 ctx.imageSmoothingEnabled = false;
-                ctx.drawImage(frame, previewLeft, previewTop, previewWidth, previewHeight);
+                ctx.drawImage(renderedFrame, previewLeft, previewTop, previewWidth, previewHeight);
                 fillPreviewOutsideBounds(
                     ctx,
                     previewLeft,
@@ -273,7 +274,6 @@
             const outputHeight = Math.max(1, outputRect.height * scale);
             const outputRight = outputLeft + outputWidth;
             const outputBottom = outputTop + outputHeight;
-            const renderedFrame = state.previewFrames[0] || frame;
 
             drawPreviewTransparencyBackground(
                 ctx,

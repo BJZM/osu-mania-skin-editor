@@ -28,6 +28,30 @@ async function boot(page) {
   return errors;
 }
 
+async function bootDefaultSkin(page) {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+  });
+  await page.goto('/index.html');
+  await page.waitForFunction(() => typeof collectKeyImageHeightTarget === 'function');
+  await page.setInputFiles('#oszInput', BEATMAP);
+  await page.waitForFunction(
+    () => isStartupBeatmapReady() && beatmaps.length > 0,
+    null,
+    { timeout: 60000 }
+  );
+  await page.click('#startupUseDefaultSkinBtn');
+  await page.waitForFunction(
+    () => isStartupWorkspaceReady() && isEditableDefaultSkinWorkspaceActive(),
+    null,
+    { timeout: 60000 }
+  );
+  await page.waitForTimeout(300);
+  return errors;
+}
+
 function keyImageSizes(page) {
   return page.evaluate(() => {
     const keys = getActiveKeyCount();
@@ -159,6 +183,137 @@ test('KeyImage 可独立增减高度，并在接近其他轨道高度时磁吸',
   await page.keyboard.press('Control+z');
   await page.waitForFunction(() => userReplacedTextures.size === 0);
   expect(await keyImageSizes(page)).toEqual(before);
+  expect(errors).toEqual([]);
+});
+
+test('默认皮肤打开 KeyImage 编辑器后于画布抬高高度时直接覆盖原贴图并保持共享引用', async ({ page }) => {
+  const errors = await bootDefaultSkin(page);
+
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+  await page.evaluate(() => {
+    const dialog = document.getElementById('textureImageEditorDialog');
+    dialog.style.left = '920px';
+    dialog.style.right = 'auto';
+  });
+
+  const before = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const normal0 = getManiaSkinImage(keys, LML.KeyImage, 0);
+    const normal3 = getManiaSkinImage(keys, LML.KeyImage, 3);
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name3: getManiaNoteTextureName(keys, LML.KeyImage, 3),
+      height0: normal0.height,
+      height3: normal3.height
+    };
+  });
+  expect(before.name0).toBe('mania-key1');
+  expect(before.name3).toBe('mania-key1');
+
+  await dragSelectedKeyTop(page, 0, before.height0 + 24);
+  await expect(page.locator('#textureImageApplyScopeModal')).toBeHidden();
+  await page.waitForFunction(
+    (height) => getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0).height > height,
+    before.height0
+  );
+  await page.waitForFunction(() => userReplacedTextures.size > 0);
+
+  const raised = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name3: getManiaNoteTextureName(keys, LML.KeyImage, 3),
+      height0: getManiaSkinImage(keys, LML.KeyImage, 0).height,
+      height3: getManiaSkinImage(keys, LML.KeyImage, 3).height,
+      editorSource: getTextureEditSourcePath(getActiveTab().target),
+      previewHeight: textureImageEditorUi.getState().previewSize.height,
+      replacedKeys: Array.from(userReplacedTextures.keys())
+    };
+  });
+  expect(raised.name0).toBe('mania-key1');
+  expect(raised.name3).toBe('mania-key1');
+  expect(raised.height0).toBeGreaterThan(before.height0);
+  expect(raised.height3).toBe(raised.height0);
+  expect(raised.editorSource).toBe('mania-key1');
+  expect(raised.previewHeight).toBe(raised.height0);
+  expect(raised.replacedKeys.some((key) => /_keyimage/i.test(key))).toBe(false);
+  expect(raised.replacedKeys.some((key) => /^mania-key1(?:@2x)?\.png$/i.test(key))).toBe(true);
+
+  await page.evaluate(() => performSkinUndo());
+  const undone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name3: getManiaNoteTextureName(keys, LML.KeyImage, 3),
+      height0: getManiaSkinImage(keys, LML.KeyImage, 0).height,
+      height3: getManiaSkinImage(keys, LML.KeyImage, 3).height
+    };
+  });
+  expect(undone).toEqual({
+    name0: 'mania-key1',
+    name3: 'mania-key1',
+    height0: before.height0,
+    height3: before.height3
+  });
+
+  await page.evaluate(() => performSkinRedo());
+  const redone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name3: getManiaNoteTextureName(keys, LML.KeyImage, 3),
+      height0: getManiaSkinImage(keys, LML.KeyImage, 0).height,
+      height3: getManiaSkinImage(keys, LML.KeyImage, 3).height
+    };
+  });
+  expect(redone).toEqual({
+    name0: 'mania-key1',
+    name3: 'mania-key1',
+    height0: raised.height0,
+    height3: raised.height0
+  });
+  expect(errors).toEqual([]);
+});
+
+test('默认皮肤 KeyImage 多引用保存时仍询问是否独立创建', async ({ page }) => {
+  const errors = await bootDefaultSkin(page);
+
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImagePickerGrid [data-param-key="KeyImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
+  await page.fill('#textureImageCropBottom', '10');
+  await page.waitForFunction(() => textureImageEditorUi.getState().previewSize.height > 0);
+  await page.click('#textureImageApplyBtn');
+
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  await expect(scopeModal).toBeVisible();
+  await expect(page.locator('#textureImageApplyScopeTitle')).toHaveText('贴图被多处引用');
+  await page.click('#textureImageApplyScopeCurrentBtn');
+  await expect(scopeModal).toBeHidden();
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+
+  const independent = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name3: getManiaNoteTextureName(keys, LML.KeyImage, 3)
+    };
+  });
+  expect(independent.name0).not.toBe('mania-key1');
+  expect(independent.name0.startsWith('mania-key1_')).toBe(true);
+  expect(independent.name3).toBe('mania-key1');
+
+  await page.evaluate(() => performSkinUndo());
+  const undone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      name0: getManiaNoteTextureName(keys, LML.KeyImage, 0),
+      name3: getManiaNoteTextureName(keys, LML.KeyImage, 3)
+    };
+  });
+  expect(undone).toEqual({ name0: 'mania-key1', name3: 'mania-key1' });
   expect(errors).toEqual([]);
 });
 

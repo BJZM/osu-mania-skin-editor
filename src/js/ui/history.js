@@ -221,6 +221,13 @@
 
         function recordSkinUndoBeforeChange(desc = '修改参数', options = {}) {
             if (isPerformingUndoRedo) return;
+            // Agent 批次在开始前已经记录过一次完整快照。批次内部的贴图、
+            // 参数和联动修改继续走原有写入路径，但不再拆成多条撤回记录。
+            if (window.skinAgentSession &&
+                typeof window.skinAgentSession.isApplying === 'function' &&
+                window.skinAgentSession.isApplying()) {
+                return;
+            }
             if (typeof invalidateKeyImageHeightPersistence === 'function') {
                 invalidateKeyImageHeightPersistence();
             }
@@ -231,6 +238,10 @@
                 redoStack.length = 0;
                 continuousActionActive = true;
                 updateUndoButtonState();
+                if (window.skinAgentSession &&
+                    typeof window.skinAgentSession.notifyExternalMutation === 'function') {
+                    window.skinAgentSession.notifyExternalMutation(desc);
+                }
             }
             syncTextureEditorNonTextureSettings();
             if (continuousActionTimer) clearTimeout(continuousActionTimer);
@@ -433,6 +444,10 @@
             const previousState = undoStack.pop();
             applySkinSnapshot(previousState);
             syncTextureEditorBaseAfterSkinHistory();
+            if (window.skinAgentSession &&
+                typeof window.skinAgentSession.notifyExternalMutation === 'function') {
+                window.skinAgentSession.notifyExternalMutation('undo');
+            }
             showToast(
                 '已撤回 (Ctrl+Z)',
                 previousState.desc
@@ -457,6 +472,10 @@
             const nextState = redoStack.pop();
             applySkinSnapshot(nextState);
             syncTextureEditorBaseAfterSkinHistory();
+            if (window.skinAgentSession &&
+                typeof window.skinAgentSession.notifyExternalMutation === 'function') {
+                window.skinAgentSession.notifyExternalMutation('redo');
+            }
             showToast(
                 '已重做 (Ctrl+Y)',
                 nextState.desc
@@ -480,6 +499,10 @@
                 redoStack.length = 0;
                 continuousActionActive = false;
                 updateUndoButtonState();
+                if (window.skinAgentSession &&
+                    typeof window.skinAgentSession.notifyExternalMutation === 'function') {
+                    window.skinAgentSession.notifyExternalMutation('initial-snapshot');
+                }
             } catch (err) {
                 console.error('[Snapshot] 保存皮肤初始快照失败:', err);
             }
