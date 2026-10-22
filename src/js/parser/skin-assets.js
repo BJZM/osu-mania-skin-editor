@@ -73,8 +73,13 @@
             return p;
         }
 
+        function normalizeSkinAssetStoreKey(path) {
+            return normalizeSkinKey(String(path || '')).replace(/@2x/g, '');
+        }
+
         function getOrCreateSkinAssetEntry(storeMap, key) {
-            let entry = storeMap.get(key);
+            const normalizedKey = normalizeSkinAssetStoreKey(key);
+            let entry = storeMap.get(normalizedKey);
             if (!entry) {
                 entry = {
                     anim2x: [],
@@ -82,7 +87,7 @@
                     static2x: null,
                     static1x: null
                 };
-                storeMap.set(key, entry);
+                storeMap.set(normalizedKey, entry);
             }
             return entry;
         }
@@ -95,7 +100,7 @@
         }
 
         function saveSkinAssetToStore(storeMap, targetKey, img, isHighRes, isRootLevel, force = false, options = {}) {
-            const cleanKey = normalizeSkinKey(targetKey).replace(/@2x/g, '');
+            const cleanKey = normalizeSkinAssetStoreKey(targetKey);
             const asAnimFrame = options && options.isAnimFrame !== undefined ? options.isAnimFrame : true;
             const dashMatch = asAnimFrame ? cleanKey.match(/-(\d+)$/) : null;
             if (dashMatch) {

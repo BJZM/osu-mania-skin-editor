@@ -371,13 +371,19 @@
                 skinImageStore.clear();
                 if (snap.skinImageStore) {
                     for (const [k, v] of snap.skinImageStore.entries()) {
-                        skinImageStore.set(k, cloneSkinAssetEntry(v));
+                        skinImageStore.set(
+                            normalizeSkinAssetStoreKey(k),
+                            cloneSkinAssetEntry(v)
+                        );
                     }
                 }
                 skinFallbackImageStore.clear();
                 if (snap.skinFallbackImageStore) {
                     for (const [k, v] of snap.skinFallbackImageStore.entries()) {
-                        skinFallbackImageStore.set(k, cloneSkinAssetEntry(v));
+                        skinFallbackImageStore.set(
+                            normalizeSkinAssetStoreKey(k),
+                            cloneSkinAssetEntry(v)
+                        );
                     }
                 }
                 if (typeof refreshSkinCursor === 'function') refreshSkinCursor();

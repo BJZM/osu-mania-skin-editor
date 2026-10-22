@@ -1637,6 +1637,134 @@ test('[longbody] 单轨一键投皮关闭后恢复原身体与原尾部并删除
   expect(errors).toEqual([]);
 });
 
+test('[longbody] 关闭一键投皮后不会因贴图名大小写生成重复的 LNB 卡片', async ({ page }) => {
+  test.setTimeout(120000);
+  const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImageCreateOpenBtn');
+  await page.fill('#textureImageCreateName', 'LNB');
+  await page.locator('label:has(input[name="textureImageCreateSpec"][value="2x"])').click();
+  await page.fill('#textureImageCreateWidth', '60');
+  await page.fill('#textureImageCreateHeight', '60');
+  await page.click('#textureImageCreateConfirmBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageLibraryView').style.display !== 'none';
+  });
+
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const body = getTextureTabParams().find((item) => item.key === 'NoteImage0L');
+    assignTextureParamLookup(keys, body, 'LNB');
+    updateEditorBaseAfterSave();
+    textureImageEditorUi.selectByParamKey('NoteImage0L');
+  });
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'NoteImage0L');
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.fill('#textureImageLongBodyTargetHeight', '600');
+  await page.fill('#textureImageLongBodyCoverage', '8');
+  await page.waitForTimeout(180);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, {
+    timeout: 60000
+  });
+
+  await page.click('.texture-image-tab.is-active .texture-image-tab-close');
+  await page.waitForFunction(() => {
+    return !document.querySelector('.texture-image-tab.is-active .texture-image-tab-close');
+  });
+  await page.evaluate(() => textureImageEditorUi.selectByParamKey('NoteImage0L'));
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.selectedKey === 'NoteImage0L' && state.longBody.active;
+  });
+  await page.uncheck('#textureImageLongBodyEnable', { force: true });
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(() => !textureImageEditorUi.getState().longBody.active);
+
+  const closedState = await page.evaluate(() => {
+    const matchingKeys = Array.from(skinImageStore.keys())
+      .filter((key) => normalizeSkinAssetStoreKey(key) === 'lnb');
+    const matchingSources = collectExistingTextureSources(null, currentSkinZip, {
+      expandAnimationFrames: true
+    }).filter((source) => normalizeSkinKey(source.path) === 'lnb');
+    return {
+      matchingKeys,
+      matchingSourcePaths: matchingSources.map((source) => source.path),
+      cardCount: Array.from(
+        document.querySelectorAll('#textureImageLibraryGrid .texture-existing-card')
+      ).filter((card) => normalizeSkinKey(card.dataset.texturePath || '') === 'lnb').length
+    };
+  });
+  expect(closedState.matchingKeys).toEqual(['lnb']);
+  expect(closedState.matchingSourcePaths).toHaveLength(1);
+  expect(closedState.matchingSourcePaths.map((path) => path.toLowerCase())).toEqual(['lnb']);
+  expect(closedState.cardCount).toBe(1);
+
+  await page.evaluate(() => openTextureCreator({
+    editPath: 'LNB',
+    paramKey: 'NoteImage0L'
+  }));
+  await page.waitForFunction(() => textureImageEditorUi.getState().creator.active);
+  await page.fill('#textureImageCreateWidth', '72');
+  await page.click('#textureImageCreateConfirmBtn');
+  await page.waitForTimeout(300);
+  if (await page.locator('#textureImageApplyScopeModal').isVisible()) {
+    await page.click('#textureImageApplyScopeAllBtn');
+  }
+  await page.waitForFunction(() => {
+    return Array.from(
+      document.querySelectorAll('#textureImageLibraryGrid .texture-existing-card')
+    ).filter((card) => normalizeSkinKey(card.dataset.texturePath || '') === 'lnb').length === 1;
+  });
+
+  await page.click('.texture-image-tab[data-tab-id="texture-library"]');
+  await page.evaluate(() => {
+    const card = Array.from(
+      document.querySelectorAll('#textureImageLibraryGrid .texture-existing-card')
+    ).find((item) => normalizeSkinKey(item.dataset.texturePath || '') === 'lnb');
+    if (card) card.click();
+  });
+  expect(await page.evaluate(() => {
+    return Array.from(
+      document.querySelectorAll('#textureImageLibraryGrid .texture-existing-card.selected')
+    ).filter((card) => normalizeSkinKey(card.dataset.texturePath || '') === 'lnb').length;
+  })).toBe(1);
+
+  await page.evaluate(() => performSkinUndo());
+  await page.waitForFunction(() => {
+    const keyCount = Array.from(skinImageStore.keys())
+      .filter((key) => normalizeSkinAssetStoreKey(key) === 'lnb').length;
+    const sourceCount = collectExistingTextureSources(null, currentSkinZip, {
+      expandAnimationFrames: true
+    }).filter((source) => normalizeSkinKey(source.path) === 'lnb').length;
+    const cardCount = Array.from(
+      document.querySelectorAll('#textureImageLibraryGrid .texture-existing-card')
+    ).filter((card) => normalizeSkinKey(card.dataset.texturePath || '') === 'lnb').length;
+    return keyCount === 1 && sourceCount === 1 && cardCount === 1;
+  });
+  await page.evaluate(() => performSkinRedo());
+  await page.waitForFunction(() => {
+    const keyCount = Array.from(skinImageStore.keys())
+      .filter((key) => normalizeSkinAssetStoreKey(key) === 'lnb').length;
+    const sourceCount = collectExistingTextureSources(null, currentSkinZip, {
+      expandAnimationFrames: true
+    }).filter((source) => normalizeSkinKey(source.path) === 'lnb').length;
+    const cardCount = Array.from(
+      document.querySelectorAll('#textureImageLibraryGrid .texture-existing-card')
+    ).filter((card) => normalizeSkinKey(card.dataset.texturePath || '') === 'lnb').length;
+    return keyCount === 1 && sourceCount === 1 && cardCount === 1;
+  });
+  expect(errors).toEqual([]);
+});
+
 test('[longbody] 全轨投皮后关闭任意轨道的一键投皮可还原全部身体和长条尾部', async ({ page }) => {
   test.setTimeout(120000);
   const errors = await boot(page, OPAQUE_TAIL_SKIN);

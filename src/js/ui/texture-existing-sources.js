@@ -197,7 +197,34 @@
                 sources.push(buildExistingTextureSource(key, path, image, frames));
             }
 
-            return sources.sort(compareExistingTextureSources);
+            const uniqueSources = [];
+            const sourceIndexByPath = new Map();
+            for (const source of sources.sort(compareExistingTextureSources)) {
+                const normalizedPath = normalizeSkinKey(source.path);
+                if (!normalizedPath) {
+                    uniqueSources.push(source);
+                    continue;
+                }
+
+                const existingIndex = sourceIndexByPath.get(normalizedPath);
+                if (existingIndex == null) {
+                    sourceIndexByPath.set(normalizedPath, uniqueSources.length);
+                    uniqueSources.push(source);
+                    continue;
+                }
+
+                const existing = uniqueSources[existingIndex];
+                const existingKey = String(existing.storeKey || '');
+                const incomingKey = String(source.storeKey || '');
+                const existingIsCanonical =
+                    existingKey === normalizeSkinAssetStoreKey(existingKey);
+                const incomingIsCanonical =
+                    incomingKey === normalizeSkinAssetStoreKey(incomingKey);
+                if (incomingIsCanonical && !existingIsCanonical) {
+                    uniqueSources[existingIndex] = source;
+                }
+            }
+            return uniqueSources;
         }
 
         function filterExistingTextureSources(sources, query) {
