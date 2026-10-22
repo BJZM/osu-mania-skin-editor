@@ -428,6 +428,124 @@ test('一键投皮导出可编辑包后，再次导入仍能找到并继续编�
   expect(errors).toEqual([]);
 });
 
+test('[longbody-default-tail] 默认皮肤关闭一键投皮会恢复回退尾巴而不是写入不存在的 T', async ({ page }) => {
+  const errors = await bootDefaultSkin(page);
+  await installLongBodyHeight(page, 4999);
+  const before = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const param = getTextureTabParams().find((item) => item.key === 'NoteImage0T');
+    const nameInfo = {};
+    getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0, nameInfo);
+    const resolved = resolveTextureParam(keys, param);
+    return {
+      explicit: !!nameInfo.explicit,
+      effectiveSource: getEffectiveTextureSourceName(keys, LML.HoldNoteTailImage, 0),
+      state: resolved.state,
+      size: resolved.img
+        ? { width: resolved.img.width, height: resolved.img.height }
+        : null
+    };
+  });
+  expect(before.explicit).toBe(false);
+  expect(before.state).toBe('ok');
+  expect(before.effectiveSource.toLowerCase()).toBe('mania-note1h');
+
+  await openTexturePicker(page, 'NoteImage0L');
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() =>
+    document.getElementById('textureImageApplyScopeModal').style.display === 'flex'
+  );
+  await page.click('#textureImageApplyScopeCurrentBtn');
+  await page.waitForFunction(
+    () => textureImageEditorUi.getState().dirtyTabCount === 0,
+    null,
+    { timeout: 60000 }
+  );
+
+  const active = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const composer = textureImageEditorUi.getState().longBody;
+    const session = longBodyComposerSessions.get(`${keys}|NoteImage0L`);
+    return {
+      tailSourceName: composer.tailSourceName,
+      tailSourceExplicit: composer.tailSourceExplicit,
+      sessionTailRestoreExplicit: session.tailRestoreExplicit
+    };
+  });
+  expect(active.tailSourceName).toBe(before.effectiveSource);
+  expect(active.tailSourceExplicit).toBe(false);
+  expect(active.sessionTailRestoreExplicit).toBe(false);
+
+  await page.click('.texture-image-tab.is-active .texture-image-tab-close');
+  await page.waitForFunction(() => {
+    return !document.querySelector('.texture-image-tab.is-active .texture-image-tab-close');
+  });
+  await openTexturePicker(page, 'NoteImage0L');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.selectedKey === 'NoteImage0L' && state.longBody.active;
+  });
+  await page.uncheck('#textureImageLongBodyEnable', { force: true });
+  await page.waitForFunction(() => !textureImageEditorUi.getState().longBody.active);
+
+  const restored = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    const param = getTextureTabParams().find((item) => item.key === 'NoteImage0T');
+    const nameInfo = {};
+    getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0, nameInfo);
+    const resolved = resolveTextureParam(keys, param);
+    return {
+      explicitLookup: cfg.ImageLookups.has('NoteImage0T'),
+      explicit: !!nameInfo.explicit,
+      effectiveSource: getEffectiveTextureSourceName(keys, LML.HoldNoteTailImage, 0),
+      state: resolved.state,
+      size: resolved.img
+        ? { width: resolved.img.width, height: resolved.img.height }
+        : null
+    };
+  });
+  expect(restored.explicitLookup).toBe(false);
+  expect(restored.explicit).toBe(false);
+  expect(restored.effectiveSource).toBe(before.effectiveSource);
+  expect(restored.state).toBe('ok');
+  expect(restored.size).toEqual(before.size);
+
+  await page.evaluate(() => performSkinUndo());
+  const undone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const tail = getManiaSkinImage(keys, LML.HoldNoteTailImage, 0);
+    const session = longBodyComposerSessions.get(`${keys}|NoteImage0L`);
+    return {
+      tailTransparent: !!tail && isFullyTransparentImage(tail, 1, 1),
+      sessionExists: !!session,
+      tailRestoreExplicit: session ? session.tailRestoreExplicit : null
+    };
+  });
+  expect(undone.tailTransparent).toBe(true);
+  expect(undone.sessionExists).toBe(true);
+  expect(undone.tailRestoreExplicit).toBe(false);
+
+  await page.evaluate(() => performSkinRedo());
+  const redone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const cfg = getManiaConfigForKeys(keys);
+    const param = getTextureTabParams().find((item) => item.key === 'NoteImage0T');
+    const resolved = resolveTextureParam(keys, param);
+    return {
+      explicitLookup: cfg.ImageLookups.has('NoteImage0T'),
+      state: resolved.state,
+      effectiveSource: getEffectiveTextureSourceName(keys, LML.HoldNoteTailImage, 0)
+    };
+  });
+  expect(redone.explicitLookup).toBe(false);
+  expect(redone.state).toBe('ok');
+  expect(redone.effectiveSource).toBe(before.effectiveSource);
+  expect(errors).toEqual([]);
+});
+
 test('默认皮肤一键投皮的可编辑导出包含最终身体和隐藏身体/尾巴源图', async ({ page }) => {
   const errors = await bootDefaultSkin(page);
   await installLongBodyHeight(page, 4999);
@@ -457,6 +575,8 @@ test('默认皮肤一键投皮的可编辑导出包含最终身体和隐藏身�
   expect(manifest.longBodies).toHaveLength(4);
   expect(manifest.longBodies[0].baseFrames).toHaveLength(1);
   expect(manifest.longBodies[0].tailFrame).toBeTruthy();
+  expect(manifest.longBodies[0].tailRestoreExplicit).toBe(false);
+  expect(manifest.longBodies[0].tailRestoreSourceName.toLowerCase()).toBe('mania-note1h');
   expect(exportedNames.some((name) => name.toLowerCase().includes('longbody-body_col1l')))
     .toBe(true);
   const sourceFiles = exportedNames.filter(

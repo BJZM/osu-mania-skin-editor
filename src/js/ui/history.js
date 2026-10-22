@@ -162,6 +162,13 @@
                 tailFrame: session.tailFrame ? cloneFrame(session.tailFrame) : null,
                 bodySourceName: session.bodySourceName || '',
                 tailSourceName: session.tailSourceName || '',
+                tailRestoreSourceName: session.tailRestoreSourceName || '',
+                tailRestoreState: session.tailRestoreState || 'unset',
+                tailRestoreExplicit: typeof session.tailRestoreExplicit === 'boolean'
+                    ? session.tailRestoreExplicit
+                    : null,
+                tailSourceExplicit: !!session.tailSourceExplicit,
+                appliedScope: session.appliedScope || 'current',
                 targetHeight: Number(session.targetHeight) || 0,
                 coverage: Number(session.coverage) || 0,
                 fade: Number(session.fade) || 0,

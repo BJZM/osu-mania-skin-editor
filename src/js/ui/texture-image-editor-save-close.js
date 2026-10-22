@@ -545,7 +545,11 @@
                 }
                 if (committingLongBodyComposer) {
                     setNoteBodyStyleOne(false, applyingAll);
-                    persistLongBodyComposerSessions(longBodyApplyPlans, longBodySettings);
+                    persistLongBodyComposerSessions(
+                        longBodyApplyPlans,
+                        longBodySettings,
+                        applyingAll ? 'all' : 'current'
+                    );
                     setLongBodyProgress('正在完成...', 100);
                     await waitForUiPaint();
                     showToast(

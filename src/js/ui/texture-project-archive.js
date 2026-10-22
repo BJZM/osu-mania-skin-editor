@@ -287,6 +287,13 @@
                 tailSourceFile: tailFrame ? tailFrame.file : null,
                 bodySourceName: session.bodySourceName || '',
                 tailSourceName: session.tailSourceName || '',
+                tailRestoreSourceName: session.tailRestoreSourceName || '',
+                tailRestoreState: session.tailRestoreState || 'unset',
+                tailRestoreExplicit: typeof session.tailRestoreExplicit === 'boolean'
+                    ? session.tailRestoreExplicit
+                    : null,
+                tailSourceExplicit: !!session.tailSourceExplicit,
+                appliedScope: session.appliedScope || 'current',
                 settings: {
                     targetHeight: Number(session.targetHeight) || 0,
                     coverage: Number(session.coverage) || 0,
@@ -527,6 +534,13 @@
                     preserveImportedOutput: true,
                     bodySourceName: record.bodySourceName || '',
                     tailSourceName: record.tailSourceName || '',
+                    tailRestoreSourceName: record.tailRestoreSourceName || '',
+                    tailRestoreState: record.tailRestoreState || 'unset',
+                    tailRestoreExplicit: typeof record.tailRestoreExplicit === 'boolean'
+                        ? record.tailRestoreExplicit
+                        : null,
+                    tailSourceExplicit: !!record.tailSourceExplicit,
+                    appliedScope: record.appliedScope || 'current',
                     targetHeight: Number(settings.targetHeight) || LONG_BODY_DEFAULT_HEIGHT,
                     coverage: Number(settings.coverage) || 0,
                     fade: Number(settings.fade) || 0,

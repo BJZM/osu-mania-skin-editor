@@ -121,9 +121,9 @@
         if (editorUndoBtn) editorUndoBtn.onclick = undoTextureEditorAction;
         if (editorRedoBtn) editorRedoBtn.onclick = redoTextureEditorAction;
         if (longBodyToggle) {
-            longBodyToggle.onchange = () => {
+            longBodyToggle.onchange = async () => {
                 if (longBodyToggle.checked) enableLongBodyComposer();
-                else disableLongBodyComposer();
+                else await requestDisableLongBodyComposer();
             };
         }
         if (longBodyCoverage) {
@@ -392,6 +392,15 @@
                         coverage: state.longBodyComposer.coverage,
                         fade: state.longBodyComposer.fade,
                         tailScaledHeight: state.longBodyComposer.tailScaledHeight,
+                        tailSourceName: state.longBodyComposer.tailSourceName,
+                        tailSourceExplicit: !!state.longBodyComposer.tailSourceExplicit,
+                        hasTailFrame: !!state.longBodyComposer.tailFrame,
+                        tailSize: state.longBodyComposer.tailFrame
+                            ? {
+                                width: state.longBodyComposer.tailFrame.width,
+                                height: state.longBodyComposer.tailFrame.height
+                            }
+                            : null,
                         tailPreset: state.longBodyComposer.tailPreset || 'none',
                         presetHeight: state.longBodyComposer.presetHeight || 0,
                         sessionKey: state.longBodyComposer.sessionKey

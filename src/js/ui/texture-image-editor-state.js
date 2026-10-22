@@ -65,6 +65,7 @@
                     tailFrame: null,
                     bodySourceName: '',
                     tailSourceName: '',
+                    tailSourceExplicit: false,
                     tailScaledHeight: 0,
                     targetHeight: LONG_BODY_DEFAULT_HEIGHT,
                     coverage: 0,

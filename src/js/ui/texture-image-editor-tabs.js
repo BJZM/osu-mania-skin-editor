@@ -34,6 +34,7 @@
                 tailFrame: composer.tailFrame,
                 bodySourceName: composer.bodySourceName,
                 tailSourceName: composer.tailSourceName,
+                tailSourceExplicit: !!composer.tailSourceExplicit,
                 tailScaledHeight: composer.tailScaledHeight,
                 targetHeight: composer.targetHeight,
                 coverage: composer.coverage,
@@ -49,6 +50,7 @@
                 a.tailFrame !== b.tailFrame ||
                 a.bodySourceName !== b.bodySourceName ||
                 a.tailSourceName !== b.tailSourceName ||
+                a.tailSourceExplicit !== b.tailSourceExplicit ||
                 a.tailScaledHeight !== b.tailScaledHeight ||
                 a.targetHeight !== b.targetHeight ||
                 a.coverage !== b.coverage ||

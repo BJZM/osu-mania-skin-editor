@@ -32,6 +32,10 @@
             if (!base || isDummyBlankName(base)) base = stripTextureName(p.key || 'texture');
 
             if (p._trackCol == null) return base;
+            if (/^longbody-body(?:$|[_-])/i.test(base) ||
+                /^longbody-tail-transparent(?:$|[_-])/i.test(base)) {
+                return base;
+            }
             if (typeof hasCreatedTextureParams === 'function' && hasCreatedTextureParams(base)) return base;
             if (shouldOverwriteDefaultKeyImageSource(p)) return base;
 

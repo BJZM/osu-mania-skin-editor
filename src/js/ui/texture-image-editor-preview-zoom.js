@@ -157,6 +157,7 @@
                     state: 'unset',
                     frame: null,
                     name: '',
+                    explicit: false,
                     bodyHeight: 0
                 };
             }
@@ -169,18 +170,23 @@
                 ? Number(bodyFrame.naturalHeight || bodyFrame.videoHeight || bodyFrame.height) || 0
                 : 0;
             const canOpenLongBody = bodyHeight > 0 && bodyHeight < LONG_BODY_OPEN_HEIGHT_LIMIT;
+            const column = getSelectedTrackIndex();
             const tailParam = getTailParamForSelectedBody();
-            if (!tailParam) {
+            if (!tailParam || column == null) {
                 return {
                     eligible: canOpenLongBody,
                     state: 'unset',
                     frame: null,
                     name: '',
+                    explicit: false,
                     bodyHeight
                 };
             }
-            const resolved = resolveTextureParam(selected.keys || getActiveKeyCount(), tailParam);
-            const frames = resolveTextureParamFrames(selected.keys || getActiveKeyCount(), tailParam);
+            const keys = selected.keys || getActiveKeyCount();
+            const nameInfo = {};
+            getManiaNoteTextureName(keys, LML.HoldNoteTailImage, column, nameInfo);
+            const resolved = resolveTextureParam(keys, tailParam);
+            const frames = resolveTextureParamFrames(keys, tailParam);
             const frame = (frames && frames[0]) || (resolved && resolved.img) || null;
             const transparentTail = !frame || (
                 !!frame._isBlankPlaceholder ||
@@ -190,7 +196,12 @@
                 eligible: canOpenLongBody,
                 state: resolved ? resolved.state : 'unset',
                 frame: transparentTail ? null : frame,
-                name: resolved ? resolved.name : '',
+                name: getEffectiveTextureSourceName(
+                    keys,
+                    LML.HoldNoteTailImage,
+                    column
+                ) || (resolved ? resolved.name : ''),
+                explicit: !!nameInfo.explicit,
                 bodyHeight,
                 isTailTransparent: transparentTail
             };

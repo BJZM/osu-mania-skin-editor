@@ -1389,11 +1389,541 @@ test('自建贴图在一键投皮中以叠加通用设置后的最终结果为�
   expect(await page.evaluate(() => textureImageEditorUi.getState().previewSize.width)).toBe(40);
 
   await page.uncheck('#textureImageLongBodyEnable', { force: true });
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeAllBtn');
   await page.waitForFunction(() => !textureImageEditorUi.getState().longBody.active);
   expect(await page.inputValue('#textureImageCropLeft')).toBe('-10');
   expect(await page.inputValue('#textureImageCropRight')).toBe('-10');
   expect(await page.evaluate(() => textureImageEditorUi.getState().previewSize.width)).toBe(40);
 
+  expect(errors).toEqual([]);
+});
+
+test('[longbody] 关闭并重开全轨投皮标签后，关闭当前轨一键投皮仍保留自建贴图特性', async ({ page }) => {
+  test.setTimeout(120000);
+  const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImageCreateOpenBtn');
+  await page.fill('#textureImageCreateName', 'created-longbody-reopen');
+  await page.fill('#textureImageCreateWidth', '60');
+  await page.fill('#textureImageCreateHeight', '60');
+  await page.fill('#textureImageCreateColorHex', '#ff2255');
+  await page.click('#textureImageCreateConfirmBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageLibraryView').style.display !== 'none';
+  });
+
+  await referenceCreatedTextureInMenu(page, 'created-longbody-reopen', 'NoteImage0L');
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    for (let column = 0; column < keys; column++) {
+      const body = getTextureTabParams().find((item) => item.key === `NoteImage${column}L`);
+      if (body) assignTextureParamLookup(keys, body, 'created-longbody-reopen');
+    }
+    updateEditorBaseAfterSave();
+  });
+  const originalTailName = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return normalizeTextureLookupPath(
+      getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0)
+    );
+  });
+  const modeMenu = await openCreatedTextureEditMenu(page, 'NoteImage0L');
+  await modeMenu.locator('[data-edit-mode="general"]').click();
+  await expect(page.locator('#textureImageEditorView')).toBeVisible();
+
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.fill('#textureImageLongBodyTargetHeight', '600');
+  await page.fill('#textureImageLongBodyCoverage', '8');
+  await page.waitForTimeout(180);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, {
+    timeout: 60000
+  });
+
+  const appliedAll = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyNames: Array.from({ length: keys }, (_, column) =>
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, column)
+      ),
+      originalCreated: hasCreatedTextureParams('created-longbody-reopen')
+    };
+  });
+  expect(new Set(appliedAll.bodyNames).size).toBe(1);
+  expect(appliedAll.originalCreated).toBe(true);
+
+  await page.click('.texture-image-tab.is-active .texture-image-tab-close');
+  await page.waitForFunction(() => {
+    return !document.querySelector('.texture-image-tab.is-active .texture-image-tab-close');
+  });
+  await page.click('#param-card-NoteImage0L .texture-edit-main-btn');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.selectedKey === 'NoteImage0L' && state.longBody.active;
+  });
+
+  await page.uncheck('#textureImageLongBodyEnable', { force: true });
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeCurrentBtn');
+  await page.waitForFunction(() => !textureImageEditorUi.getState().longBody.active);
+  expect(await page.evaluate(() => textureImageEditorUi.getState().selectedBase))
+    .toBe('created-longbody-reopen');
+
+  const saved = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const currentName = getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, 0);
+    return {
+      currentName,
+      currentTailName: normalizeTextureLookupPath(
+        getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0)
+      ),
+      currentCreated: hasCreatedTextureParams(currentName),
+      currentParams: getCreatedTextureParams(currentName),
+      otherNames: Array.from({ length: keys - 1 }, (_, index) =>
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, index + 1)
+      )
+    };
+  });
+  expect(saved.currentName).toBe('created-longbody-reopen');
+  expect(saved.currentCreated).toBe(true);
+  expect(saved.currentParams).toMatchObject({
+    width: 60,
+    height: 60,
+    color: '#ff2255'
+  });
+  expect(saved.currentTailName).toBe(originalTailName);
+  expect(saved.otherNames.every((name) => name !== saved.currentName)).toBe(true);
+
+  await page.evaluate(() => performSkinUndo());
+  const undone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const name = getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, 0);
+    return {
+      name,
+      created: hasCreatedTextureParams(name),
+      tailName: normalizeTextureLookupPath(
+        getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0)
+      )
+    };
+  });
+  expect(undone.name).toMatch(/^longbody-body/i);
+  expect(undone.created).toBe(false);
+  expect(undone.tailName).not.toBe(originalTailName);
+
+  await page.evaluate(() => performSkinRedo());
+  const redone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    const name = getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, 0);
+    return {
+      name,
+      created: hasCreatedTextureParams(name),
+      tailName: normalizeTextureLookupPath(
+        getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0)
+      )
+    };
+  });
+  expect(redone.name).toBe(saved.currentName);
+  expect(redone.created).toBe(true);
+  expect(redone.tailName).toBe(originalTailName);
+  expect(errors).toEqual([]);
+});
+
+test('[longbody] 单轨一键投皮关闭后恢复原身体与原尾部并删除长条生成文件', async ({ page }) => {
+  test.setTimeout(120000);
+  const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImageCreateOpenBtn');
+  await page.fill('#textureImageCreateName', 'created-longbody-single');
+  await page.fill('#textureImageCreateWidth', '60');
+  await page.fill('#textureImageCreateHeight', '60');
+  await page.fill('#textureImageCreateColorHex', '#ffaa22');
+  await page.click('#textureImageCreateConfirmBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageLibraryView').style.display !== 'none';
+  });
+
+  await referenceCreatedTextureInMenu(page, 'created-longbody-single', 'NoteImage0L');
+  const originalTailName = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return normalizeTextureLookupPath(
+      getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0)
+    );
+  });
+  const modeMenu = await openCreatedTextureEditMenu(page, 'NoteImage0L');
+  await modeMenu.locator('[data-edit-mode="general"]').click();
+  await expect(page.locator('#textureImageEditorView')).toBeVisible();
+
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.fill('#textureImageLongBodyTargetHeight', '600');
+  await page.fill('#textureImageLongBodyCoverage', '8');
+  await page.waitForTimeout(180);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeCurrentBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, {
+    timeout: 60000
+  });
+
+  const applied = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyName: getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, 0),
+      generatedFiles: Array.from(userReplacedTextures.keys())
+        .filter((name) => /^longbody-body/i.test(name) ||
+          /^longbody-tail-transparent/i.test(name))
+    };
+  });
+  expect(applied.bodyName).toMatch(/^longbody-body/i);
+  expect(applied.bodyName.toLowerCase()).toBe('longbody-body_col1l');
+  expect(applied.generatedFiles.length).toBeGreaterThan(0);
+  await page.evaluate(async () => {
+    const strayBase = 'longbody-body_col1_col1L';
+    const canvas = document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = 4;
+    canvas.getContext('2d').fillRect(0, 0, 4, 4);
+    const blob = await canvasToBlob(canvas);
+    saveSkinAssetToStore(skinImageStore, strayBase, canvas, false, true, true);
+    userReplacedTextures.set(`${strayBase}.png`, await blob.arrayBuffer());
+  });
+
+  await page.uncheck('#textureImageLongBodyEnable', { force: true });
+  await page.waitForFunction(() => {
+    return !textureImageEditorUi.getState().longBody.active;
+  });
+  await expect(page.locator('#textureImageApplyScopeModal')).toBeHidden();
+
+  const restored = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyName: getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, 0),
+      created: hasCreatedTextureParams(
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, 0)
+      ),
+      tailName: normalizeTextureLookupPath(
+        getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0)
+      ),
+      generatedFiles: Array.from(userReplacedTextures.keys())
+        .filter((name) => /^longbody-body/i.test(name) ||
+          /^longbody-tail-transparent/i.test(name)),
+      libraryArtifacts: collectExistingTextureSources()
+        .map((item) => item.path)
+        .filter((name) => /^longbody-body/i.test(name) ||
+          /^longbody-tail-transparent/i.test(name)),
+      sessionCount: Array.from(longBodyComposerSessions.keys())
+        .filter((key) => key.startsWith(`${keys}|NoteImage`) && key.endsWith('L'))
+        .length
+    };
+  });
+  expect(restored.bodyName).toBe('created-longbody-single');
+  expect(restored.created).toBe(true);
+  expect(restored.tailName).toBe(originalTailName);
+  expect(restored.generatedFiles).toEqual([]);
+  expect(restored.libraryArtifacts).toEqual([]);
+  expect(restored.sessionCount).toBe(0);
+  expect(errors).toEqual([]);
+});
+
+test('[longbody] 全轨投皮后关闭任意轨道的一键投皮可还原全部身体和长条尾部', async ({ page }) => {
+  test.setTimeout(120000);
+  const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await page.click('#openTextureImageEditorBtn');
+  await page.click('#textureImageCreateOpenBtn');
+  await page.fill('#textureImageCreateName', 'created-longbody-restore-all');
+  await page.fill('#textureImageCreateWidth', '60');
+  await page.fill('#textureImageCreateHeight', '60');
+  await page.fill('#textureImageCreateColorHex', '#22aaff');
+  await page.click('#textureImageCreateConfirmBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageLibraryView').style.display !== 'none';
+  });
+
+  await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    for (let column = 0; column < keys; column++) {
+      const body = getTextureTabParams().find((item) => item.key === `NoteImage${column}L`);
+      if (body) assignTextureParamLookup(keys, body, 'created-longbody-restore-all');
+    }
+    updateEditorBaseAfterSave();
+  });
+  const before = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyNames: Array.from({ length: keys }, (_, column) =>
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, column)
+      ),
+      tailNames: Array.from({ length: keys }, (_, column) =>
+        normalizeTextureLookupPath(
+          getManiaNoteTextureName(keys, LML.HoldNoteTailImage, column)
+        )
+      ),
+      bodySources: Array.from({ length: keys }, (_, column) => {
+        return readLongBodyTrackSource(column).bodySourceName;
+      })
+    };
+  });
+  expect(before.bodySources).toEqual(
+    Array.from({ length: before.bodySources.length }, () => 'created-longbody-restore-all')
+  );
+
+  await page.evaluate(() => textureImageEditorUi.selectByParamKey('NoteImage1L'));
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'NoteImage1L');
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.fill('#textureImageLongBodyTargetHeight', '600');
+  await page.fill('#textureImageLongBodyCoverage', '8');
+  await page.waitForTimeout(180);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, {
+    timeout: 60000
+  });
+
+  const applied = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      tailsTransparent: Array.from({ length: keys }, (_, column) => {
+        const tail = getManiaSkinImage(keys, LML.HoldNoteTailImage, column);
+        return !tail || tail._isBlankPlaceholder || isFullyTransparentImage(tail, 1, 1);
+      }),
+      bodySources: Array.from({ length: keys }, (_, column) => {
+        const session = longBodyComposerSessions.get(`${keys}|NoteImage${column}L`);
+        return session ? session.bodySourceName : null;
+      }),
+      bodyFiles: Array.from(new Set(
+        Array.from(userReplacedTextures.keys())
+          .filter((name) => /^longbody-body/i.test(name))
+          .map((name) => name.toLowerCase())
+      )),
+      tailNames: Array.from({ length: keys }, (_, column) =>
+        normalizeTextureLookupPath(
+          getManiaNoteTextureName(keys, LML.HoldNoteTailImage, column)
+        )
+      ),
+      tailFiles: Array.from(new Set(
+        Array.from(userReplacedTextures.keys())
+          .filter((name) => /^longbody-tail-transparent/i.test(name))
+          .map((name) => name.toLowerCase())
+      ))
+    };
+  });
+  expect(applied.tailsTransparent.every(Boolean)).toBe(true);
+  expect(applied.bodySources).toEqual(
+    Array.from({ length: applied.bodySources.length }, () => 'created-longbody-restore-all')
+  );
+  expect(applied.bodyFiles).toEqual(['longbody-body_col1l.png']);
+  expect(new Set(applied.tailNames).size).toBe(1);
+  expect(applied.tailNames[0]).toBe('longbody-tail-transparent');
+  expect(applied.tailFiles).toEqual(['longbody-tail-transparent.png']);
+
+  await page.click('.texture-image-tab.is-active .texture-image-tab-close');
+  await page.waitForFunction(() => {
+    return !document.querySelector('.texture-image-tab.is-active .texture-image-tab-close');
+  });
+  await page.click('#param-card-NoteImage1L .texture-edit-main-btn');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.selectedKey === 'NoteImage1L' && state.longBody.active;
+  });
+
+  await page.uncheck('#textureImageLongBodyEnable', { force: true });
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await expect(page.locator('#textureImageApplyScopeTitle')).toContainText('关闭一键投皮');
+  await expect(page.locator('#textureImageApplyScopeText')).toContainText('所有轨道');
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(() => {
+    return !textureImageEditorUi.getState().longBody.active;
+  });
+
+  const restored = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyNames: Array.from({ length: keys }, (_, column) =>
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, column)
+      ),
+      tailNames: Array.from({ length: keys }, (_, column) =>
+        normalizeTextureLookupPath(
+          getManiaNoteTextureName(keys, LML.HoldNoteTailImage, column)
+        )
+      ),
+      sessionCount: Array.from(longBodyComposerSessions.keys())
+        .filter((key) => key.startsWith(`${keys}|NoteImage`) && key.endsWith('L'))
+        .length,
+      generatedFiles: Array.from(userReplacedTextures.keys())
+        .filter((name) => /^longbody-body/i.test(name) ||
+          /^longbody-tail-transparent/i.test(name))
+    };
+  });
+  expect(restored.bodyNames).toEqual(before.bodyNames);
+  expect(restored.tailNames).toEqual(before.tailNames);
+  expect(restored.sessionCount).toBe(0);
+  expect(restored.generatedFiles).toEqual([]);
+
+  await page.evaluate(() => performSkinUndo());
+  const undone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyNames: Array.from({ length: keys }, (_, column) =>
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, column)
+      ),
+      tailsTransparent: Array.from({ length: keys }, (_, column) => {
+        const tail = getManiaSkinImage(keys, LML.HoldNoteTailImage, column);
+        return !tail || tail._isBlankPlaceholder || isFullyTransparentImage(tail, 1, 1);
+      }),
+      sessionCount: Array.from(longBodyComposerSessions.keys())
+        .filter((key) => key.startsWith(`${keys}|NoteImage`) && key.endsWith('L'))
+        .length
+    };
+  });
+  expect(undone.bodyNames.every((name) => /^longbody-body/i.test(name))).toBe(true);
+  expect(undone.tailsTransparent.every(Boolean)).toBe(true);
+  expect(undone.sessionCount).toBe(before.bodyNames.length);
+
+  await page.evaluate(() => performSkinRedo());
+  const redone = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyNames: Array.from({ length: keys }, (_, column) =>
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, column)
+      ),
+      tailNames: Array.from({ length: keys }, (_, column) =>
+        normalizeTextureLookupPath(
+          getManiaNoteTextureName(keys, LML.HoldNoteTailImage, column)
+        )
+      )
+    };
+  });
+  expect(redone.bodyNames).toEqual(before.bodyNames);
+  expect(redone.tailNames).toEqual(before.tailNames);
+  expect(errors).toEqual([]);
+});
+
+test('[longbody-export] 一键投皮开启时导出仍保留原身体和原尾部，并可重开标签关闭恢复', async ({ page }) => {
+  test.setTimeout(120000);
+  const errors = await boot(page, OPAQUE_TAIL_SKIN);
+  await page.click('#openTextureImageEditorBtn');
+
+  const before = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyName: normalizeTextureLookupPath(
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, 0)
+      ),
+      tailName: normalizeTextureLookupPath(
+        getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0)
+      )
+    };
+  });
+
+  await page.click('#param-card-NoteImage0L .texture-edit-main-btn');
+  await page.waitForFunction(() => {
+    return textureImageEditorUi.getState().selectedKey === 'NoteImage0L';
+  });
+  await page.click('.texture-image-switch-track');
+  await page.waitForFunction(() => textureImageEditorUi.getState().longBody.active);
+  await page.fill('#textureImageLongBodyTargetHeight', '600');
+  await page.fill('#textureImageLongBodyCoverage', '8');
+  await page.waitForTimeout(180);
+  await page.click('#textureImageApplyBtn');
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0, null, {
+    timeout: 60000
+  });
+
+  const exported = await page.evaluate(async ({ bodyName, tailName }) => {
+    const normalizeArchiveBase = (filename) => normalizeSkinKey(filename)
+      .replace(/@2x$/i, '')
+      .replace(/-\d+$/i, '');
+    const matchesBase = (filename, baseName) => {
+      return normalizeArchiveBase(filename) === normalizeSkinKey(baseName);
+    };
+    const originalBodyFiles = Object.keys(currentSkinZip.files)
+      .filter((filename) => matchesBase(filename, bodyName));
+    const originalTailFiles = Object.keys(currentSkinZip.files)
+      .filter((filename) => matchesBase(filename, tailName));
+    const { blob } = await buildSkinArchiveBlob('osk', { mode: 'release' });
+    const exportedZip = await JSZip.loadAsync(blob);
+    const exportedNames = Object.keys(exportedZip.files);
+    return {
+      originalBodyFiles,
+      originalTailFiles,
+      exportedBodyFiles: exportedNames.filter((filename) => matchesBase(filename, bodyName)),
+      exportedTailFiles: exportedNames.filter((filename) => matchesBase(filename, tailName)),
+      exportedGeneratedBodies: exportedNames.filter(
+        (filename) => normalizeArchiveBase(filename) === 'longbody-body_col1l'
+      ),
+      exportedTransparentTails: exportedNames.filter(
+        (filename) => normalizeArchiveBase(filename) === 'longbody-tail-transparent'
+      ),
+      bodyStillInWorkspace: Object.keys(currentSkinZip.files)
+        .filter((filename) => matchesBase(filename, bodyName)),
+      tailStillInWorkspace: Object.keys(currentSkinZip.files)
+        .filter((filename) => matchesBase(filename, tailName))
+    };
+  }, before);
+
+  expect(exported.originalBodyFiles.length).toBeGreaterThan(0);
+  expect(exported.originalTailFiles.length).toBeGreaterThan(0);
+  expect(exported.exportedBodyFiles).toEqual(exported.originalBodyFiles);
+  expect(exported.exportedTailFiles).toEqual(exported.originalTailFiles);
+  expect(exported.exportedGeneratedBodies).toEqual(['longbody-body_col1l.png']);
+  expect(exported.exportedTransparentTails).toEqual(['longbody-tail-transparent.png']);
+  expect(exported.bodyStillInWorkspace).toEqual(exported.originalBodyFiles);
+  expect(exported.tailStillInWorkspace).toEqual(exported.originalTailFiles);
+
+  await page.click('.texture-image-tab.is-active .texture-image-tab-close');
+  await page.waitForFunction(() => {
+    return !document.querySelector('.texture-image-tab.is-active .texture-image-tab-close');
+  });
+  await page.click('#param-card-NoteImage0L .texture-edit-main-btn');
+  await page.waitForFunction(() => {
+    const state = textureImageEditorUi.getState();
+    return state.selectedKey === 'NoteImage0L' && state.longBody.active;
+  });
+  const reopened = await page.evaluate(() => textureImageEditorUi.getState().longBody);
+  expect(reopened.tailSourceName).toBe(before.tailName);
+  expect(reopened.hasTailFrame).toBe(true);
+  await page.uncheck('#textureImageLongBodyEnable', { force: true });
+  await page.waitForFunction(() => {
+    return document.getElementById('textureImageApplyScopeModal').style.display === 'flex';
+  });
+  await page.click('#textureImageApplyScopeAllBtn');
+  await page.waitForFunction(() => !textureImageEditorUi.getState().longBody.active);
+
+  const restored = await page.evaluate(() => {
+    const keys = getActiveKeyCount();
+    return {
+      bodyName: normalizeTextureLookupPath(
+        getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, 0)
+      ),
+      tailName: normalizeTextureLookupPath(
+        getManiaNoteTextureName(keys, LML.HoldNoteTailImage, 0)
+      )
+    };
+  });
+  expect(restored.bodyName).toBe(before.bodyName);
+  expect(restored.tailName).toBe(before.tailName);
   expect(errors).toEqual([]);
 });
 
