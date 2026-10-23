@@ -1177,14 +1177,29 @@ test('F5 撤销与恢复初始状态', async ({ page }) => {
 test('F6 导出 .osk / .zip 触发下载', async ({ page }) => {
   const errors = await boot(page);
   await importSkinAndBeatmap(page);
+  await page.evaluate(() => {
+    skinFontsConfig.comboPrefix = 'Fonts/score/score';
+    skinFontsConfig.hasExplicitComboPrefix = true;
+  });
 
+  let exportedIni = '';
   for (const format of ['osk', 'zip']) {
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 30000 }),
       page.evaluate((f) => exportSkin(f), format)
     ]);
     expect(download.suggestedFilename().toLowerCase().endsWith('.' + format)).toBe(true);
+    if (format === 'osk') {
+      const downloadPath = await download.path();
+      expect(downloadPath).toBeTruthy();
+      const exportedArchive = await JSZip.loadAsync(fs.readFileSync(downloadPath));
+      const iniName = Object.keys(exportedArchive.files)
+        .find((name) => /(?:^|\/)skin\.ini$/i.test(name));
+      exportedIni = await exportedArchive.file(iniName).async('string');
+    }
   }
+  expect(exportedIni).toMatch(/^ComboPrefix:\s*Fonts\/score\/score\s*$/m);
+  expect(exportedIni).not.toMatch(/^Combo\s*:/m);
   expect(errors).toEqual([]);
 });
 

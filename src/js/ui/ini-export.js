@@ -113,9 +113,9 @@
             if (skinFontsConfig.scorePrefix) lines.push(`ScorePrefix: ${skinFontsConfig.scorePrefix}`);
             if (skinFontsConfig.scoreOverlap != null) lines.push(`ScoreOverlap: ${skinFontsConfig.scoreOverlap}`);
             // 连击字体前缀：只有 ini 显式指定过才写回，避免导出的皮肤凭空多出一项
-            // [Fonts] Combo 而导致「未指定时沿用 score 字体」的规则在二次导入后失效
+            // [Fonts] ComboPrefix 而导致「未指定时沿用 score 字体」的规则在二次导入后失效
             if (skinFontsConfig.hasExplicitComboPrefix) {
-                lines.push(`Combo: ${skinFontsConfig.comboPrefix || 'combo'}`);
+                lines.push(`ComboPrefix: ${skinFontsConfig.comboPrefix || 'score'}`);
             }
             if (skinFontsConfig.comboOverlap != null) lines.push(`ComboOverlap: ${skinFontsConfig.comboOverlap}`);
             lines.push('');

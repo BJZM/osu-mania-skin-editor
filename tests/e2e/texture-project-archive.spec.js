@@ -55,6 +55,25 @@ async function bootDefaultSkin(page) {
   return errors;
 }
 
+async function buildSeededSkinArchive(page, seedEntries, replacementEntries) {
+  const bytes = await page.evaluate(async ({ seedEntries, replacementEntries }) => {
+    currentSkinZip = new JSZip();
+    for (const entry of seedEntries) {
+      currentSkinZip.file(entry.path, new Uint8Array(entry.bytes));
+    }
+
+    userReplacedTextures.clear();
+    for (const entry of replacementEntries) {
+      userReplacedTextures.set(entry.path, new Uint8Array(entry.bytes).buffer);
+    }
+
+    const { blob } = await buildSkinArchiveBlob('osk', { mode: 'release' });
+    return Array.from(new Uint8Array(await blob.arrayBuffer()));
+  }, { seedEntries, replacementEntries });
+
+  return JSZip.loadAsync(Uint8Array.from(bytes));
+}
+
 async function openTexturePicker(page, paramKey) {
   await page.evaluate((key) => {
     textureImageEditorUi.open();
@@ -715,5 +734,62 @@ test('默认皮肤编辑单键后，可编辑导出再导入仍由默认皮肤�
   expect(reimported.defaultWorkspace).toBe(false);
   expect(reimported.headState).toBe('ok');
   expect(reimported.headSize).toEqual(before.headSize);
+  expect(errors).toEqual([]);
+});
+
+test('导出替换贴图时沿用原路径大小写并阻止重复逻辑路径', async ({ page }) => {
+  const errors = await boot(page);
+  const archivePathKey = (name) => String(name || '').replace(/\\/g, '/').toLowerCase();
+
+  const uppercasePreserved = await buildSeededSkinArchive(
+    page,
+    [{ path: 'Mania/big/5@2x.png', bytes: [1, 1, 1] }],
+    [
+      { path: 'mania/big/5@2x.png', bytes: [9, 8, 7] },
+      { path: 'Mania/big/5@2x.png', bytes: [6, 5, 4] }
+    ]
+  );
+  const uppercasePaths = Object.keys(uppercasePreserved.files)
+    .filter((name) => archivePathKey(name) === 'mania/big/5@2x.png');
+  expect(uppercasePaths).toEqual(['Mania/big/5@2x.png']);
+  expect(Array.from(await uppercasePreserved.file(uppercasePaths[0]).async('uint8array')))
+    .toEqual([6, 5, 4]);
+
+  const lowercasePreserved = await buildSeededSkinArchive(
+    page,
+    [{ path: 'mania/big/6@2x.png', bytes: [2, 2, 2] }],
+    [{ path: 'mania/big/6@2x.png', bytes: [7, 7, 7] }]
+  );
+  const lowercasePaths = Object.keys(lowercasePreserved.files)
+    .filter((name) => archivePathKey(name) === 'mania/big/6@2x.png');
+  expect(lowercasePaths).toEqual(['mania/big/6@2x.png']);
+
+  const oneXReplacement = await buildSeededSkinArchive(
+    page,
+    [
+      { path: 'Mania/big/7.png', bytes: [1, 2, 3] },
+      { path: 'Mania/big/7@2x.png', bytes: [3, 2, 1] }
+    ],
+    [{ path: 'mania/big/7.png', bytes: [8, 8, 8] }]
+  );
+  const oneXPaths = Object.keys(oneXReplacement.files)
+    .filter((name) => archivePathKey(name) === 'mania/big/7.png');
+  expect(oneXPaths).toEqual(['Mania/big/7.png']);
+  expect(Array.from(await oneXReplacement.file(oneXPaths[0]).async('uint8array')))
+    .toEqual([8, 8, 8]);
+
+  const duplicateError = await page.evaluate(async () => {
+    currentSkinZip = new JSZip();
+    currentSkinZip.file('Mania/big/8@2x.png', new Uint8Array([1]));
+    currentSkinZip.file('mania/big/8@2x.png', new Uint8Array([2]));
+    userReplacedTextures.clear();
+    try {
+      await buildSkinArchiveBlob('osk', { mode: 'release' });
+      return null;
+    } catch (error) {
+      return error && error.message || String(error);
+    }
+  });
+  expect(duplicateError).toContain('大小写冲突');
   expect(errors).toEqual([]);
 });

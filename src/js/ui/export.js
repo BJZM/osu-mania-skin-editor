@@ -9,6 +9,64 @@
             return mode === 'release' ? 'release' : 'editable';
         }
 
+        function normalizeSkinArchivePathKey(path) {
+            return String(path || '')
+                .replace(/\\/g, '/')
+                .replace(/^\/+/, '')
+                .toLowerCase();
+        }
+
+        function isHighResolutionSkinArchivePath(path) {
+            return /@2x(?:\.[^./\\]+)?$/i.test(String(path || '').replace(/\\/g, '/'));
+        }
+
+        function getSkinArchivePathVariants(zip, targetPath) {
+            if (!zip || !zip.files) return [];
+            const targetKey = normalizeSkinArchivePathKey(targetPath);
+            if (!targetKey) return [];
+            return Object.keys(zip.files).filter((filename) =>
+                !zip.files[filename].dir &&
+                normalizeSkinArchivePathKey(filename) === targetKey
+            );
+        }
+
+        function resolveSkinArchiveWritePath(zip, requestedPath) {
+            const variants = getSkinArchivePathVariants(zip, requestedPath);
+            if (variants.length === 0) return requestedPath;
+            if (variants.includes(requestedPath)) return requestedPath;
+            if (variants.length === 1) return variants[0];
+            throw new Error(`导出路径存在无法确定的大小写冲突: ${variants.join(' / ')}`);
+        }
+
+        function removeSkinArchivePathVariants(zip, targetPath) {
+            if (!zip || !zip.files) return;
+            for (const filename of getSkinArchivePathVariants(zip, targetPath)) {
+                zip.remove(filename);
+            }
+        }
+
+        function assertUniqueSkinArchivePaths(zip) {
+            if (!zip || !zip.files) return;
+            const namesByPath = new Map();
+            for (const filename of Object.keys(zip.files)) {
+                if (zip.files[filename].dir) continue;
+                const pathKey = normalizeSkinArchivePathKey(filename);
+                if (!pathKey) continue;
+                if (!namesByPath.has(pathKey)) namesByPath.set(pathKey, []);
+                namesByPath.get(pathKey).push(filename);
+            }
+
+            const conflicts = Array.from(namesByPath.values()).filter((names) => names.length > 1);
+            if (conflicts.length > 0) {
+                const details = conflicts
+                    .slice(0, 5)
+                    .map((names) => names.join(' / '))
+                    .join('；');
+                const remaining = conflicts.length > 5 ? `；另有 ${conflicts.length - 5} 组` : '';
+                throw new Error(`导出失败：皮肤包仍存在大小写冲突路径: ${details}${remaining}`);
+            }
+        }
+
         function requestTextureExportMode(format = 'osk') {
             const modal = document.getElementById('textureExportModeModal');
             if (!modal) return Promise.resolve('editable');
@@ -94,23 +152,48 @@
             }
             zip.file(iniFilename, newIniText);
 
-            // 2. 将所有用户上传替换的贴图写入压缩包
+            // 2. 将所有用户上传替换的贴图写入压缩包。
+            // 同一逻辑路径可能因大小写不同在内存 Map 中出现两次，先按 ZIP 路径规则合并。
+            const replacementEntriesByPath = new Map();
             for (const [texPath, texData] of userReplacedTextures.entries()) {
-                zip.file(texPath, texData);
-                // 若替换的是 1x 普通贴图且原压缩包里存在同名 @2x 贴图，移除旧 @2x，防止 osu! 启动时优先读取旧的高清贴图
-                if (!texPath.includes('@2x')) {
-                    const baseName = texPath.replace(/\.png$/i, '');
-                    const old2xName = `${baseName}@2x.png`;
-                    if (zip.file(old2xName) && !userReplacedTextures.has(old2xName)) {
-                        zip.remove(old2xName);
-                    }
+                const pathKey = normalizeSkinArchivePathKey(texPath);
+                if (!pathKey) continue;
+                replacementEntriesByPath.set(pathKey, [texPath, texData]);
+            }
+            // 已有贴图沿用 ZIP 中的原始拼写；只有全新贴图才使用编辑器请求的路径。
+            const replacementEntries = Array.from(replacementEntriesByPath.values()).map(([texPath, texData]) => ({
+                writePath: resolveSkinArchiveWritePath(zip, texPath),
+                texData
+            }));
+            const replacementPathKeys = new Set(replacementEntriesByPath.keys());
+
+            // 删除旧条目时必须删除所有大小写变体，再按保留下来的原始路径写入一次。
+            for (const entry of replacementEntries) {
+                removeSkinArchivePathVariants(zip, entry.writePath);
+            }
+
+            // 若替换的是 1x 普通贴图且没有对应的 2x 替换，移除旧 @2x，防止游戏优先读取旧高清贴图。
+            for (const entry of replacementEntries) {
+                if (isHighResolutionSkinArchivePath(entry.writePath) || !/\.png$/i.test(entry.writePath)) continue;
+                const baseName = entry.writePath.replace(/\.png$/i, '');
+                const old2xName = `${baseName}@2x.png`;
+                if (!replacementPathKeys.has(normalizeSkinArchivePathKey(old2xName))) {
+                    removeSkinArchivePathVariants(zip, old2xName);
                 }
+            }
+
+            for (const entry of replacementEntries) {
+                zip.file(entry.writePath, entry.texData);
             }
 
             // 3. 开始执行异步压缩
             const projectSummary = mode === 'editable'
                 ? await writeTextureProjectToArchive(zip, { includeSources: true })
                 : null;
+
+            // 最后只做唯一性校验；若仍有冲突，说明导出链路遗漏了修正，不能静默选择其中一张。
+            assertUniqueSkinArchivePaths(zip);
+
             const blob = await zip.generateAsync({
                 type: 'blob',
                 compression: 'DEFLATE',
