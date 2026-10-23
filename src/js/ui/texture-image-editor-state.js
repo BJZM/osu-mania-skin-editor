@@ -172,18 +172,20 @@
 
         function getImageTransformScales(transform, cropRect) {
             const value = cloneImageTransform(transform);
-            const cropWidth = Math.max(1, Number(cropRect && cropRect.width) || 1);
-            const cropHeight = Math.max(1, Number(cropRect && cropRect.height) || 1);
+            const fallbackWidth = Math.max(1, Number(cropRect && cropRect.width) || 1);
+            const fallbackHeight = Math.max(1, Number(cropRect && cropRect.height) || 1);
+            const referenceWidth = value.referenceWidth || fallbackWidth;
+            const referenceHeight = value.referenceHeight || fallbackHeight;
             const baseScale = getImageCropOutputScale(value);
             if (value.scaleAfterStretch) {
                 return {
-                    x: Math.max(0.01, (1 + value.stretchX / cropWidth) * baseScale),
-                    y: Math.max(0.01, (1 + value.stretchY / cropHeight) * baseScale)
+                    x: Math.max(0.01, (1 + value.stretchX / referenceWidth) * baseScale),
+                    y: Math.max(0.01, (1 + value.stretchY / referenceHeight) * baseScale)
                 };
             }
             return {
-                x: Math.max(0.01, baseScale + value.stretchX / cropWidth),
-                y: Math.max(0.01, baseScale + value.stretchY / cropHeight)
+                x: Math.max(0.01, baseScale + value.stretchX / referenceWidth),
+                y: Math.max(0.01, baseScale + value.stretchY / referenceHeight)
             };
         }
 

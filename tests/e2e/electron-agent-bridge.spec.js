@@ -41,16 +41,19 @@ async function invokeBridge(discovery, method, params = {}) {
 
 test('Electron Agent Bridge exposes the live renderer session over loopback', async () => {
   await fs.rm(DISCOVERY_PATH, { force: true });
+  const userDataDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), 'osu-mania-skin-editor-electron-')
+  );
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
 
-  const app = await electron.launch({
-    args: ['.'],
-    cwd: ROOT,
-    env
-  });
-
+  let app = null;
   try {
+    app = await electron.launch({
+      args: [`--user-data-dir=${userDataDir}`, '.'],
+      cwd: ROOT,
+      env
+    });
     const page = await app.firstWindow();
     await page.waitForFunction(() => window.skinAgentSession);
     await page.setInputFiles('#oszInput', MINIMAL_BEATMAP);
@@ -92,7 +95,13 @@ test('Electron Agent Bridge exposes the live renderer session over loopback', as
     });
     expect(invalidTokenResponse.status).toBe(401);
   } finally {
-    await app.close();
+    if (app) await app.close();
     await fs.rm(DISCOVERY_PATH, { force: true });
+    await fs.rm(userDataDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 100
+    }).catch(() => {});
   }
 });

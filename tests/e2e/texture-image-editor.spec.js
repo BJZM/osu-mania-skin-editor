@@ -669,6 +669,8 @@ test('拉伸与裁剪数值按最终输出像素计算', async ({ page }) => {
   });
 
   const stretched = await page.evaluate(() => textureImageEditorUi.getState());
+  const stretchedScaleX = stretched.previewSize.width / stretched.cropRect.width;
+  const stretchedScaleY = stretched.previewSize.height / stretched.cropRect.height;
   const expectedWidth = stretched.previewSize.width - 24;
   const expectedHeight = stretched.previewSize.height - 16;
 
@@ -684,10 +686,35 @@ test('拉伸与裁剪数值按最终输出像素计算', async ({ page }) => {
     width: expectedWidth,
     height: expectedHeight
   });
-  expect(stretched.cropRect.width - cropped.cropRect.width).toBeCloseTo(16, 0);
-  expect(stretched.cropRect.height - cropped.cropRect.height).toBeCloseTo(32 / 3, 0);
+  const croppedScaleX = cropped.previewSize.width / cropped.cropRect.width;
+  const croppedScaleY = cropped.previewSize.height / cropped.cropRect.height;
+  expect(Math.abs(croppedScaleX / stretchedScaleX - 1)).toBeLessThan(0.02);
+  expect(Math.abs(croppedScaleY / stretchedScaleY - 1)).toBeLessThan(0.02);
+  expect(Math.abs(
+    (stretched.cropRect.width - cropped.cropRect.width) * stretchedScaleX - 24
+  )).toBeLessThanOrEqual(1);
+  expect(Math.abs(
+    (stretched.cropRect.height - cropped.cropRect.height) * stretchedScaleY - 16
+  )).toBeLessThanOrEqual(1);
   expect(cropped.imageTransform.stretchX).toBe(20);
   expect(cropped.imageTransform.stretchY).toBe(-5);
+
+  const expandedWidth = cropped.previewSize.width + 44;
+  const expandedHeight = cropped.previewSize.height + 28;
+  await page.fill('#textureImageCropRight', '20');
+  await page.fill('#textureImageCropBottom', '12');
+  await page.waitForFunction(({ width, height }) => {
+    const preview = textureImageEditorUi.getState().previewSize;
+    return preview && preview.width === width && preview.height === height;
+  }, { width: expandedWidth, height: expandedHeight });
+
+  const expanded = await page.evaluate(() => textureImageEditorUi.getState());
+  const expandedScaleX = expanded.previewSize.width / expanded.cropRect.width;
+  const expandedScaleY = expanded.previewSize.height / expanded.cropRect.height;
+  expect(expanded.inputValues.right).toBe(20);
+  expect(expanded.inputValues.bottom).toBe(12);
+  expect(Math.abs(expandedScaleX / stretchedScaleX - 1)).toBeLessThan(0.02);
+  expect(Math.abs(expandedScaleY / stretchedScaleY - 1)).toBeLessThan(0.02);
   expect(errors).toEqual([]);
 });
 
@@ -717,12 +744,15 @@ test('先拉伸再拖动裁剪柄按输出像素裁剪且保留拉伸值', async
   );
 
   const after = await page.evaluate(() => textureImageEditorUi.getState());
+  const beforeScaleX = before.previewSize.width / before.cropRect.width;
+  const afterScaleX = after.previewSize.width / after.cropRect.width;
   expect(after.imageTransform.scalePercent).toBe(150);
   expect(after.imageTransform.stretchX).toBe(20);
   const outputWidthDelta = before.previewSize.width - after.previewSize.width;
   const sourceWidthDelta = before.cropRect.width - after.cropRect.width;
   expect(outputWidthDelta).toBeGreaterThan(0);
-  expect(sourceWidthDelta * 1.5).toBeCloseTo(outputWidthDelta, 0);
+  expect(Math.abs(sourceWidthDelta * beforeScaleX - outputWidthDelta)).toBeLessThanOrEqual(1);
+  expect(Math.abs(afterScaleX / beforeScaleX - 1)).toBeLessThan(0.02);
   expect(after.previewSize.height).toBe(before.previewSize.height);
   expect(errors).toEqual([]);
 });
