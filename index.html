@@ -259,6 +259,7 @@
                     <span class="info-file-chip" id="oskFileName" style="display: none;">默认皮肤</span>
                     <div class="info-main-title" id="infoSkinName" title="皮肤名称">默认 / 内置皮肤</div>
                     <div class="info-sub-title" id="infoSkinAuthor" title="皮肤作者">-</div>
+                    <div class="info-meta-text" id="infoSkinHitsounds" style="display: none;"></div>
                 </div>
 
                 <!-- 难度详情区块 (纵向排列) -->
@@ -780,6 +781,106 @@
                         <div class="footer-right-btns">
                             <button type="button" class="btn btn-secondary" id="animCancelBtn">取消</button>
                             <button type="button" class="btn btn-primary" id="animConfirmBtn" disabled>确认应用动态贴图 (0 帧)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 连击提示图组：多图上传与左右往返预览 -->
+            <input type="file" id="comboburstGroupSingleInput" accept=".png,.jpg,.jpeg,image/png,image/jpeg" style="display: none;">
+            <input type="file" id="comboburstGroupBatchInput" multiple accept=".png,.jpg,.jpeg,image/png,image/jpeg" style="display: none;">
+
+            <div class="anim-texture-modal comboburst-group-modal" id="comboburstGroupModal" style="display: none;">
+                <div class="anim-texture-backdrop" id="comboburstGroupBackdrop"></div>
+                <div class="anim-texture-dialog comboburst-group-dialog" role="dialog" aria-modal="true" aria-labelledby="comboburstGroupTitle">
+                    <div class="anim-texture-header">
+                        <div class="anim-texture-title-group">
+                            <div class="anim-texture-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true">
+                                    <rect x="3" y="5" width="13" height="14" rx="2"></rect>
+                                    <path d="m8 13 3-3 3 3"></path>
+                                    <path d="M8 19h11a2 2 0 0 0 2-2V8"></path>
+                                </svg>
+                            </div>
+                            <div class="anim-texture-titles">
+                                <h3 id="comboburstGroupTitle">连击提示图组</h3>
+                                <span class="anim-texture-target" id="comboburstGroupTargetLabel">comboburst-mania-0.png、-1.png ...</span>
+                            </div>
+                        </div>
+                        <button type="button" class="texture-upload-close-btn" id="comboburstGroupCloseBtn" title="关闭 (Esc)">&times;</button>
+                    </div>
+
+                    <div class="anim-texture-toolbar">
+                        <div class="anim-toolbar-actions">
+                            <button type="button" class="btn btn-primary" id="comboburstGroupAddBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>添加单张</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="comboburstGroupBatchBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                                <span>批量上传多张</span>
+                            </button>
+                            <div class="anim-spec-switch">
+                                <span class="anim-spec-label">规格:</span>
+                                <button type="button" class="anim-spec-btn active" id="comboburstGroupSpec1xBtn" data-spec="1x">普通 (1x)</button>
+                                <button type="button" class="anim-spec-btn" id="comboburstGroupSpec2xBtn" data-spec="2x">@2x 高清</button>
+                            </div>
+                        </div>
+                        <div class="anim-toolbar-note comboburst-group-note">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <span>批量上传按文件名自然排序。预览会依次播放每张图片向左、向右，再切换到下一张并循环。</span>
+                        </div>
+                    </div>
+
+                    <div class="anim-texture-body">
+                        <div class="anim-frames-scroll" id="comboburstGroupFramesScroll">
+                            <div class="anim-empty-state" id="comboburstGroupEmptyState">
+                                <div class="anim-empty-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" aria-hidden="true">
+                                        <rect x="3" y="5" width="13" height="14" rx="2"></rect>
+                                        <path d="m8 13 3-3 3 3"></path>
+                                        <path d="M8 19h11a2 2 0 0 0 2-2V8"></path>
+                                    </svg>
+                                </div>
+                                <div class="anim-empty-title">当前连击提示图组为空</div>
+                                <div class="anim-empty-desc">添加一张图片或多张图片。编号会按列表顺序写为 comboburst-mania-0、-1、-2 ...</div>
+                                <div class="anim-empty-actions">
+                                    <button type="button" class="btn btn-primary" id="comboburstGroupEmptyAddBtn">添加单张</button>
+                                    <button type="button" class="btn btn-secondary" id="comboburstGroupEmptyBatchBtn">批量选择多张</button>
+                                </div>
+                            </div>
+                            <div class="anim-frames-grid" id="comboburstGroupFramesGrid" style="display: none;"></div>
+                        </div>
+
+                        <div class="anim-preview-panel comboburst-group-preview-panel" id="comboburstGroupPreviewPanel" style="display: none;">
+                            <div class="anim-preview-head">
+                                <span>连击播放预览</span>
+                                <span class="anim-preview-badge" id="comboburstGroupPreviewBadge">0 张</span>
+                            </div>
+                            <div class="anim-preview-canvas-wrap comboburst-group-preview-wrap">
+                                <canvas id="comboburstGroupPreviewCanvas" width="260" height="340"></canvas>
+                            </div>
+                            <div class="comboburst-group-preview-status" id="comboburstGroupPreviewStatus">等待添加图片</div>
+                            <div class="anim-preview-controls">
+                                <button type="button" class="btn btn-secondary anim-play-btn" id="comboburstGroupPlayToggleBtn">暂停</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="anim-texture-footer">
+                        <button type="button" class="btn btn-danger" id="comboburstGroupClearAllBtn" style="display: none;">清空图组</button>
+                        <div class="footer-right-btns">
+                            <button type="button" class="btn btn-secondary" id="comboburstGroupCancelBtn">取消</button>
+                            <button type="button" class="btn btn-primary" id="comboburstGroupConfirmBtn" disabled>保存图组 (0 张)</button>
                         </div>
                     </div>
                 </div>
@@ -1380,21 +1481,41 @@
                         </svg>
                     </button>
 
-                    <div class="volume-control">
-                        <button class="volume-mute-btn" id="volumeMuteBtn" title="静音切换">
-                            <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                <path class="vol-wave" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                <path class="vol-wave-loud" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                            </svg>
-                            <svg class="mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                <line x1="23" y1="9" x2="17" y2="15"></line>
-                                <line x1="17" y1="9" x2="23" y2="15"></line>
-                            </svg>
-                        </button>
-                        <input type="range" id="volumeRange" class="volume-slider" min="0" max="1" step="0.01" value="0.8">
-                        <span id="volumeText" class="volume-percent">80%</span>
+                    <div class="volume-mixer" role="group" aria-label="音量控制">
+                        <div class="volume-control">
+                            <button type="button" class="volume-mute-btn" id="volumeMuteBtn" title="歌曲静音切换" aria-label="歌曲静音切换" aria-pressed="false">
+                                <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path class="vol-wave" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                    <path class="vol-wave-loud" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                                </svg>
+                                <svg class="mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                                </svg>
+                            </button>
+                            <span class="volume-label">歌曲</span>
+                            <input type="range" id="volumeRange" class="volume-slider" min="0" max="1" step="0.01" value="0.8" aria-label="歌曲音量">
+                            <span id="volumeText" class="volume-percent">80%</span>
+                        </div>
+                        <div class="volume-control">
+                            <button type="button" class="volume-mute-btn" id="effectsVolumeMuteBtn" title="音效静音切换" aria-label="音效静音切换" aria-pressed="false">
+                                <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path class="vol-wave" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                    <path class="vol-wave-loud" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                                </svg>
+                                <svg class="mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                                </svg>
+                            </button>
+                            <span class="volume-label">音效</span>
+                            <input type="range" id="effectsVolumeRange" class="volume-slider" min="0" max="1" step="0.01" value="0.8" aria-label="音效音量">
+                            <span id="effectsVolumeText" class="volume-percent">80%</span>
+                        </div>
                     </div>
                 </div>
 
@@ -1402,6 +1523,13 @@
 
                 <!-- 中区：故事板/视频开关、流速调节与背景暗化 -->
                 <div class="deck-group deck-tweaks">
+                    <div class="tweak-switch-item studio-utility-toggle" title="开启 / 关闭编辑器内的连击提示图预览；游戏内总开关需要在 osu!stable 中开启或关闭">
+                        <span class="tweak-label">连击提示图</span>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="comboburstPreviewToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class="tweak-switch-item studio-utility-toggle" title="开启判定提示动态演示：按真实比率展示 300MAX/300/200/100/50 及 Miss 断连恢复">
                         <span class="tweak-label">判定演示</span>
                         <label class="ios-switch">
@@ -1534,6 +1662,7 @@
                 <button type="button" class="tab-btn active" data-tab="mania">Mania 模式 (<span id="activeKeyCountTabLabel">4K</span>)</button>
                 <button type="button" class="tab-btn" data-tab="fonts">字体与数字</button>
                 <button type="button" class="tab-btn" data-tab="general">基础设置</button>
+                <button type="button" class="tab-btn" id="hitsoundEditorTabBtn" data-tab="hitsounds">音效</button>
                 <button type="button" class="tab-btn" data-tab="raw">skin.ini文本</button>
             </div>
 
@@ -1567,6 +1696,8 @@
                     <textarea id="rawIniTextarea" readonly spellcheck="false"></textarea>
                 </div>
             </div>
+
+            <input type="file" id="hitsoundReplaceInput" accept=".wav,.mp3,.ogg,audio/wav,audio/mpeg,audio/ogg" hidden>
 
             <!-- 底部操作栏 -->
             <div class="skin-editor-footer">
@@ -2101,7 +2232,7 @@
                 <section class="about-hero">
                     <div class="about-app-name">osu!mania Skin Editor</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.3.7</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.4.0</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>
@@ -2136,7 +2267,7 @@
                 <section class="about-section">
                     <h3 class="about-section-title">素材与商标</h3>
                     <ul class="about-list">
-                        <li>assets/default_skin 素材来自 osu! 官方默认皮肤，其中公开部分按 CC BY-NC 4.0 提供，不适用本项目 MIT 许可。</li>
+                        <li>assets/default_skin 的默认贴图与打击音效来自 osu! 官方默认皮肤，其中公开部分按 CC BY-NC 4.0 提供，不适用本项目 MIT 许可。</li>
                         <li>osu!、osu!mania 是 ppy Pty Ltd 的商标。</li>
                     </ul>
                 </section>
@@ -2190,6 +2321,8 @@
     <script defer src="src/js/parser/beatmap-load.js?v=20261013_2"></script>
     <script defer src="src/js/parser/beatmap-import.js?v=20261012_2"></script>
     <script defer src="src/js/parser/skin-assets.js?v=20261013_3"></script>
+    <script defer src="src/js/parser/skin-hitsound-assets.js?v=20261024_1"></script>
+    <script defer src="src/js/parser/default-skin-hitsounds.js?v=20261024_1"></script>
     <script defer src="src/js/parser/tiff.js?v=20261009_2"></script>
     <script defer src="src/js/parser/skin-import.js?v=20261013_3"></script>
     <!-- 3) Canvas 画布绘制核心 -->
@@ -2197,6 +2330,8 @@
     <script defer src="src/js/render/fonts.js?v=20261009_6"></script>
     <script defer src="src/js/render/textures.js?v=20261017_1"></script>
     <script defer src="src/js/render/combo.js?v=20261010_3"></script>
+    <script defer src="src/js/render/comboburst-assets.js?v=20261025_1"></script>
+    <script defer src="src/js/render/comboburst.js?v=20261025_1"></script>
     <script defer src="src/js/render/video-transcoder.js?v=20261010_2"></script>
     <script defer src="src/js/render/storyboard-assets.js?v=20261013_2"></script>
     <script defer src="src/js/render/storyboard.js?v=20261010_2"></script>
@@ -2208,7 +2343,7 @@
     <script defer src="src/js/render/frame-stage-light.js?v=20261016_1"></script>
     <script defer src="src/js/render/frame-lighting.js?v=20261016_1"></script>
     <script defer src="src/js/render/frame-playfield.js?v=20261016_1"></script>
-    <script defer src="src/js/render/frame.js?v=20261016_1"></script>
+    <script defer src="src/js/render/frame.js?v=20261024_3"></script>
     <script defer src="src/js/render/judgements.js?v=20261009_2"></script>
     <script defer src="src/js/render/hud.js?v=20261013_2"></script>
     <script defer src="src/js/render/diagnostics.js?v=20261009_2"></script>
@@ -2221,17 +2356,20 @@
     <script defer src="src/js/ui/startup-actions.js?v=20261017_1"></script>
     <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
     <script defer src="src/js/ui/transport.js?v=20261013_2"></script>
+    <script defer src="src/js/ui/hitsound-playback.js?v=20261024_1"></script>
     <script defer src="src/js/ui/canvas-element-index.js?v=20261016_1"></script>
     <script defer src="src/js/ui/canvas-editor.js?v=20261016_1"></script>
     <script defer src="src/js/ui/ini-export.js?v=20261009_3"></script>
     <script defer src="src/js/ui/param-core.js?v=20261009_6"></script>
     <script defer src="src/js/ui/texture-resolve.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-font-glyphs.js?v=20261024_1"></script>
     <script defer src="src/js/ui/texture-param-lookup.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-solid-shape-factory.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-existing-sources.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-existing-picker-view.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-existing-picker.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-library-operations.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/texture-replacement.js?v=20261025_1"></script>
     <script defer src="src/js/ui/texture-library-view.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-library-tab.js?v=20261017_2"></script>
     <script defer src="src/js/ui/texture-control-thumbnails.js?v=20261016_1"></script>
@@ -2241,6 +2379,8 @@
     <script defer src="src/js/ui/texture-control-font-glyph.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-control-colours.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-controls.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/hitsound-editor.js?v=20261024_1"></script>
+    <script defer src="src/js/ui/comboburst-editor.js?v=20261025_1"></script>
     <script defer src="src/js/ui/param-render.js?v=20261009_5"></script>
     <script defer src="src/js/ui/texture-project-archive.js?v=20261020_1"></script>
     <script defer src="src/js/ui/export.js?v=20261020_1"></script>
@@ -2258,7 +2398,7 @@
     <script defer src="src/js/ui/texture-image-editor-longbody-compose.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-longbody-apply.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-history.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/texture-image-editor-targets.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-targets.js?v=20261025_1"></script>
     <script defer src="src/js/ui/texture-image-editor-preview-render.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-target-init.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-crop-math.js?v=20261016_1"></script>

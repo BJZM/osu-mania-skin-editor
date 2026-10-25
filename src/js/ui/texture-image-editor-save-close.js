@@ -85,20 +85,6 @@
             return selected.p ? selected.p.key : null;
         }
 
-        function collectTexturePathReferences(path) {
-            const normalizedPath = normalizeTextureLookupPath(path);
-            if (!normalizedPath) return [];
-            const keys = getActiveKeyCount();
-            const references = [];
-            for (const p of getTextureTabParams()) {
-                const resolved = resolveTextureParam(keys, p);
-                if (!resolved || resolved.state !== 'ok') continue;
-                if (normalizeTextureLookupPath(resolved.name) !== normalizedPath) continue;
-                references.push(p);
-            }
-            return references;
-        }
-
         function createIndependentTexturePath(sourcePath, paramKey) {
             const normalizedSource = normalizeTextureLookupPath(sourcePath);
             const slash = normalizedSource.lastIndexOf('/');
@@ -125,6 +111,15 @@
             const sourcePath = getTextureEditSourcePath(selected);
             if (!sourcePath) {
                 throw new Error('无法确定当前贴图路径');
+            }
+            if (selected && isFontGlyphTextureParam(selected.p)) {
+                return {
+                    sourcePath,
+                    savePath: sourcePath,
+                    paramKey: selected.p.key,
+                    mode: 'overwrite',
+                    otherReferences: []
+                };
             }
             const paramKey = getTextureEditParamKey(selected);
             const references = collectTexturePathReferences(sourcePath);
@@ -184,6 +179,7 @@
                     ? SKIN_INI_PARAM_SCHEMA.find((item) => item.key === paramKey)
                     : null);
             if (!p || typeof assignTextureParamLookup !== 'function') return false;
+            if (isFontGlyphTextureParam(p)) return false;
             if (typeof preserveHoldHeadsBeforeNoteEdit === 'function') {
                 preserveHoldHeadsBeforeNoteEdit(
                     getActiveKeyCount(),

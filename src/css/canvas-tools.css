@@ -518,6 +518,35 @@
             width: 100%;
         }
 
+        .hud-glyph-actions .hud-glyph-upload-dropdown {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .hud-glyph-actions .hud-glyph-upload-dropdown .texture-upload-main-btn {
+            width: 100%;
+            height: 24px;
+            justify-content: center;
+            gap: 3px;
+            padding: 4px 5px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+        }
+
+        .hud-glyph-actions .hud-glyph-upload-dropdown .dropdown-chevron {
+            margin-left: 0;
+        }
+
+        .hud-glyph-actions .hud-glyph-upload-dropdown .texture-upload-menu {
+            right: auto;
+            left: 0;
+        }
+
+        .hud-glyph-card:has(.texture-upload-dropdown:hover),
+        .hud-glyph-card:has(.texture-upload-menu:hover) {
+            z-index: 300;
+        }
+
         .hud-glyph-btn {
             flex: 1;
             display: inline-flex;

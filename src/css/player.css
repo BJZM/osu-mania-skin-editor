@@ -470,15 +470,35 @@
         }
 
         /* 音量控件 (类似视频网站：粉色进度条 + 白色圆形滑块，无多余边框) */
+        .volume-mixer {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 12px;
+            width: 340px;
+            min-width: 300px;
+            flex: 0 1 340px;
+        }
+
         .volume-control {
             display: flex;
             align-items: center;
-            gap: 8px;
-            flex: 1;
+            gap: 6px;
+            flex: 1 1 0;
+            min-width: 0;
             padding: 0;
             background: transparent;
             border-radius: 0;
             border: none;
+        }
+
+        .volume-label {
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 0.68rem;
+            font-weight: 600;
+            line-height: 1;
+            flex: 0 0 24px;
+            user-select: none;
         }
 
         .volume-mute-btn {
@@ -486,14 +506,14 @@
             border: none;
             color: #ffffff;
             padding: 0;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             box-shadow: none;
-            flex: 0 0 24px;
+            flex: 0 0 20px;
             transition: transform 0.15s ease, opacity 0.15s ease;
         }
 
@@ -503,8 +523,8 @@
         }
 
         .volume-mute-btn svg {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
         }
 
         .volume-mute-btn .vol-icon {
@@ -528,6 +548,7 @@
             -webkit-appearance: none !important;
             appearance: none !important;
             flex: 1 !important;
+            min-width: 0 !important;
             height: 4px !important;
             border-radius: 2px !important;
             background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 80%), rgba(255, 255, 255, 0.2) var(--slider-pct, 80%), rgba(255, 255, 255, 0.2) 100%) !important;
@@ -562,13 +583,31 @@
         }
 
         .volume-percent {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #ffffff;
-            min-width: 32px;
+            min-width: 28px;
             text-align: right;
             font-family: var(--font-clean);
             font-variant-numeric: tabular-nums;
             font-weight: 600;
+        }
+
+        @media (max-width: 720px) {
+            .volume-mixer {
+                gap: 8px;
+                width: 292px;
+                min-width: 264px;
+                flex-basis: 292px;
+            }
+
+            .volume-label {
+                flex-basis: 22px;
+                font-size: 0.64rem;
+            }
+
+            .volume-percent {
+                display: none;
+            }
         }
 
         .player-container {

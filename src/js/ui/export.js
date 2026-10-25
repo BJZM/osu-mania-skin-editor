@@ -131,6 +131,12 @@
                 typeof options === 'string' ? options : options.mode
             );
             let zip = currentSkinZip ? currentSkinZip : new JSZip();
+            // 音效替换通过虚拟覆盖层参与导出；先复制 ZIP，避免移除低优先级
+            // 原始音效变体时破坏内存中的导入资源，保证导出后仍可撤回。
+            if (skinHitsoundReplacements.size > 0 &&
+                typeof createSkinHitsoundExportArchive === 'function') {
+                zip = await createSkinHitsoundExportArchive(zip);
+            }
             stripUnsafeSkinArchiveEntries(zip);
             stripTextureProjectFromArchive(zip);
             if (deletedSkinTexturePaths.size > 0) {

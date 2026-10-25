@@ -25,12 +25,12 @@
             ui.progressRange.style.setProperty('background', grad, 'important');
         }
 
-        function updateVolumeFill(vol) {
-            if (!ui.volumeRange) return;
+        function updateVolumeFill(vol, targetRange = ui.volumeRange) {
+            if (!targetRange) return;
             const percent = Math.min(100, Math.max(0, (vol || 0) * 100));
             const grad = `linear-gradient(to right, #ff66aa 0%, #ff66aa ${percent}%, rgba(255, 255, 255, 0.2) ${percent}%, rgba(255, 255, 255, 0.2) 100%)`;
-            ui.volumeRange.style.setProperty('--slider-pct', `${percent}%`);
-            ui.volumeRange.style.setProperty('background', grad, 'important');
+            targetRange.style.setProperty('--slider-pct', `${percent}%`);
+            targetRange.style.setProperty('background', grad, 'important');
         }
 
         function updateSpeedFill(val) {
@@ -56,7 +56,8 @@
         }
 
         updateProgressFill(0, 100);
-        updateVolumeFill(0.8);
+        updateVolumeFill(musicVolume);
+        updateVolumeFill(effectVolume, ui.effectsVolumeRange);
 
         if (ui.speedRange) {
             ui.speedRange.addEventListener('input', (e) => {

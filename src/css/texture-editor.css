@@ -1444,6 +1444,54 @@
             object-fit: contain;
         }
 
+        .comboburst-group-dialog {
+            width: 980px;
+            border: none;
+        }
+
+        .comboburst-group-dialog .anim-texture-header,
+        .comboburst-group-dialog .anim-texture-toolbar {
+            border-bottom: none;
+        }
+
+        .comboburst-group-frame-card {
+            border: none;
+            background: rgba(255, 255, 255, 0.045);
+        }
+
+        .comboburst-group-modal .anim-empty-state {
+            border: none;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .comboburst-group-preview-panel {
+            width: 310px;
+            border-left: none;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .comboburst-group-preview-wrap {
+            aspect-ratio: 260 / 340;
+            border: none;
+            background:
+                linear-gradient(45deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%),
+                rgba(0, 0, 0, 0.55);
+            background-position: 0 0, 8px 8px;
+            background-size: 16px 16px;
+        }
+
+        .comboburst-group-preview-status {
+            min-height: 34px;
+            padding: 7px 9px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.055);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.72rem;
+            line-height: 1.45;
+            text-align: center;
+        }
+
         .anim-preview-controls {
             display: flex;
             flex-direction: column;
@@ -3636,6 +3684,33 @@
             .texture-image-picker-grid .texture-upload-menu {
                 right: auto;
                 left: 0;
+            }
+
+            .comboburst-group-dialog {
+                height: 90vh;
+            }
+
+            .comboburst-group-dialog .anim-texture-body {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            .comboburst-group-dialog .anim-frames-scroll {
+                flex: 0 0 auto;
+                min-height: 190px;
+                overflow: visible;
+                padding: 12px;
+            }
+
+            .comboburst-group-preview-panel {
+                width: 100%;
+                flex: 0 0 auto;
+                padding: 12px;
+            }
+
+            .comboburst-group-preview-wrap {
+                width: min(300px, 100%);
+                align-self: center;
             }
         }
 

@@ -223,6 +223,14 @@
                     const exportFilenameLower = is2x ? `${targetBase}@2x.png` : `${targetBase}.png`;
                     const curExt = is2x ? '@2x.png' : '.png';
                     const oppExt = is2x ? '.png' : '@2x.png';
+                    const replacementParam = {
+                        key: canonicalParamKey,
+                        _trackLookup: targetKey,
+                        _trackCol: isTrackNote && trackCol != null ? trackCol : null
+                    };
+                    const replacement = typeof prepareTextureReplacement === 'function'
+                        ? prepareTextureReplacement(replacementParam, curKeys, exportFilename)
+                        : null;
 
                     if (shouldRecordUndo) {
                         recordSkinUndoBeforeChange(`替换贴图: ${exportFilename}`, { force: true });
@@ -380,6 +388,9 @@
                         syncParamInputValue(pKey, targetBase);
                     }
 
+                    if (typeof completeTextureReplacement === 'function') {
+                        completeTextureReplacement(replacement);
+                    }
                     if (shouldNotify) {
                         const toastMsg = (isTrackNote && trackCol != null)
                             ? `第 ${trackCol + 1} 轨已单独更新为 ${is2x ? '@2x 高清' : '1x 普通'}贴图: ${exportFilename}`

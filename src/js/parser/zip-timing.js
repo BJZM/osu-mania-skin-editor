@@ -72,6 +72,9 @@
                         const time = parseFloat(parts[0]);
                         const beatLength = parseFloat(parts[1]);
                         const meter = (parts.length >= 3 && parseInt(parts[2], 10) > 0) ? parseInt(parts[2], 10) : 4;
+                        const sampleSet = (parts.length >= 4) ? (parseInt(parts[3], 10) || 0) : 0;
+                        const sampleIndex = (parts.length >= 5) ? (parseInt(parts[4], 10) || 0) : 0;
+                        const volume = (parts.length >= 6) ? (Math.max(0, Math.min(100, parseInt(parts[5], 10) || 0))) : 100;
                         const uninherited = (parts.length >= 7) ? parseInt(parts[6], 10) === 1 : (beatLength > 0);
                         if (!isNaN(time) && isFinite(beatLength) && beatLength !== 0) {
                             if (uninherited && beatLength > 0) {
@@ -79,6 +82,9 @@
                                     time: time,
                                     beatLength: beatLength,
                                     meter: meter,
+                                    sampleSet,
+                                    sampleIndex,
+                                    volume,
                                     uninherited: true
                                 });
                             } else if (!uninherited && beatLength < 0) {
@@ -87,6 +93,9 @@
                                     time: time,
                                     beatLength: beatLength,
                                     meter: meter,
+                                    sampleSet,
+                                    sampleIndex,
+                                    volume,
                                     uninherited: false,
                                     scrollSpeed: -100 / beatLength
                                 });

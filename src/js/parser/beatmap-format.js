@@ -11,6 +11,21 @@ async function getBeatmapDecoder() {
     return window.BeatmapDecoder || null;
 }
 
+        function parseOsuHitSample(value) {
+            const parts = String(value || '').split(':');
+            const readInteger = (index) => {
+                const parsed = parseInt(parts[index], 10);
+                return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+            };
+            return {
+                normalSet: readInteger(0),
+                additionSet: readInteger(1),
+                index: readInteger(2),
+                volume: readInteger(3),
+                filename: parts.slice(4).join(':').trim()
+            };
+        }
+
 
         ui.osz.addEventListener('click', (e) => { e.target.value = ''; });
         ui.osk.addEventListener('click', (e) => { e.target.value = ''; });
@@ -75,13 +90,18 @@ async function getBeatmapDecoder() {
                         const y = parseFloat(parts[1]);
                         const time = parseFloat(parts[2]);
                         const type = parts.length >= 4 ? parseInt(parts[3], 10) : 1;
+                        const hitSound = parts.length >= 5 ? (parseInt(parts[4], 10) || 0) : 0;
                         let endTime = null;
+                        let hitSampleText = '';
                         if (parts.length >= 6) {
                             const colonIdx = parts[5].indexOf(':');
                             const rawEnd = colonIdx >= 0 ? parts[5].slice(0, colonIdx) : parts[5];
                             const parsedEnd = parseFloat(rawEnd);
                             if (!isNaN(parsedEnd) && parsedEnd > time) {
                                 endTime = parsedEnd;
+                                hitSampleText = colonIdx >= 0 ? parts[5].slice(colonIdx + 1) : '';
+                            } else {
+                                hitSampleText = parts[5];
                             }
                         }
                         if (!isNaN(time)) {
@@ -91,7 +111,9 @@ async function getBeatmapDecoder() {
                                 y: !isNaN(y) ? y : 192,
                                 startTime: time,
                                 endTime: endTime,
-                                type: !isNaN(type) ? type : 1
+                                type: !isNaN(type) ? type : 1,
+                                hitSound,
+                                hitSample: parseOsuHitSample(hitSampleText)
                             });
                         }
                     }

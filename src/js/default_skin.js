@@ -176,3 +176,19 @@ window.DEFAULT_SKIN_ASSETS = [
   "scorebar-marker.png",
   "scorebar-marker@2x.png"
 ];
+
+// osu!stable Legacy 默认皮肤的打击音效回退资源。
+window.DEFAULT_SKIN_HITSOUND_ASSETS = [
+  "normal-hitnormal.wav",
+  "normal-hitwhistle.wav",
+  "normal-hitfinish.wav",
+  "normal-hitclap.wav",
+  "soft-hitnormal.wav",
+  "soft-hitwhistle.wav",
+  "soft-hitfinish.wav",
+  "soft-hitclap.wav",
+  "drum-hitnormal.wav",
+  "drum-hitwhistle.wav",
+  "drum-hitfinish.wav",
+  "drum-hitclap.wav"
+];

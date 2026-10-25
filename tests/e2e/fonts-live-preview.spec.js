@@ -12,7 +12,10 @@ async function openFontsEditor(page) {
   await page.waitForFunction(() => isSkinLoading === false, null, { timeout: 60000 });
   await page.setInputFiles('#oszInput', BEATMAP);
   await page.waitForFunction(
-    () => beatmaps.length > 0 && isStartupSkinReady(),
+    () => beatmaps.length > 0 &&
+      isStartupSkinReady() &&
+      isStartupBeatmapReady() &&
+      isSkinEditingWorkspaceReady(),
     null,
     { timeout: 60000 }
   );

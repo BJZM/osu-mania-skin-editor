@@ -136,6 +136,19 @@
                 elementId: 'lightPosition'
             },
             {
+                key: 'Comboburst',
+                zhName: '连击提示图',
+                enName: 'Comboburst',
+                comment: 'comboburst-mania / comboburst-mania-0..N',
+                desc: '连击达到 100 的整数倍时出现的图片。这里管理主图与连续编号的替代图组；多图会依次作为替代图导出，不会借用默认皮肤资源。',
+                notice: '总开关在游戏内，需要在游戏内开启或关闭',
+                category: '贴图映射',
+                tab: 'textures',
+                type: 'texture',
+                default: 'comboburst-mania',
+                _comboburstGroup: true
+            },
+            {
                 key: 'LightingN',
                 zhName: '单键打击特效',
                 enName: 'LightingN',

@@ -840,15 +840,35 @@
         }
 
         /* 音量控件 (类似视频网站：粉色进度条 + 白色圆形滑块，无多余边框) */
+        .volume-mixer {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 12px;
+            width: 340px;
+            min-width: 300px;
+            flex: 0 1 340px;
+        }
+
         .volume-control {
             display: flex;
             align-items: center;
-            gap: 8px;
-            flex: 1;
+            gap: 6px;
+            flex: 1 1 0;
+            min-width: 0;
             padding: 0;
             background: transparent;
             border-radius: 0;
             border: none;
+        }
+
+        .volume-label {
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 0.68rem;
+            font-weight: 600;
+            line-height: 1;
+            flex: 0 0 24px;
+            user-select: none;
         }
 
         .volume-mute-btn {
@@ -856,14 +876,14 @@
             border: none;
             color: #ffffff;
             padding: 0;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             box-shadow: none;
-            flex: 0 0 24px;
+            flex: 0 0 20px;
             transition: transform 0.15s ease, opacity 0.15s ease;
         }
 
@@ -873,8 +893,8 @@
         }
 
         .volume-mute-btn svg {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
         }
 
         .volume-mute-btn .vol-icon {
@@ -898,6 +918,7 @@
             -webkit-appearance: none !important;
             appearance: none !important;
             flex: 1 !important;
+            min-width: 0 !important;
             height: 4px !important;
             border-radius: 2px !important;
             background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 80%), rgba(255, 255, 255, 0.2) var(--slider-pct, 80%), rgba(255, 255, 255, 0.2) 100%) !important;
@@ -932,13 +953,31 @@
         }
 
         .volume-percent {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             color: #ffffff;
-            min-width: 32px;
+            min-width: 28px;
             text-align: right;
             font-family: var(--font-clean);
             font-variant-numeric: tabular-nums;
             font-weight: 600;
+        }
+
+        @media (max-width: 720px) {
+            .volume-mixer {
+                gap: 8px;
+                width: 292px;
+                min-width: 264px;
+                flex-basis: 292px;
+            }
+
+            .volume-label {
+                flex-basis: 22px;
+                font-size: 0.64rem;
+            }
+
+            .volume-percent {
+                display: none;
+            }
         }
 
         .player-container {
@@ -2845,6 +2884,11 @@
             background: rgba(255, 255, 255, 0.04);
         }
 
+        .tab-btn:focus,
+        .tab-btn:focus-visible {
+            outline: none;
+        }
+
         .tab-btn.active {
             color: #ffffff;
             background: rgba(255, 255, 255, 0.06);
@@ -3125,6 +3169,175 @@
             z-index: 30;
         }
 
+        /* 详细设置 -> 音效：皮肤音效可编辑，谱面音效只读 */
+        .hitsound-category-block {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.025);
+            border-radius: 8px;
+        }
+
+        .hitsound-category-title {
+            margin-bottom: 4px;
+            color: rgba(255, 255, 255, 0.78);
+            text-transform: none;
+            letter-spacing: 0.2px;
+        }
+
+        .hitsound-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+            gap: 10px;
+        }
+
+        .hitsound-card {
+            min-width: 0;
+            gap: 9px;
+            background: rgba(255, 255, 255, 0.045);
+        }
+
+        .hitsound-card-readonly {
+            background: rgba(255, 255, 255, 0.028);
+        }
+
+        .hitsound-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .hitsound-card-title-area {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .hitsound-card-title {
+            color: #ffffff;
+            font-size: 0.82rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .hitsound-key {
+            max-width: 100%;
+            padding: 1px 6px;
+            overflow: hidden;
+            color: rgba(255, 255, 255, 0.58);
+            background: rgba(255, 255, 255, 0.065);
+            border-radius: 4px;
+            font-family: var(--font-clean);
+            font-size: 0.68rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .hitsound-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            min-height: 20px;
+            padding: 2px 7px;
+            color: rgba(255, 255, 255, 0.66);
+            background: rgba(255, 255, 255, 0.065);
+            border: none;
+            border-radius: 4px;
+            font-size: 0.66rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .hitsound-badge.is-editable {
+            color: #ffd4e9;
+            background: rgba(255, 102, 170, 0.14);
+        }
+
+        .hitsound-badge.is-replaced {
+            color: #111118;
+            background: #ffffff;
+        }
+
+        .hitsound-badge.is-readonly {
+            color: rgba(255, 255, 255, 0.48);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .hitsound-meta {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .hitsound-path {
+            min-height: 28px;
+            padding: 6px 8px;
+            color: rgba(255, 255, 255, 0.56);
+            background: rgba(0, 0, 0, 0.18);
+            border-radius: 5px;
+            font-family: var(--font-clean);
+            font-size: 0.69rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .hitsound-card-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .hitsound-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            min-height: 30px;
+            padding: 5px 9px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+
+        .hitsound-action-btn svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+        }
+
+        .hitsound-action-btn.is-playing {
+            background: #ffffff;
+            color: #111118;
+        }
+
+        .hitsound-action-btn.is-playing svg {
+            fill: currentColor;
+        }
+
+        .hitsound-empty,
+        .hitsound-query-empty {
+            color: rgba(255, 255, 255, 0.44);
+            font-size: 0.76rem;
+            line-height: 1.55;
+        }
+
+        .hitsound-empty {
+            grid-column: 1 / -1;
+            padding: 20px 12px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.025);
+            border-radius: 6px;
+        }
+
+        .hitsound-query-empty {
+            padding: 40px 16px;
+            text-align: center;
+        }
+
         .param-card:has(.texture-upload-dropdown:hover),
         .param-card:has(.texture-upload-menu:hover) {
             z-index: 100 !important;
@@ -3183,6 +3396,16 @@
             padding: 1px 5px;
             border-radius: 4px;
             white-space: nowrap;
+        }
+
+        .param-inline-notice {
+            color: rgba(255, 255, 255, 0.48);
+            font-size: 0.68rem;
+            font-weight: 400;
+            line-height: 1.35;
+            background: none;
+            padding: 0;
+            border-radius: 0;
         }
 
         /* 参数标题右侧提示图标与悬浮说明气泡 */
@@ -3530,7 +3753,8 @@
             z-index: 1;
         }
 
-        .texture-upload-dropdown:hover {
+        .texture-upload-dropdown:hover,
+        .texture-upload-dropdown.is-open {
             z-index: 200;
         }
 
@@ -3585,7 +3809,8 @@
             display: none;
         }
 
-        .texture-upload-dropdown:hover::after {
+        .texture-upload-dropdown:hover::after,
+        .texture-upload-dropdown.is-open::after {
             display: block;
         }
 
@@ -3607,6 +3832,7 @@
         }
 
         .texture-upload-dropdown:hover .texture-upload-menu,
+        .texture-upload-dropdown.is-open .texture-upload-menu,
         .texture-upload-menu:hover {
             display: flex;
         }
@@ -4397,6 +4623,35 @@
             display: flex;
             gap: 4px;
             width: 100%;
+        }
+
+        .hud-glyph-actions .hud-glyph-upload-dropdown {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .hud-glyph-actions .hud-glyph-upload-dropdown .texture-upload-main-btn {
+            width: 100%;
+            height: 24px;
+            justify-content: center;
+            gap: 3px;
+            padding: 4px 5px;
+            border-radius: 4px;
+            font-size: 0.72rem;
+        }
+
+        .hud-glyph-actions .hud-glyph-upload-dropdown .dropdown-chevron {
+            margin-left: 0;
+        }
+
+        .hud-glyph-actions .hud-glyph-upload-dropdown .texture-upload-menu {
+            right: auto;
+            left: 0;
+        }
+
+        .hud-glyph-card:has(.texture-upload-dropdown:hover),
+        .hud-glyph-card:has(.texture-upload-menu:hover) {
+            z-index: 300;
         }
 
         .hud-glyph-btn {
@@ -5879,6 +6134,54 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+        }
+
+        .comboburst-group-dialog {
+            width: 980px;
+            border: none;
+        }
+
+        .comboburst-group-dialog .anim-texture-header,
+        .comboburst-group-dialog .anim-texture-toolbar {
+            border-bottom: none;
+        }
+
+        .comboburst-group-frame-card {
+            border: none;
+            background: rgba(255, 255, 255, 0.045);
+        }
+
+        .comboburst-group-modal .anim-empty-state {
+            border: none;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .comboburst-group-preview-panel {
+            width: 310px;
+            border-left: none;
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .comboburst-group-preview-wrap {
+            aspect-ratio: 260 / 340;
+            border: none;
+            background:
+                linear-gradient(45deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%),
+                rgba(0, 0, 0, 0.55);
+            background-position: 0 0, 8px 8px;
+            background-size: 16px 16px;
+        }
+
+        .comboburst-group-preview-status {
+            min-height: 34px;
+            padding: 7px 9px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.055);
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.72rem;
+            line-height: 1.45;
+            text-align: center;
         }
 
         .anim-preview-controls {
@@ -8073,6 +8376,33 @@
             .texture-image-picker-grid .texture-upload-menu {
                 right: auto;
                 left: 0;
+            }
+
+            .comboburst-group-dialog {
+                height: 90vh;
+            }
+
+            .comboburst-group-dialog .anim-texture-body {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            .comboburst-group-dialog .anim-frames-scroll {
+                flex: 0 0 auto;
+                min-height: 190px;
+                overflow: visible;
+                padding: 12px;
+            }
+
+            .comboburst-group-preview-panel {
+                width: 100%;
+                flex: 0 0 auto;
+                padding: 12px;
+            }
+
+            .comboburst-group-preview-wrap {
+                width: min(300px, 100%);
+                align-self: center;
             }
         }
 

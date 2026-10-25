@@ -56,6 +56,9 @@
             setPlayPauseUi(true);
             animationId = requestAnimationFrame(drawFrame);
             resumeStoryboardPlayback();
+            if (typeof resumeManiaHitsoundPlayback === 'function') {
+                void resumeManiaHitsoundPlayback();
+            }
 
             try {
                 const p = audio.play();
@@ -79,6 +82,9 @@
 
         function pauseAudioAndBeatmap() {
             try { audio.pause(); } catch (_) {}
+            if (typeof stopActiveManiaHitsounds === 'function') {
+                stopActiveManiaHitsounds();
+            }
             rememberResumePlaybackPosition();
             isPlaying = false;
             pauseStoryboardPlayback();
@@ -180,14 +186,45 @@
             window.addEventListener('touchend', stopSeeking);
         }
 
-        // 音量调节
-        audio.volume = 0.8;
-        updateVolumeFill(0.8);
+        // 歌曲与音效使用两套独立音量状态。歌曲只写入 audio，
+        // 音效通道通过 applyEffectVolume 统一应用，互不影响静音状态。
+        audio.volume = musicVolume;
+        audio.muted = musicMuted;
+        updateVolumeFill(musicVolume);
+        updateVolumeFill(effectVolume, ui.effectsVolumeRange);
+
+        function clampVolume(value) {
+            const parsed = Number(value);
+            if (!Number.isFinite(parsed)) return 0;
+            return Math.min(1, Math.max(0, parsed));
+        }
+
+        function getMusicVolume() {
+            return musicMuted ? 0 : musicVolume;
+        }
+
+        function getEffectVolume() {
+            return effectMuted ? 0 : effectVolume;
+        }
+
+        function applyEffectVolume(targetAudio) {
+            if (!targetAudio) return 0;
+            const effectiveVolume = getEffectVolume();
+            try {
+                targetAudio.volume = effectiveVolume;
+                targetAudio.muted = effectMuted || effectiveVolume === 0;
+            } catch (_) {}
+            return effectiveVolume;
+        }
+
         if (ui.volumeRange) {
             ui.volumeRange.addEventListener('input', (e) => {
-                const vol = parseFloat(e.target.value);
+                const vol = clampVolume(e.target.value);
+                musicVolume = vol;
+                musicMuted = vol === 0;
                 audio.volume = vol;
                 audio.muted = (vol === 0);
+                if (vol > 0) lastNonZeroVolume = vol;
                 updateVolumeUi(vol, audio.muted);
             });
         }
@@ -197,12 +234,15 @@
             ui.volumeMuteBtn.addEventListener('click', () => {
                 if (audio.muted || audio.volume === 0) {
                     audio.muted = false;
-                    audio.volume = lastNonZeroVolume > 0 ? lastNonZeroVolume : 0.8;
-                    if (ui.volumeRange) ui.volumeRange.value = audio.volume;
+                    musicMuted = false;
+                    musicVolume = lastNonZeroVolume > 0 ? lastNonZeroVolume : 0.8;
+                    audio.volume = musicVolume;
+                    if (ui.volumeRange) ui.volumeRange.value = musicVolume;
                 } else {
-                    lastNonZeroVolume = audio.volume;
+                    lastNonZeroVolume = musicVolume;
                     audio.muted = true;
                     audio.volume = 0;
+                    musicMuted = true;
                     if (ui.volumeRange) ui.volumeRange.value = 0;
                 }
                 updateVolumeUi(audio.volume, audio.muted);
@@ -215,14 +255,56 @@
                 ui.volumeText.innerText = `${pct}%`;
             }
             if (ui.volumeMuteBtn) {
-                if (isMuted || vol === 0) {
-                    ui.volumeMuteBtn.classList.add('muted');
-                } else {
-                    ui.volumeMuteBtn.classList.remove('muted');
-                }
+                const muted = isMuted || vol === 0;
+                ui.volumeMuteBtn.classList.toggle('muted', muted);
+                ui.volumeMuteBtn.setAttribute('aria-pressed', String(muted));
             }
             updateVolumeFill(isMuted ? 0 : vol);
         }
+
+        let lastNonZeroEffectVolume = 0.8;
+        if (ui.effectsVolumeRange) {
+            ui.effectsVolumeRange.addEventListener('input', (e) => {
+                const vol = clampVolume(e.target.value);
+                effectVolume = vol;
+                effectMuted = vol === 0;
+                if (vol > 0) lastNonZeroEffectVolume = vol;
+                updateEffectsVolumeUi(vol, effectMuted);
+            });
+        }
+
+        if (ui.effectsVolumeMuteBtn) {
+            ui.effectsVolumeMuteBtn.addEventListener('click', () => {
+                if (effectMuted || effectVolume === 0) {
+                    effectMuted = false;
+                    effectVolume = lastNonZeroEffectVolume > 0 ? lastNonZeroEffectVolume : 0.8;
+                    if (ui.effectsVolumeRange) ui.effectsVolumeRange.value = effectVolume;
+                } else {
+                    lastNonZeroEffectVolume = effectVolume;
+                    effectMuted = true;
+                    if (ui.effectsVolumeRange) ui.effectsVolumeRange.value = 0;
+                }
+                updateEffectsVolumeUi(effectMuted ? 0 : effectVolume, effectMuted);
+            });
+        }
+
+        function updateEffectsVolumeUi(vol, isMuted) {
+            if (ui.effectsVolumeText) {
+                ui.effectsVolumeText.innerText = `${Math.round(vol * 100)}%`;
+            }
+            if (ui.effectsVolumeMuteBtn) {
+                const muted = isMuted || vol === 0;
+                ui.effectsVolumeMuteBtn.classList.toggle('muted', muted);
+                ui.effectsVolumeMuteBtn.setAttribute('aria-pressed', String(muted));
+            }
+            updateVolumeFill(isMuted ? 0 : vol, ui.effectsVolumeRange);
+            if (typeof syncManiaHitsoundVolume === 'function') {
+                syncManiaHitsoundVolume();
+            }
+        }
+
+        updateVolumeUi(musicVolume, musicMuted);
+        updateEffectsVolumeUi(effectVolume, effectMuted);
 
         // 音频元数据就绪与播放结束
         audio.onloadedmetadata = () => {

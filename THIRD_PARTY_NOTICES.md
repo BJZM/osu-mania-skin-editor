@@ -236,14 +236,16 @@ SOFTWARE.
 
 ## 4. 游戏素材（不适用本项目 MIT 许可）
 
-`assets/default_skin/` 下的贴图来自 osu! 官方默认皮肤，是 ppy Pty Ltd 的
+`assets/default_skin/` 下的贴图与打击音效来自 osu! 官方默认皮肤，是 ppy Pty Ltd 的
 版权素材，**不在本项目 MIT 许可范围内**。具体来说：
 
 - 与 `ppy/osu-resources` 仓库 `osu.Game.Resources/Skins/Legacy/` 对应的
-  文件（175 个中的 84 个），该仓库以
+  贴图（175 个贴图清单中的 84 个），该仓库以
   [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) 提供；
 - 其余 1x 分辨率和 mania 专用贴图来自 osu!stable 内置默认皮肤，未在任何
   公开仓库中提供明确的再分发许可。
+- `normal-*`、`soft-*`、`drum-*` 三套标准打击音效共 12 个 WAV 文件来自
+  `osu.Game.Resources/Skins/Legacy/`，按 CC BY-NC 4.0 提供。
 
 无论适用上述哪一项，均须遵守以下条件：
 
@@ -251,7 +253,7 @@ SOFTWARE.
 - 来源：https://github.com/ppy/osu-resources 与 osu!stable 内置默认皮肤；
 - 用途限制：**仅限非商业用途**。商业使用或再分发前必须取得 ppy Pty Ltd
   的授权；
-- 本仓库仅复制使用，未修改贴图像素内容。
+- 本仓库仅复制使用，未修改像素或音频内容。
 
 如果本仓库转为公开或随便携版 exe 对外分发，请先确认这部分素材的授权状态。
 详见 `assets/default_skin/NOTICE.md`。

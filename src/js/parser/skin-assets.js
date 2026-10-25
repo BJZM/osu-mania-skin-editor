@@ -240,7 +240,12 @@
             }
 
             const remainingAssets = assetList.filter((filename) => !isDefaultSkinPriorityAsset(filename));
-            await loadDefaultSkinImages(remainingAssets);
+            await Promise.all([
+                loadDefaultSkinImages(remainingAssets),
+                typeof ensureDefaultSkinHitsoundsLoaded === 'function'
+                    ? ensureDefaultSkinHitsoundsLoaded()
+                    : Promise.resolve()
+            ]);
             isDefaultSkinLoaded = true;
             if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
             if (typeof refreshSkinCursor === 'function') refreshSkinCursor();

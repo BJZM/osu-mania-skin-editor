@@ -397,6 +397,23 @@
                 default: 40,
                 elementId: 'track'
             },
+            {
+                key: 'ComboBurstStyle',
+                zhName: '连击提示图出现侧',
+                enName: 'ComboBurstStyle',
+                comment: '0: 左侧, 1: 右侧 (默认), 2: 双侧随机',
+                desc: '控制连击达到 100 的整数倍时，连击提示图从舞台哪一侧出现。右侧图片会水平翻转；开启双舞台时使用对应侧舞台。',
+                notice: '总开关在游戏内，需要在游戏内开启或关闭',
+                category: '其他不常用选项',
+                tab: 'mania',
+                type: 'select',
+                options: [
+                    { value: 0, label: '0 - 左侧' },
+                    { value: 1, label: '1 - 右侧 (默认)' },
+                    { value: 2, label: '2 - 双侧随机' }
+                ],
+                default: 1
+            },
 
             // [Mania] 贴图映射
         ];

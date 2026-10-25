@@ -28,6 +28,8 @@ ordered according to the groups below.
 - `parser/beatmap-load.js`: difficulty loading and active note construction.
 - `parser/beatmap-import.js`: `.osz` / `.osu` import events.
 - `parser/skin-assets.js`: image stores, default skin and frame lookup.
+- `parser/skin-hitsound-assets.js`: read-only hitsound catalog and archive filename rules.
+- `parser/default-skin-hitsounds.js`: Legacy default hitsound loading, catalog and byte lookup.
 - `parser/tiff.js`: TIFF compatibility decoding.
 - `parser/skin-import.js`: `.osk` import and texture registration.
 
@@ -37,6 +39,8 @@ ordered according to the groups below.
 - `render/fonts.js`: skin digit lookup and text rendering.
 - `render/textures.js`: note, key and lighting texture resolution.
 - `render/combo.js`: combo rendering.
+- `render/comboburst-assets.js`: current-workspace combo burst image set resolution without imported-skin default fallback.
+- `render/comboburst.js`: combo milestone selection, side/random behavior and Canvas rendering.
 - `render/storyboard-assets.js`: storyboard image/video loading and playback lifecycle.
 - `render/storyboard.js`: storyboard command evaluation and Canvas rendering.
 - `render/storyboard-composite.js`: throttled offscreen composition for video and heavy storyboards.
@@ -57,6 +61,9 @@ ordered according to the groups below.
 - `ui/feedback.js`: loading overlay, toasts and slider feedback.
 - `ui/layout.js`: sidebar and beatmap statistics layout.
 - `ui/transport.js`: playback, seeking, volume and speed.
+- `ui/hitsound-playback.js`: beatmap/skin/default hitsound resolution, Web Audio preload and synchronized mixing.
+- `ui/hitsound-editor.js`: detailed-settings hitsound window, default fallback display, replacement overlay and undo-aware export.
+- `ui/comboburst-editor.js`: texture-mapping combo burst item, multi-image import menu, numbered image maintenance, undo-aware writes and left/right loop preview.
 - `ui/canvas-element-index.js`: selectable canvas element bounds index.
 - `ui/canvas-editor.js`: selected canvas element card synchronization.
 - `ui/ini-export.js`: generated `skin.ini` text.

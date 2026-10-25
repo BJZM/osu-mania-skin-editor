@@ -45,6 +45,7 @@
 
             const closeSkinEditor = () => {
                 if (!modal) return;
+                if (typeof stopHitsoundPreview === 'function') stopHitsoundPreview();
                 modal.classList.remove('active');
                 if (activeFloatingWindow === 'skin-editor') {
                     const textureModal = document.getElementById('textureImageEditorModal');
@@ -173,6 +174,15 @@
                 previewJudgementToggle.checked = isPreviewJudgementActive;
                 previewJudgementToggle.onchange = (e) => {
                     setPreviewJudgementActive(e.target.checked);
+                };
+            }
+
+            // 连击提示图编辑器内预览开关
+            const comboburstPreviewToggle = document.getElementById('comboburstPreviewToggle');
+            if (comboburstPreviewToggle) {
+                comboburstPreviewToggle.checked = isComboburstPreviewEnabled;
+                comboburstPreviewToggle.onchange = (e) => {
+                    setComboburstPreviewEnabled(e.target.checked);
                 };
             }
 
@@ -324,6 +334,8 @@
             }
 
             initSkinEditorCardControlsUI();
+            if (typeof initHitsoundEditorUI === 'function') initHitsoundEditorUI();
+            if (typeof initComboburstEditorUI === 'function') initComboburstEditorUI();
         }
 
         function initSkinEditorUI() {

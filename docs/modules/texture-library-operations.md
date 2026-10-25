@@ -11,11 +11,13 @@
 - `normalizeTextureLibraryCopyPath(source, rawName)`：校验用户输入并返回副本的规范化路径。
 - `copyTextureLibrarySource(source, copyPath)`：把源贴图按当前解析出的帧复制为新的 PNG 资源，若源为创建贴图则一并克隆参数。
 - `deleteTextureLibrarySource(source)`：从图片仓库和替换表移除源贴图，清理指向该路径的参数别名，并删除对应的创建参数。
+- `markTextureLibrarySourceDeleted(source, options)`：底层删除接口；可关闭撤销记录、参数引用清理和创建参数删除，供替换后的孤儿资源回收复用。
 
 ## 输入
 - `payload`：纯色贴图参数对象（名称、尺寸、规格、颜色、透明度、形状、圆角/箭头参数等）。
 - `options`：可选 `oldPath`（二次编辑时指明原路径以支持改名）。
 - `source`：`collectExistingTextureSources()` 返回的候选对象。
+- `options.recordUndo`、`options.clearReferences`、`options.deleteCreatedParams`：底层删除行为开关；调用方必须明确传入。
 - **前置条件**：当前皮肤工作区可用。
 
 ## 输出

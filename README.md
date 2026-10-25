@@ -4,7 +4,7 @@
 
 [在线使用](https://osu-mania-skin-editor.pages.dev/) · [下载 Windows 便携版](https://github.com/BJZM/osu-mania-skin-editor/releases) · [反馈问题](https://github.com/BJZM/osu-mania-skin-editor/issues)
 
-![version](https://img.shields.io/badge/version-0.3.7-blue)
+![version](https://img.shields.io/badge/version-0.4.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![platform](https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey)
 
@@ -46,6 +46,13 @@ osu!mania Skin Editor 把传统「改贴图、进游戏、反复确认」的皮�
 - 直接在画布上调整轨道宽度、轨道间距与元素位置。
 - 可逐轨设置底色与透明度，也可一键应用到全部轨道。
 - 支持逐轨调整 `KeyImage` 高度，用于修正按键底图与长条的衔接位置。
+
+### 连击提示图
+
+- “连击提示图”作为“贴图映射”中的独立贴图项出现，可从导入菜单批量上传、排序并保存从 `comboburst-mania-0` 开始连续编号的图片组。
+- 多图预览会依次播放每张图片向左、向右，再切换到下一张并循环。
+- `ComboBurstStyle` 可按 4K、7K 等键数独立设置；`ComboBurstRandom` 控制编号图顺序轮播或随机选择，二者位于 Mania 页的“其他不常用选项”。
+- 导入皮肤缺少该贴图时不会借用官方默认素材；清空后导出也不会产生默认回退。
 
 ### 贴图替换与编辑
 
@@ -109,11 +116,11 @@ npm install
 npm run dist:win
 ```
 
-生成的文件位于 `dist/osu-mania-skin-editor-0.3.7-x64.exe`。
+生成的文件位于 `dist/osu-mania-skin-editor-0.4.0-x64.exe`。
 
 ## 反馈与帮助
 
-当前版本为 `v0.3.7`，后续仍会持续迭代。遇到问题或希望补充新的编辑功能，可以通过 [GitHub Issues](https://github.com/BJZM/osu-mania-skin-editor/issues) 反馈。
+当前版本为 `v0.4.0`，后续仍会持续迭代。遇到问题或希望补充新的编辑功能，可以通过 [GitHub Issues](https://github.com/BJZM/osu-mania-skin-editor/issues) 反馈。
 
 界面内的「帮助」按钮提供贴图规则速查，「关于」按钮会展示版本、许可与第三方声明。
 
@@ -126,5 +133,5 @@ npm run dist:win
 - `vendor/` 内的 JSZip 与 UTIF.js 分别按 MIT 许可使用。
 - 界面内联 SVG 图标来自 [Feather Icons](https://github.com/feathericons/feather)（MIT）。
 - 视频回落转码使用随包附带的 [BtbN FFmpeg Builds](https://github.com/BtbN/FFmpeg-Builds) `n8.1.3-16-ge0a878dd70` Windows x64 LGPL shared 构建，转码输出为 VP8/WebM。组件按 **LGPL-3.0-or-later** 使用，动态库与独立进程均可替换；详见 `vendor/ffmpeg-lgpl-win64/NOTICE.md`。
-- `assets/default_skin/` 来自 osu! 官方默认皮肤，版权归 ppy Pty Ltd，**不适用本项目 MIT 许可**，仅限非商业使用；详见 `assets/default_skin/NOTICE.md`。
+- `assets/default_skin/` 的默认贴图与三套打击音效来自 osu! 官方默认皮肤，版权归 ppy Pty Ltd，**不适用本项目 MIT 许可**，仅限非商业使用；详见 `assets/default_skin/NOTICE.md`。
 - osu!、osu!mania 是 ppy Pty Ltd 的商标。本项目为非官方第三方工具，与 ppy Pty Ltd 无隶属或背书关系。

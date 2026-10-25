@@ -28,6 +28,11 @@
         }
 
         function getTargetBaseName(p, resolvedName) {
+            if (isFontGlyphTextureParam(p)) {
+                return normalizeTextureLookupPath(
+                    resolvedName || p._fontGlyph.path || p.default
+                );
+            }
             let base = stripTextureName(resolvedName || p.default || p.key || 'texture');
             if (!base || isDummyBlankName(base)) base = stripTextureName(p.key || 'texture');
 
@@ -60,16 +65,24 @@
             return `${base}_col${col + 1}`;
         }
 
-        function getTextureTabParams() {
-            const keys = getActiveKeyCount();
+        function getTextureTabParamsForKeys(keys) {
+            const keyCount = keys || getActiveKeyCount();
             const items = [];
             for (const schemaItem of SKIN_INI_PARAM_SCHEMA) {
                 if (schemaItem.tab !== 'textures' || schemaItem.type !== 'texture' || schemaItem.virtual) continue;
-                const expanded = expandPerTrackTextureParams(schemaItem, keys, true);
+                const expanded = expandPerTrackTextureParams(schemaItem, keyCount, true);
                 if (expanded && expanded.length > 0) items.push(...expanded);
                 else items.push(schemaItem);
             }
+            // 菜单分类按 贴图映射 → 数字贴图 → 连击数字贴图 的固定顺序展示。
+            if (typeof buildFontGlyphTextureParams === 'function') {
+                items.push(...buildFontGlyphTextureParams(keyCount));
+            }
             return items;
+        }
+
+        function getTextureTabParams() {
+            return getTextureTabParamsForKeys(getActiveKeyCount());
         }
 
         function getTextureLibraryTargetKey(sourceOrPath) {

@@ -443,8 +443,9 @@
                         continue;
                     }
                     const p = unit.p;
-                    const target = buildEditorTarget(p);
-                    const canEdit = !!(target && target.selectable);
+                    const isComboburstGroup = !!p._comboburstGroup;
+                    const target = isComboburstGroup ? null : buildEditorTarget(p);
+                    const canEdit = isComboburstGroup || !!(target && target.selectable);
 
                     const card = document.createElement('div');
                     card.className = 'param-card texture-image-picker-item';
@@ -479,6 +480,12 @@
                     enName.textContent = p.key;
                     names.appendChild(enName);
 
+                    if (p.notice) {
+                        const notice = document.createElement('span');
+                        notice.className = 'param-inline-notice';
+                        notice.textContent = p.notice;
+                        names.appendChild(notice);
+                    }
                     header.appendChild(names);
                     card.appendChild(header);
 
@@ -486,17 +493,24 @@
                     controlRow.className = 'param-control-row';
                     controlRow.appendChild(buildTextureParamControl(p, keys, card, {
                         onEdit: () => {
-                            if (canEdit) selectTarget(target);
+                            if (isComboburstGroup) {
+                                openComboburstGroupEditor();
+                            } else if (canEdit) {
+                                selectTarget(target);
+                            }
                         },
                         editDisabled: !canEdit,
-                        editTitle: canEdit
-                            ? `编辑 ${p.zhName}`
-                            : '当前没有可编辑的图片'
+                        editTitle: isComboburstGroup
+                            ? '编辑连击提示图组'
+                            : (canEdit
+                                ? `编辑 ${p.zhName}`
+                                : '当前没有可编辑的图片')
                     }));
                     card.appendChild(controlRow);
                     card.onclick = (e) => {
                         if (e.target.closest('.texture-upload-dropdown') || e.target.closest('input')) return;
-                        if (canEdit) selectTarget(target);
+                        if (isComboburstGroup) openComboburstGroupEditor();
+                        else if (canEdit) selectTarget(target);
                     };
 
                     cardsGrid.appendChild(card);

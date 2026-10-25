@@ -11,6 +11,10 @@
                 if (typeof syncSkinEditingAvailabilityUI === 'function') syncSkinEditingAvailabilityUI();
                 return;
             }
+            if (activeEditorTab === 'hitsounds' && typeof renderHitsoundEditor === 'function') {
+                renderHitsoundEditor(container);
+                return;
+            }
 
             const keys = activeEditorKeyCount;
             const cfg = maniaSkinConfigurations.get(keys) || maniaSkinConfigurations.get(4) || {};
@@ -46,7 +50,16 @@
             });
 
             const isFontsTab = (activeEditorTab === 'fonts');
-            const hudGlyphMatchesQuery = isFontsTab && (!q || '右上角数字贴图0123456789. %scoredotpercentfonts'.includes(q));
+            const fontGlyphParams = isFontsTab && typeof buildFontGlyphTextureParams === 'function'
+                ? buildFontGlyphTextureParams(keys)
+                : [];
+            const hudGlyphMatchesQuery = isFontsTab && (!q ||
+                fontGlyphParams.some((p) =>
+                    p.zhName.toLowerCase().includes(q) ||
+                    p.default.toLowerCase().includes(q) ||
+                    p._fontGlyph.char.includes(q)
+                ) ||
+                '右上角数字贴图0123456789. %scoredotpercentfonts'.includes(q));
 
             if (filtered.length === 0 && !hudGlyphMatchesQuery) {
                 container.innerHTML = `<div style="text-align:center; padding: 40px; color: rgba(255,255,255,0.45); font-size: 0.9rem;">未找到与 "${q}" 匹配的参数</div>`;
@@ -55,21 +68,35 @@
 
             // 若在 Fonts 标签页，在参数列表顶部追加渲染 "数字贴图"(分数) 与 "连击数字贴图"
             if (isFontsTab && hudGlyphMatchesQuery) {
-                const scorePrefix = skinFontsConfig.scorePrefix || 'score';
-                const scoreGlyphs = [
-                    { char: '0', label: '数字 0', tex: `${scorePrefix}-0`, targetId: 'hud_score_digit_0' },
-                    { char: '1', label: '数字 1', tex: `${scorePrefix}-1`, targetId: 'hud_score_digit_1' },
-                    { char: '2', label: '数字 2', tex: `${scorePrefix}-2`, targetId: 'hud_score_digit_2' },
-                    { char: '3', label: '数字 3', tex: `${scorePrefix}-3`, targetId: 'hud_score_digit_3' },
-                    { char: '4', label: '数字 4', tex: `${scorePrefix}-4`, targetId: 'hud_score_digit_4' },
-                    { char: '5', label: '数字 5', tex: `${scorePrefix}-5`, targetId: 'hud_score_digit_5' },
-                    { char: '6', label: '数字 6', tex: `${scorePrefix}-6`, targetId: 'hud_score_digit_6' },
-                    { char: '7', label: '数字 7', tex: `${scorePrefix}-7`, targetId: 'hud_score_digit_7' },
-                    { char: '8', label: '数字 8', tex: `${scorePrefix}-8`, targetId: 'hud_acc_glyph_1' },
-                    { char: '9', label: '数字 9', tex: `${scorePrefix}-9`, targetId: 'hud_acc_glyph_0' },
-                    { char: '.', label: '小数点 (.)', tex: `${scorePrefix}-dot`, targetId: 'hud_acc_glyph_2' },
-                    { char: '%', label: '百分号 (%)', tex: `${scorePrefix}-percent`, targetId: 'hud_acc_glyph_5' }
-                ];
+                const makeGlyphView = (p) => {
+                    const char = p._fontGlyph.char;
+                    const scoreTargetIds = {
+                        '0': 'hud_score_digit_0',
+                        '1': 'hud_score_digit_1',
+                        '2': 'hud_score_digit_2',
+                        '3': 'hud_score_digit_3',
+                        '4': 'hud_score_digit_4',
+                        '5': 'hud_score_digit_5',
+                        '6': 'hud_score_digit_6',
+                        '7': 'hud_score_digit_7',
+                        '8': 'hud_acc_glyph_1',
+                        '9': 'hud_acc_glyph_0',
+                        '.': 'hud_acc_glyph_2',
+                        '%': 'hud_acc_glyph_5'
+                    };
+                    return {
+                        char,
+                        label: p.zhName,
+                        tex: p.default,
+                        param: p,
+                        targetId: p._fontGlyph.group === 'combo'
+                            ? 'combo'
+                            : scoreTargetIds[char]
+                    };
+                };
+                const scoreGlyphs = fontGlyphParams
+                    .filter((p) => p._fontGlyph.group === 'score')
+                    .map(makeGlyphView);
                 container.appendChild(buildFontGlyphBlock({
                     title: '数字贴图',
                     glyphs: scoreGlyphs,
@@ -81,31 +108,19 @@
                                    canvasInteractiveElements.find(i => i.textureName === g.tex)
                 }));
 
-                // 连击字体贴图：仅当 ini 显式指定了连击字体 ([Mania] FontCombo / [Fonts] Combo) 时才显示。
-                // 未指定时连击数字与分数共用同一套贴图，再展示一份完全相同的贴图没有意义。
-                const comboFontPrefix = getExplicitComboFontPrefix(keys);
-                if (comboFontPrefix) {
-                    const comboGlyphPrefix = formatFontPrefix(comboFontPrefix);
-                    const comboGlyphs = [];
-                    for (let d = 0; d <= 9; d++) {
-                        comboGlyphs.push({
-                            char: String(d),
-                            label: `连击数字 ${d}`,
-                            tex: `${comboGlyphPrefix}${d}`,
-                            targetId: 'combo'
-                        });
-                    }
-                    container.appendChild(buildFontGlyphBlock({
-                        title: '连击数字贴图',
-                        glyphs: comboGlyphs,
-                        fontType: 'combo',
-                        uploadParamKey: 'ComboPrefix',
-                        cardIdPrefix: 'combo-glyph-card',
-                        blockClass: 'combo-font-glyphs-block',
-                        keys, q,
-                        locate: () => canvasInteractiveElements.find(i => i.id === 'combo')
-                    }));
-                }
+                const comboGlyphs = fontGlyphParams
+                    .filter((p) => p._fontGlyph.group === 'combo')
+                    .map(makeGlyphView);
+                container.appendChild(buildFontGlyphBlock({
+                    title: '连击数字贴图',
+                    glyphs: comboGlyphs,
+                    fontType: 'combo',
+                    uploadParamKey: 'ComboPrefix',
+                    cardIdPrefix: 'combo-glyph-card',
+                    blockClass: 'combo-font-glyphs-block',
+                    keys, q,
+                    locate: () => canvasInteractiveElements.find(i => i.id === 'combo')
+                }));
             }
 
             // 逐轨道贴图参数展开为「每轨一张卡片」(NoteImage0..N / KeyImage0..N 等)，
@@ -242,6 +257,11 @@
                         val = getScorePercentPaddingWidth(keys);
                     } else if (p.key === 'ScorePercentVisible') {
                         val = getScorePercentVisibility(keys);
+                    } else if (p.key === 'ComboBurstRandom') {
+                        val = !!(currentSkinMetadata.general &&
+                            (currentSkinMetadata.general.ComboBurstRandom === 1 ||
+                             currentSkinMetadata.general.ComboBurstRandom === '1' ||
+                             currentSkinMetadata.general.ComboBurstRandom === true));
                     } else if (p.tab === 'mania' || p.tab === 'textures') {
                         if (cfg[p.key] !== undefined && cfg[p.key] !== null) val = cfg[p.key];
                     } else if (p.tab === 'fonts') {
@@ -314,6 +334,14 @@
                     if (actionsArea.children.length > 0) {
                         header.appendChild(actionsArea);
                     }
+
+                    if (p.notice) {
+                        const notice = document.createElement('span');
+                        notice.className = 'param-inline-notice';
+                        notice.textContent = p.notice;
+                        const names = header.querySelector('.param-names');
+                        if (names) names.appendChild(notice);
+                    }
                     card.appendChild(header);
 
                     // 输入控制行
@@ -384,7 +412,12 @@
                         chk.onchange = (e) => {
                             statusSpan.textContent = e.target.checked ? '开启' : '关闭';
                             statusSpan.style.color = e.target.checked ? '#ffffff' : 'rgba(255,255,255,0.45)';
-                            onParamChange(p.key, e.target.checked);
+                            onParamChange(
+                                p.key,
+                                e.target.checked,
+                                null,
+                                p.key === 'ComboBurstRandom' ? { force: true } : {}
+                            );
                         };
 
                         toggleBox.appendChild(toggleLabel);
@@ -400,7 +433,12 @@
                             if (String(opt.value) === String(val)) option.selected = true;
                             select.appendChild(option);
                         }
-                        select.onchange = (e) => onParamChange(p.key, e.target.value);
+                        select.onchange = (e) => onParamChange(
+                            p.key,
+                            e.target.value,
+                            null,
+                            p.key === 'ComboBurstStyle' ? { force: true } : {}
+                        );
                         controlRow.appendChild(select);
                     } else if (p.type === 'color') {
                         const combo = document.createElement('div');

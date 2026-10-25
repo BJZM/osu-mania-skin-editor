@@ -44,6 +44,7 @@
                 <button type="button" class="tab-btn active" data-tab="mania">Mania 模式 (<span id="activeKeyCountTabLabel">4K</span>)</button>
                 <button type="button" class="tab-btn" data-tab="fonts">字体与数字</button>
                 <button type="button" class="tab-btn" data-tab="general">基础设置</button>
+                <button type="button" class="tab-btn" id="hitsoundEditorTabBtn" data-tab="hitsounds">音效</button>
                 <button type="button" class="tab-btn" data-tab="raw">skin.ini文本</button>
             </div>
 
@@ -77,6 +78,8 @@
                     <textarea id="rawIniTextarea" readonly spellcheck="false"></textarea>
                 </div>
             </div>
+
+            <input type="file" id="hitsoundReplaceInput" accept=".wav,.mp3,.ogg,audio/wav,audio/mpeg,audio/ogg" hidden>
 
             <!-- 底部操作栏 -->
             <div class="skin-editor-footer">

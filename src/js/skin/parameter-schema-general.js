@@ -88,5 +88,17 @@
                 tab: 'general',
                 type: 'boolean',
                 default: true
+            },
+            {
+                key: 'ComboBurstRandom',
+                zhName: '连击提示图随机选择',
+                enName: 'ComboBurstRandom',
+                comment: '0: 按编号顺序轮播, 1: 随机选择',
+                desc: '仅对 comboburst-mania-0.png、comboburst-mania-1.png 等编号替代图生效。关闭时按编号顺序轮播；开启时每个 100 连击里程碑随机抽一张。',
+                notice: '总开关在游戏内，需要在游戏内开启或关闭',
+                category: '其他不常用选项',
+                tab: 'mania',
+                type: 'boolean',
+                default: false
             }
         ];

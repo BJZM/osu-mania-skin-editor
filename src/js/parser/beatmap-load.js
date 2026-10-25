@@ -15,6 +15,9 @@
             const bmInfo = beatmaps[diffIdx];
             currentBeatmap = bmInfo.data;
             currentTimingPoints = (bmInfo && bmInfo.timingPoints) ? bmInfo.timingPoints : [];
+            if (typeof disposeManiaHitsoundPlayback === 'function') {
+                disposeManiaHitsoundPlayback();
+            }
             const keys = bmInfo.stats.keys;
             ui.diff.value = diffIdx;
             updateStatsDisplay();
@@ -158,10 +161,17 @@
                     column: column,
                     isHold: isHold,
                     ticks: ticks,
+                    hitSound: parseInt(obj.hitSound, 10) || 0,
+                    hitSample: obj.hitSample || parseOsuHitSample(''),
+                    hitsoundSampleRefs: [],
                     hit: false,
                     holdHeadFrozen: false
                 };
             }).sort((a, b) => a.startTime - b.startTime);
+
+            if (typeof prepareManiaHitsoundPlayback === 'function') {
+                await prepareManiaHitsoundPlayback();
+            }
 
             audio.currentTime = 0;
             clearResumePlaybackPosition();

@@ -12,9 +12,144 @@
             );
         }
 
+        // 贴图页与字体字形卡共用的导入下拉菜单。
+        function buildTextureUploadDropdown(options = {}) {
+            const {
+                uploadTargetName,
+                targetKey = null,
+                paramKey = null,
+                keys = null,
+                existingParam = null,
+                hoverHost = null,
+                animationSupported = false,
+                mainLabel = '导入图片',
+                dropdownClass = ''
+            } = options;
+
+            const dropdown = document.createElement('div');
+            dropdown.className = 'texture-upload-dropdown';
+            if (dropdownClass) dropdown.classList.add(dropdownClass);
+            let uploadMenuCloseTimer = null;
+            const openUploadMenu = () => {
+                if (uploadMenuCloseTimer) clearTimeout(uploadMenuCloseTimer);
+                uploadMenuCloseTimer = null;
+                dropdown.classList.add('is-open');
+                if (hoverHost) hoverHost.style.zIndex = '500';
+            };
+            const scheduleUploadMenuClose = () => {
+                if (uploadMenuCloseTimer) clearTimeout(uploadMenuCloseTimer);
+                uploadMenuCloseTimer = setTimeout(() => {
+                    uploadMenuCloseTimer = null;
+                    if (dropdown.matches(':hover') ||
+                        dropdown.contains(document.activeElement)) {
+                        return;
+                    }
+                    dropdown.classList.remove('is-open');
+                    if (hoverHost) hoverHost.style.zIndex = '';
+                }, 350);
+            };
+            dropdown.addEventListener('pointerenter', openUploadMenu);
+            dropdown.addEventListener('pointerleave', scheduleUploadMenuClose);
+            dropdown.addEventListener('focusin', openUploadMenu);
+            dropdown.addEventListener('focusout', scheduleUploadMenuClose);
+
+            const mainBtn = document.createElement('button');
+            mainBtn.type = 'button';
+            mainBtn.className = 'texture-upload-main-btn';
+            mainBtn.title = '默认点击直接导入 1x 普通贴图，鼠标悬停展开更多规格选项';
+            mainBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>${mainLabel}</span>
+                <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            `;
+            mainBtn.onclick = (event) => {
+                event.stopPropagation();
+                triggerTextureUpload(uploadTargetName, targetKey, paramKey, null, '1x');
+            };
+
+            const menu = document.createElement('div');
+            menu.className = 'texture-upload-menu';
+
+            const item1x = document.createElement('button');
+            item1x.type = 'button';
+            item1x.className = 'texture-upload-menu-item item-1x';
+            item1x.title = '导入普通 (1x) 分辨率贴图';
+            item1x.innerHTML = `
+                <span class="upload-menu-tag tag-1x">1x</span>
+                <span class="upload-menu-text">导入 1x 普通贴图</span>
+            `;
+            item1x.onclick = (event) => {
+                event.stopPropagation();
+                triggerTextureUpload(uploadTargetName, targetKey, paramKey, null, '1x');
+            };
+
+            const item2x = document.createElement('button');
+            item2x.type = 'button';
+            item2x.className = 'texture-upload-menu-item item-2x';
+            item2x.title = '导入 @2x 高清分辨率贴图';
+            item2x.innerHTML = `
+                <span class="upload-menu-tag tag-2x">@2x</span>
+                <span class="upload-menu-text">导入 @2x 高清图片</span>
+            `;
+            item2x.onclick = (event) => {
+                event.stopPropagation();
+                triggerTextureUpload(uploadTargetName, targetKey, paramKey, null, '2x');
+            };
+
+            menu.appendChild(item1x);
+            menu.appendChild(item2x);
+
+            if (existingParam && typeof openTextureExistingPicker === 'function') {
+                const itemExisting = document.createElement('button');
+                itemExisting.type = 'button';
+                itemExisting.className = 'texture-upload-menu-item item-existing';
+                itemExisting.title = '从当前皮肤已有贴图中选择，只修改路径而不复制图片';
+                itemExisting.innerHTML = `
+                    <span class="upload-menu-tag tag-existing">引用</span>
+                    <span class="upload-menu-text">从已有贴图导入</span>
+                `;
+                itemExisting.onclick = (event) => {
+                    event.stopPropagation();
+                    openTextureExistingPicker(existingParam, keys);
+                };
+                menu.appendChild(itemExisting);
+            }
+
+            if (animationSupported && typeof openAnimTextureEditor === 'function') {
+                const itemAnim = document.createElement('button');
+                itemAnim.type = 'button';
+                itemAnim.className = 'texture-upload-menu-item item-anim';
+                itemAnim.title = '打开动态贴图序列帧管理器制作/导入多帧动画';
+                itemAnim.innerHTML = `
+                    <span class="upload-menu-tag tag-anim">动态</span>
+                    <span class="upload-menu-text">导入动态贴图</span>
+                `;
+                itemAnim.onclick = (event) => {
+                    event.stopPropagation();
+                    openAnimTextureEditor(uploadTargetName, targetKey, paramKey, '1x');
+                };
+                menu.appendChild(itemAnim);
+            }
+
+            dropdown.appendChild(mainBtn);
+            dropdown.appendChild(menu);
+            return dropdown;
+        }
+
         function buildTextureParamControl(p, keys, hoverHost, options = {}) {
+            if (p && p._comboburstGroup &&
+                typeof buildComboburstTextureControl === 'function') {
+                return buildComboburstTextureControl(p, keys, hoverHost, options);
+            }
             const combo = document.createElement('div');
             combo.className = 'texture-param-combo';
+            const isFontGlyph = isFontGlyphTextureParam(p);
 
             // 预览缩略图 (缩略图 + 右侧规格角标 1x/@2x 并排，角标不遮挡缩略图)
             const previewWrap = document.createElement('div');
@@ -45,7 +180,9 @@
             paintPreview(initialResolved, resolveTextureParamFrames(keys, p));
 
             const mCfg = maniaSkinConfigurations.get(keys) || maniaSkinConfigurations.get(4) || {};
-            const rawIniValue = getTextureParamIniValue(keys, p);
+            const rawIniValue = isFontGlyph
+                ? (p._fontGlyph.path || p.default || '')
+                : getTextureParamIniValue(keys, p);
             let editButton = null;
             let editDropdown = null;
             let editModeMenu = null;
@@ -162,6 +299,7 @@
             const pathInput = document.createElement('input');
             pathInput.type = 'text';
             pathInput.className = 'param-text-input texture-path-input';
+            if (isFontGlyph) pathInput.classList.add('texture-font-glyph-path-input');
             pathInput.value = rawIniValue;
             // 占位符只在「ini 未显式指定」时可见，因此它必须说清「当前实际用的是哪张贴图」，
             // 而不是干巴巴一句「未指定」——否则缩略图明明有图、路径框却写「未指定」，会让人以为没生效。
@@ -186,14 +324,21 @@
                 }
             }
             pathInput.placeholder = placeholderText;
-            pathInput.title = '当前 ini 中指定的贴图路径/名称；留空表示沿用皮肤默认贴图，输入 blank 或 null 可关闭该贴图';
+            pathInput.readOnly = isFontGlyph;
+            pathInput.title = isFontGlyph
+                ? `该路径由 ${p._fontGlyph.prefixKey} 决定`
+                : '当前 ini 中指定的贴图路径/名称；留空表示沿用皮肤默认贴图，输入 blank 或 null 可关闭该贴图';
             // 显式指定了名字但皮肤里找不到该文件 → 给出醒目的异常态提示
             if (initialResolved.state === 'missing') {
                 pathInput.classList.add('texture-path-missing');
                 pathInput.title = `skin.ini 指定了「${initialResolved.name}」，但皮肤中不存在该贴图文件（画布上将不绘制该元素）`;
             }
             pathInput.onchange = (e) => {
+                if (isFontGlyph) return;
                 const rawVal = e.target.value.trim();
+                const replacement = typeof prepareTextureReplacement === 'function'
+                    ? prepareTextureReplacement(p, keys, rawVal)
+                    : null;
                 recordSkinUndoBeforeChange(`修改 ${p.zhName || p.key} 贴图路径`);
                 if (!rawVal) {
                     if (typeof clearTextureParamLookup === 'function') {
@@ -206,6 +351,9 @@
                         }
                     }
                     syncParamInputValue(p.key, '');
+                    if (typeof completeTextureReplacement === 'function') {
+                        completeTextureReplacement(replacement);
+                    }
                     if (typeof refreshExternalConfigSnapshot === 'function') {
                         refreshExternalConfigSnapshot();
                     }
@@ -232,6 +380,9 @@
                     mCfg.ImageLookups.set(p.key.toLowerCase(), normalized);
                 }
                 syncParamInputValue(p.key, normalized);
+                if (typeof completeTextureReplacement === 'function') {
+                    completeTextureReplacement(replacement);
+                }
                 if (typeof refreshExternalConfigSnapshot === 'function') {
                     refreshExternalConfigSnapshot();
                 }
@@ -245,110 +396,22 @@
                 }
             };
 
-            const uploadTargetName = rawIniValue || p.default || p.key;
+            const uploadTargetName = isFontGlyph
+                ? (p._fontGlyph.path || p.default)
+                : (rawIniValue || p.default || p.key);
 
             const animationSupported = isTextureAnimationSupported(p.key, p._trackLookup, uploadTargetName);
 
             // 可折叠贴图导入下拉组件 (默认点击导入 1x，悬停展开 1x / @2x；支持动画时追加动态图片)
-            const dropdown = document.createElement('div');
-            dropdown.className = 'texture-upload-dropdown';
-            dropdown.addEventListener('mouseenter', () => {
-                if (hoverHost) hoverHost.style.zIndex = '500';
+            const dropdown = buildTextureUploadDropdown({
+                uploadTargetName,
+                targetKey: p.key,
+                paramKey: p.key,
+                keys,
+                existingParam: p,
+                hoverHost,
+                animationSupported
             });
-            dropdown.addEventListener('mouseleave', () => {
-                if (hoverHost) hoverHost.style.zIndex = '';
-            });
-
-            const mainBtn = document.createElement('button');
-            mainBtn.type = 'button';
-            mainBtn.className = 'texture-upload-main-btn';
-            mainBtn.title = '默认点击直接导入 1x 普通贴图，鼠标悬停展开更多规格选项';
-            mainBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                    <polyline points="21 15 16 10 5 21"></polyline>
-                </svg>
-                <span>导入图片</span>
-                <svg class="dropdown-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="10" height="10">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-            `;
-            // 需求重点：默认直接点击则是上传 1x 贴图
-            mainBtn.onclick = (e) => {
-                e.stopPropagation();
-                triggerTextureUpload(uploadTargetName, p.key, p.key, null, '1x');
-            };
-
-            const menu = document.createElement('div');
-            menu.className = 'texture-upload-menu';
-
-            // 选项1: 上传普通贴图 (1x)
-            const item1x = document.createElement('button');
-            item1x.type = 'button';
-            item1x.className = 'texture-upload-menu-item item-1x';
-            item1x.title = '导入普通 (1x) 分辨率贴图';
-            item1x.innerHTML = `
-                <span class="upload-menu-tag tag-1x">1x</span>
-                <span class="upload-menu-text">导入 1x 普通贴图</span>
-            `;
-            item1x.onclick = (e) => {
-                e.stopPropagation();
-                triggerTextureUpload(uploadTargetName, p.key, p.key, null, '1x');
-            };
-
-            // 选项2: 上传 @2x 图片
-            const item2x = document.createElement('button');
-            item2x.type = 'button';
-            item2x.className = 'texture-upload-menu-item item-2x';
-            item2x.title = '导入 @2x 高清分辨率贴图';
-            item2x.innerHTML = `
-                <span class="upload-menu-tag tag-2x">@2x</span>
-                <span class="upload-menu-text">导入 @2x 高清图片</span>
-            `;
-            item2x.onclick = (e) => {
-                e.stopPropagation();
-                triggerTextureUpload(uploadTargetName, p.key, p.key, null, '2x');
-            };
-
-            // 选项3: 引用当前皮肤中已有的贴图，只改写 skin.ini 路径
-            const itemExisting = document.createElement('button');
-            itemExisting.type = 'button';
-            itemExisting.className = 'texture-upload-menu-item item-existing';
-            itemExisting.title = '从当前皮肤已有贴图中选择，只修改路径而不复制图片';
-            itemExisting.innerHTML = `
-                <span class="upload-menu-tag tag-existing">引用</span>
-                <span class="upload-menu-text">从已有贴图导入</span>
-            `;
-            itemExisting.onclick = (e) => {
-                e.stopPropagation();
-                openTextureExistingPicker(p, keys);
-            };
-
-            // 选项4: 上传动态图片（仅官方 wiki 标记 Animatable = Yes 的贴图）
-            let itemAnim = null;
-            if (animationSupported) {
-                itemAnim = document.createElement('button');
-                itemAnim.type = 'button';
-                itemAnim.className = 'texture-upload-menu-item item-anim';
-                itemAnim.title = '打开动态贴图序列帧管理器制作/导入多帧动画';
-                itemAnim.innerHTML = `
-                    <span class="upload-menu-tag tag-anim">动态</span>
-                    <span class="upload-menu-text">导入动态贴图</span>
-                `;
-                itemAnim.onclick = (e) => {
-                    e.stopPropagation();
-                    openAnimTextureEditor(uploadTargetName, p.key, p.key, '1x');
-                };
-            }
-
-            menu.appendChild(item1x);
-            menu.appendChild(item2x);
-            menu.appendChild(itemExisting);
-            if (itemAnim) menu.appendChild(itemAnim);
-
-            dropdown.appendChild(mainBtn);
-            dropdown.appendChild(menu);
 
             if (typeof options.onEdit === 'function') {
                 editDropdown = document.createElement('div');

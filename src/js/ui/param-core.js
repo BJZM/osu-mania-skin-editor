@@ -36,8 +36,8 @@
         }
 
         // 5. 参数修改响应回调
-        function onParamChange(key, value, changedIndex = null) {
-            recordSkinUndoBeforeChange(`修改参数 ${key}`);
+        function onParamChange(key, value, changedIndex = null, options = {}) {
+            recordSkinUndoBeforeChange(`修改参数 ${key}`, options.force ? { force: true } : {});
             const schema = SKIN_INI_PARAM_SCHEMA.find(p => p.key === key);
             if (!schema) return;
             // 本次实际写入 cfg 的值（数组类参数可能因超限被收敛或拒绝），供调用方回写界面控件
@@ -67,6 +67,17 @@
                 }
                 syncParamInputValue(key, appliedValue);
                 syncParamInputValue('ScorePercentWidth', getScorePercentPaddingWidth(activeEditorKeyCount));
+                drawFrame();
+                if (selectedCanvasElement && selectedCanvasElement.paramKey === key) {
+                    syncCanvasSelectedCard(selectedCanvasElement);
+                }
+                return appliedValue;
+            }
+
+            if (key === 'ComboBurstRandom') {
+                if (!currentSkinMetadata.general) currentSkinMetadata.general = {};
+                currentSkinMetadata.general.ComboBurstRandom = value ? 1 : 0;
+                appliedValue = currentSkinMetadata.general.ComboBurstRandom;
                 drawFrame();
                 if (selectedCanvasElement && selectedCanvasElement.paramKey === key) {
                     syncCanvasSelectedCard(selectedCanvasElement);
@@ -254,6 +265,16 @@
             if (key === 'ComboPrefix') {
                 renderSkinEditorParams();
             }
+            if ((key === 'ScorePrefix' || key === 'ComboPrefix') &&
+                typeof renderPicker === 'function') {
+                const imageEditorModal = document.getElementById('textureImageEditorModal');
+                const imageEditorPicker = document.getElementById('textureImagePickerView');
+                if (imageEditorModal && imageEditorModal.classList.contains('active') &&
+                    imageEditorPicker &&
+                    getComputedStyle(imageEditorPicker).display !== 'none') {
+                    renderPicker();
+                }
+            }
 
             if (selectedCanvasElement && selectedCanvasElement.paramKey === key) {
                 syncCanvasSelectedCard(selectedCanvasElement);
@@ -403,6 +424,10 @@
         // 8. 切换编辑器 Tab 标签
         function switchEditorTab(tabName) {
             if (tabName === 'colours') tabName = 'mania';
+            if (activeEditorTab === 'hitsounds' && tabName !== 'hitsounds' &&
+                typeof stopHitsoundPreview === 'function') {
+                stopHitsoundPreview();
+            }
             activeEditorTab = tabName;
             const tabs = document.querySelectorAll('#skinEditorTabs .tab-btn');
             tabs.forEach(btn => {
@@ -414,6 +439,15 @@
             if (keySelectorGroup) {
                 keySelectorGroup.style.display = (tabName === 'mania') ? 'flex' : 'none';
             }
+
+            const searchInput = document.getElementById('paramSearchInput');
+            if (searchInput) {
+                searchInput.placeholder = tabName === 'hitsounds'
+                    ? window.I18n.t('搜索皮肤音效或谱面音效...')
+                    : window.I18n.t('快速搜索参数名、中文名称或说明 (如: 判定线, ColumnWidth, 402)...');
+            }
+            const resetBtn = document.getElementById('resetSkinParamsBtn');
+            if (resetBtn) resetBtn.style.display = tabName === 'hitsounds' ? 'none' : '';
 
             if (!isSkinEditingWorkspaceReady()) {
                 syncSkinEditingAvailabilityUI();

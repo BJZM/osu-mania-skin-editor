@@ -6,6 +6,7 @@
 - `normalizeTextureLookupPath(path)` 去掉扩展名、`@2x` 并统一为 `/`。
 - `assignTextureParamLookup(keys, p, selectedPath)` 写入当前键位配置、全部参数别名和全局查找表。
 - `clearTextureParamLookup(keys, p)` 清理当前键位配置、全部别名及逐轨分键映射，恢复未显式指定的继承默认状态。
+- `collectTexturePathReferences(path, options)` 返回实际解析到指定资源的贴图参数；`options.allKeyCounts` 会扫描全部已配置键数、别名和 stable 回退，`options.caseInsensitive` 用于资源回收时的逻辑路径比较。
 - 写入逐轨普通 `KeyImage` 前，如果该轨没有显式 `KeyImageD`，先固定当前实际使用的按下态路径，避免默认皮肤按 stable 回退规则同步换图。
 - 返回 `{ path, aliases }`。
 
@@ -20,7 +21,7 @@
 - **后置条件**：只修改查找映射，不写入图片仓库、不复制导出文件；普通 `KeyImage` 改路径时不会顺带改变独立的按下态来源。
 
 ## 依赖模块
-- `getActiveKeyCount`、`ensureManiaConfigForKeys`。
+- `getActiveKeyCount`、`getTextureTabParamsForKeys`、`ensureManiaConfigForKeys`。
 - `getTextureParamAliases`。
 - `maniaSkinConfigurations`、`globalSkinImageLookups`。
 

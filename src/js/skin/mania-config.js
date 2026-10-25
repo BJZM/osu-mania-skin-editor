@@ -59,6 +59,7 @@
                 ShowJudgementLine: true,
                 KeysUnderNotes: 0,
                 LightFramePerSecond: 60,
+                ComboBurstStyle: 1,
                 NoteBodyStyle: null,
                 NoteBodyStyles: new Array(k).fill(null),
                 ColumnStart: 136,
@@ -94,6 +95,7 @@
                     CursorRotate: 0,
                     CursorExpand: 1,
                     CursorCentre: 1,
+                    ComboBurstRandom: 0,
                 },
                 colours: {},
                 fonts: {},
@@ -340,6 +342,10 @@
                     return { ok: true, value: (val === 1 || val === '1' || val === true) ? 1 : 0 };
                 }
                 case LML.LightFramePerSecond: return { ok: true, value: cfg.LightFramePerSecond };
+                case LML.ComboBurstStyle: {
+                    const style = parseInt(cfg.ComboBurstStyle, 10);
+                    return { ok: true, value: (style >= 0 && style <= 2) ? style : 1 };
+                }
                 case LML.NoteBodyStyle: {
                     if (columnIndex != null && Array.isArray(cfg.NoteBodyStyles) && cfg.NoteBodyStyles[columnIndex] != null) {
                         return { ok: true, value: cfg.NoteBodyStyles[columnIndex] };

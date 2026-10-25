@@ -147,17 +147,43 @@
             }
         }
 
-        function collectTexturePathReferences(path) {
-            const normalizedPath = normalizeTextureLookupPath(path);
+        function collectTexturePathReferences(path, options = {}) {
+            const normalizeReference = options.caseInsensitive
+                ? ((value) => {
+                    if (typeof normalizeSkinAssetStoreKey === 'function') {
+                        return normalizeSkinAssetStoreKey(value);
+                    }
+                    if (typeof normalizeSkinKey === 'function') {
+                        return normalizeSkinKey(value).replace(/@2x/g, '');
+                    }
+                    return normalizeTextureLookupPath(value).toLowerCase();
+                })
+                : ((value) => normalizeTextureLookupPath(value));
+            const normalizedPath = normalizeReference(path);
             if (!normalizedPath) return [];
-            const keys = typeof getActiveKeyCount === 'function' ? getActiveKeyCount() : 4;
+            const activeKeys = typeof getActiveKeyCount === 'function' ? getActiveKeyCount() : 4;
+            const keyCounts = options.allKeyCounts
+                ? Array.from(new Set([
+                    activeKeys,
+                    ...Array.from(maniaSkinConfigurations.keys())
+                ]))
+                : [activeKeys];
             const references = [];
-            const params = typeof getTextureTabParams === 'function' ? getTextureTabParams() : [];
-            for (const p of params) {
-                const resolved = typeof resolveTextureParam === 'function' ? resolveTextureParam(keys, p) : null;
-                if (!resolved || resolved.state !== 'ok') continue;
-                if (normalizeTextureLookupPath(resolved.name) !== normalizedPath) continue;
-                references.push(p);
+            const seen = new Set();
+            for (const keys of keyCounts) {
+                const params = typeof getTextureTabParamsForKeys === 'function'
+                    ? getTextureTabParamsForKeys(keys)
+                    : (typeof getTextureTabParams === 'function' ? getTextureTabParams() : []);
+                for (const p of params) {
+                    const referenceKey = `${keys}|${p.key}`;
+                    if (seen.has(referenceKey)) continue;
+                    seen.add(referenceKey);
+                    const resolved = typeof resolveTextureParam === 'function' ? resolveTextureParam(keys, p) : null;
+                    if (!resolved || resolved.state !== 'ok') continue;
+                    const resolvedName = normalizeReference(resolved.name);
+                    if (resolvedName !== normalizedPath) continue;
+                    references.push(p);
+                }
             }
             return references;
         }
@@ -204,6 +230,7 @@
                     ? SKIN_INI_PARAM_SCHEMA.find((item) => item.key === paramKey)
                     : null);
             if (!p || typeof assignTextureParamLookup !== 'function') return false;
+            if (isFontGlyphTextureParam(p)) return false;
             const keys = typeof getActiveKeyCount === 'function' ? getActiveKeyCount() : 4;
             if (typeof preserveHoldHeadsBeforeNoteEdit === 'function') {
                 preserveHoldHeadsBeforeNoteEdit(

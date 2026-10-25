@@ -120,3 +120,103 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 连击提示图组：多图上传与左右往返预览 -->
+            <input type="file" id="comboburstGroupSingleInput" accept=".png,.jpg,.jpeg,image/png,image/jpeg" style="display: none;">
+            <input type="file" id="comboburstGroupBatchInput" multiple accept=".png,.jpg,.jpeg,image/png,image/jpeg" style="display: none;">
+
+            <div class="anim-texture-modal comboburst-group-modal" id="comboburstGroupModal" style="display: none;">
+                <div class="anim-texture-backdrop" id="comboburstGroupBackdrop"></div>
+                <div class="anim-texture-dialog comboburst-group-dialog" role="dialog" aria-modal="true" aria-labelledby="comboburstGroupTitle">
+                    <div class="anim-texture-header">
+                        <div class="anim-texture-title-group">
+                            <div class="anim-texture-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" aria-hidden="true">
+                                    <rect x="3" y="5" width="13" height="14" rx="2"></rect>
+                                    <path d="m8 13 3-3 3 3"></path>
+                                    <path d="M8 19h11a2 2 0 0 0 2-2V8"></path>
+                                </svg>
+                            </div>
+                            <div class="anim-texture-titles">
+                                <h3 id="comboburstGroupTitle">连击提示图组</h3>
+                                <span class="anim-texture-target" id="comboburstGroupTargetLabel">comboburst-mania-0.png、-1.png ...</span>
+                            </div>
+                        </div>
+                        <button type="button" class="texture-upload-close-btn" id="comboburstGroupCloseBtn" title="关闭 (Esc)">&times;</button>
+                    </div>
+
+                    <div class="anim-texture-toolbar">
+                        <div class="anim-toolbar-actions">
+                            <button type="button" class="btn btn-primary" id="comboburstGroupAddBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>添加单张</span>
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="comboburstGroupBatchBtn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                                </svg>
+                                <span>批量上传多张</span>
+                            </button>
+                            <div class="anim-spec-switch">
+                                <span class="anim-spec-label">规格:</span>
+                                <button type="button" class="anim-spec-btn active" id="comboburstGroupSpec1xBtn" data-spec="1x">普通 (1x)</button>
+                                <button type="button" class="anim-spec-btn" id="comboburstGroupSpec2xBtn" data-spec="2x">@2x 高清</button>
+                            </div>
+                        </div>
+                        <div class="anim-toolbar-note comboburst-group-note">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" aria-hidden="true">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <span>批量上传按文件名自然排序。预览会依次播放每张图片向左、向右，再切换到下一张并循环。</span>
+                        </div>
+                    </div>
+
+                    <div class="anim-texture-body">
+                        <div class="anim-frames-scroll" id="comboburstGroupFramesScroll">
+                            <div class="anim-empty-state" id="comboburstGroupEmptyState">
+                                <div class="anim-empty-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" aria-hidden="true">
+                                        <rect x="3" y="5" width="13" height="14" rx="2"></rect>
+                                        <path d="m8 13 3-3 3 3"></path>
+                                        <path d="M8 19h11a2 2 0 0 0 2-2V8"></path>
+                                    </svg>
+                                </div>
+                                <div class="anim-empty-title">当前连击提示图组为空</div>
+                                <div class="anim-empty-desc">添加一张图片或多张图片。编号会按列表顺序写为 comboburst-mania-0、-1、-2 ...</div>
+                                <div class="anim-empty-actions">
+                                    <button type="button" class="btn btn-primary" id="comboburstGroupEmptyAddBtn">添加单张</button>
+                                    <button type="button" class="btn btn-secondary" id="comboburstGroupEmptyBatchBtn">批量选择多张</button>
+                                </div>
+                            </div>
+                            <div class="anim-frames-grid" id="comboburstGroupFramesGrid" style="display: none;"></div>
+                        </div>
+
+                        <div class="anim-preview-panel comboburst-group-preview-panel" id="comboburstGroupPreviewPanel" style="display: none;">
+                            <div class="anim-preview-head">
+                                <span>连击播放预览</span>
+                                <span class="anim-preview-badge" id="comboburstGroupPreviewBadge">0 张</span>
+                            </div>
+                            <div class="anim-preview-canvas-wrap comboburst-group-preview-wrap">
+                                <canvas id="comboburstGroupPreviewCanvas" width="260" height="340"></canvas>
+                            </div>
+                            <div class="comboburst-group-preview-status" id="comboburstGroupPreviewStatus">等待添加图片</div>
+                            <div class="anim-preview-controls">
+                                <button type="button" class="btn btn-secondary anim-play-btn" id="comboburstGroupPlayToggleBtn">暂停</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="anim-texture-footer">
+                        <button type="button" class="btn btn-danger" id="comboburstGroupClearAllBtn" style="display: none;">清空图组</button>
+                        <div class="footer-right-btns">
+                            <button type="button" class="btn btn-secondary" id="comboburstGroupCancelBtn">取消</button>
+                            <button type="button" class="btn btn-primary" id="comboburstGroupConfirmBtn" disabled>保存图组 (0 张)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>

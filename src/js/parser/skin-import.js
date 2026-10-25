@@ -42,6 +42,24 @@
                 deactivateEditableDefaultSkinWorkspace();
                 currentSkinZip = oskZip;
                 currentSkinFileName = file.name;
+                if (typeof clearSkinHitsoundReplacements === 'function') {
+                    clearSkinHitsoundReplacements();
+                } else {
+                    skinHitsoundReplacements.clear();
+                }
+                const hitsoundRead = readSkinHitsoundAssets(oskZip);
+                skinHitsoundCatalog = hitsoundRead.groups;
+                skinHitsoundSummary = {
+                    groupCount: hitsoundRead.groupCount,
+                    fileCount: hitsoundRead.fileCount,
+                    selectedFileCount: hitsoundRead.selectedFileCount
+                };
+                if (typeof ensureDefaultSkinHitsoundsLoaded === 'function') {
+                    await ensureDefaultSkinHitsoundsLoaded();
+                }
+                if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
+                    refreshSkinHitsoundCatalogWithReplacements();
+                }
                 currentSkinMetadata = {
                     general: {
                         Name: file.name.replace(/\.(osk|zip)$/i, ''),
@@ -67,6 +85,9 @@
                 skinFallbackImageStore.clear();
                 maniaSkinConfigurations.clear();
                 globalSkinImageLookups.clear();
+                if (typeof clearComboburstRuntimeEffects === 'function') {
+                    clearComboburstRuntimeEffects();
+                }
                 if (typeof keyImageHeightBaselineState !== 'undefined') {
                     keyImageHeightBaselineState.clear();
                 }
@@ -278,6 +299,10 @@
                         '可续编工程已恢复',
                         `自建贴图 ${textureProjectRestore.createdCount}，普通贴图配方 ${textureProjectRestore.recipeCount}，投皮 ${textureProjectRestore.longBodyCount}`
                     );
+                }
+
+                if (typeof prepareManiaHitsoundPlayback === 'function' && currentBeatmap && activeNotes.length > 0) {
+                    await prepareManiaHitsoundPlayback();
                 }
 
                 // 4. 提示皮肤配置解析结果

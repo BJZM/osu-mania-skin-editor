@@ -21,6 +21,7 @@
         function updateSkinInfoDisplay() {
             const skinNameEl = document.getElementById('infoSkinName');
             const skinAuthorEl = document.getElementById('infoSkinAuthor');
+            const skinHitsoundsEl = document.getElementById('infoSkinHitsounds');
             const oskFileNameEl = document.getElementById('oskFileName');
 
             if (typeof isStartupSkinReady === 'function' && !isStartupSkinReady()) {
@@ -39,6 +40,10 @@
                     oskFileNameEl.textContent = '未选择';
                     oskFileNameEl.title = '未选择皮肤';
                     oskFileNameEl.classList.remove('loaded');
+                }
+                if (skinHitsoundsEl) {
+                    skinHitsoundsEl.textContent = '';
+                    skinHitsoundsEl.style.display = 'none';
                 }
                 return;
             }
@@ -73,6 +78,25 @@
                     oskFileNameEl.textContent = '默认皮肤';
                     oskFileNameEl.title = '默认皮肤';
                     oskFileNameEl.classList.remove('loaded');
+                }
+            }
+            if (skinHitsoundsEl) {
+                const summary = typeof getSkinHitsoundSummary === 'function'
+                    ? getSkinHitsoundSummary()
+                    : { groupCount: 0, fileCount: 0 };
+                const visible = summary.groupCount > 0;
+                skinHitsoundsEl.style.display = visible ? '' : 'none';
+                if (visible) {
+                    const hitsoundText = window.I18n.t(
+                        '打击音效: {groups} 组 / {files} 个文件',
+                        { groups: summary.groupCount, files: summary.fileCount }
+                    );
+                    skinHitsoundsEl.setAttribute('data-i18n-ignore', '');
+                    skinHitsoundsEl.textContent = hitsoundText;
+                    skinHitsoundsEl.title = hitsoundText;
+                } else {
+                    skinHitsoundsEl.textContent = '';
+                    skinHitsoundsEl.removeAttribute('title');
                 }
             }
         }

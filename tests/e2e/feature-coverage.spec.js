@@ -745,7 +745,7 @@ test('D2 进度条拖动 seek 会改变播放位置', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('D3 音量滑块与静音按钮生效', async ({ page }) => {
+test('D3 歌曲与音效音量、静音互不影响', async ({ page }) => {
   const errors = await boot(page);
 
   // 设计如此：未加载谱面时整条播放控制栏为 disabled（pointer-events: none）
@@ -762,13 +762,133 @@ test('D3 音量滑块与静音按钮生效', async ({ page }) => {
   });
   expect(await page.evaluate(() => Math.round(audio.volume * 10) / 10)).toBeCloseTo(0.3, 1);
 
+  await page.evaluate(() => {
+    const r = document.getElementById('effectsVolumeRange');
+    r.value = '0.45';
+    r.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const split = await page.evaluate(() => {
+    const target = new Audio();
+    const applied = applyEffectVolume(target);
+    return {
+      music: audio.volume,
+      effect: effectVolume,
+      effectiveEffect: getEffectVolume(),
+      applied,
+      targetVolume: target.volume,
+      songText: document.getElementById('volumeText').textContent.trim(),
+      effectText: document.getElementById('effectsVolumeText').textContent.trim()
+    };
+  });
+  expect(split.music).toBeCloseTo(0.3, 2);
+  expect(split.effect).toBeCloseTo(0.45, 2);
+  expect(split.effectiveEffect).toBeCloseTo(0.45, 2);
+  expect(split.applied).toBeCloseTo(0.45, 2);
+  expect(split.targetVolume).toBeCloseTo(0.45, 2);
+  expect(split.songText).toBe('30%');
+  expect(split.effectText).toBe('45%');
+
+  const arrangement = await page.evaluate(() => {
+    const song = document.querySelector('#volumeRange').closest('.volume-control').getBoundingClientRect();
+    const effect = document.querySelector('#effectsVolumeRange').closest('.volume-control').getBoundingClientRect();
+    const childrenContained = (control) => {
+      const controlRect = control.getBoundingClientRect();
+      return Array.from(control.children)
+        .filter((element) => getComputedStyle(element).display !== 'none')
+        .every((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.left >= controlRect.left - 0.5 && rect.right <= controlRect.right + 0.5;
+        });
+    };
+    return {
+      sameRow: Math.abs(song.top - effect.top) < 1,
+      effectStartsAfterSong: effect.left >= song.right,
+      songVisible: song.width > 0,
+      effectVisible: effect.width > 0,
+      songChildrenContained: childrenContained(document.querySelector('#volumeRange').closest('.volume-control')),
+      effectChildrenContained: childrenContained(document.querySelector('#effectsVolumeRange').closest('.volume-control'))
+    };
+  });
+  expect(arrangement).toEqual({
+    sameRow: true,
+    effectStartsAfterSong: true,
+    songVisible: true,
+    effectVisible: true,
+    songChildrenContained: true,
+    effectChildrenContained: true
+  });
+
+  await page.click('#effectsVolumeMuteBtn');
+  const effectMutedState = await page.evaluate(() => ({
+    effectMuted,
+    effectiveEffect: getEffectVolume(),
+    musicMuted: audio.muted,
+    musicVolume: audio.volume
+  }));
+  expect(effectMutedState.effectMuted).toBe(true);
+  expect(effectMutedState.effectiveEffect).toBe(0);
+  expect(effectMutedState.musicMuted).toBe(false);
+  expect(effectMutedState.musicVolume).toBeCloseTo(0.3, 2);
+
+  await page.click('#effectsVolumeMuteBtn');
+  expect(await page.evaluate(() => ({
+    effectMuted,
+    effectiveEffect: getEffectVolume()
+  }))).toEqual({
+    effectMuted: false,
+    effectiveEffect: 0.45
+  });
+
   await page.click('#volumeMuteBtn');
-  const muted = await page.evaluate(() => ({ muted: audio.muted, volume: audio.volume }));
+  const muted = await page.evaluate(() => ({
+    muted: audio.muted,
+    volume: audio.volume,
+    effectMuted,
+    effectVolume
+  }));
   expect(muted.muted).toBe(true);
   expect(muted.volume).toBe(0);
+  expect(muted.effectMuted).toBe(false);
+  expect(muted.effectVolume).toBeCloseTo(0.45, 2);
 
   await page.click('#volumeMuteBtn');
   expect(await page.evaluate(() => audio.muted)).toBe(false);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(100);
+  const narrowArrangement = await page.evaluate(() => {
+    const song = document.querySelector('#volumeRange').closest('.volume-control').getBoundingClientRect();
+    const effect = document.querySelector('#effectsVolumeRange').closest('.volume-control').getBoundingClientRect();
+    const mixer = document.querySelector('.volume-mixer').getBoundingClientRect();
+    const songText = document.getElementById('volumeText');
+    const effectText = document.getElementById('effectsVolumeText');
+    const childrenContained = (control) => {
+      const controlRect = control.getBoundingClientRect();
+      return Array.from(control.children)
+        .filter((element) => getComputedStyle(element).display !== 'none')
+        .every((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.left >= controlRect.left - 0.5 && rect.right <= controlRect.right + 0.5;
+        });
+    };
+    return {
+      sameRow: Math.abs(song.top - effect.top) < 1,
+      effectStartsAfterSong: effect.left >= song.right,
+      mixerInsideViewport: mixer.right <= window.innerWidth,
+      numericReadoutsHidden: getComputedStyle(songText).display === 'none' &&
+        getComputedStyle(effectText).display === 'none',
+      songChildrenContained: childrenContained(document.querySelector('#volumeRange').closest('.volume-control')),
+      effectChildrenContained: childrenContained(document.querySelector('#effectsVolumeRange').closest('.volume-control'))
+    };
+  });
+  expect(narrowArrangement).toEqual({
+    sameRow: true,
+    effectStartsAfterSong: true,
+    mixerInsideViewport: true,
+    numericReadoutsHidden: true,
+    songChildrenContained: true,
+    effectChildrenContained: true
+  });
   expect(errors).toEqual([]);
 });
 

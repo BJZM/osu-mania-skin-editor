@@ -203,6 +203,7 @@
                 if (cfg.ExplosionWidth && cfg.ExplosionWidth.some(v => v > 0)) effectLines.push(`LightingNWidth: ${cfg.ExplosionWidth.map(Math.round).join(',')}`);
                 if (cfg.HoldNoteLightWidth && cfg.HoldNoteLightWidth.some(v => v > 0)) effectLines.push(`LightingLWidth: ${cfg.HoldNoteLightWidth.map(Math.round).join(',')}`);
                 if (cfg.LightFramePerSecond != null) effectLines.push(`LightFramePerSecond: ${cfg.LightFramePerSecond}`);
+                if (cfg.ComboBurstStyle != null) effectLines.push(`ComboBurstStyle: ${cfg.ComboBurstStyle}`);
 
                 if (effectLines.length > 0) {
                     lines.push('// ------------------------------------------');
@@ -213,6 +214,7 @@
                     lines.push('// WidthForNoteHeightScale: 音符长宽比缩放基准宽度');
                     lines.push('// LightingNWidth / LightingLWidth: 打击光效与长条发光宽度 (像素数组，0 = 跟随列宽)');
                     lines.push('// LightFramePerSecond: 按键动画播放帧率');
+                    lines.push('// ComboBurstStyle: 连击提示图出现侧 (0:左侧, 1:右侧, 2:双侧随机)');
                     for (const l of effectLines) lines.push(l);
                     lines.push('');
                 }

@@ -162,12 +162,34 @@
                 if (selectedCanvasElement) syncCanvasSelectedCard(selectedCanvasElement);
             }
 
-            function confirmSelection() {
+            async function confirmSelection() {
                 if (!state.open || !state.p) return false;
                 const effectivePath = state.selectedPath || resolveEffectiveTypedPath(search ? search.value : '');
                 if (!effectivePath) return false;
                 state.selectedPath = effectivePath;
                 const selectedPath = effectivePath;
+                if (isFontGlyphTextureParam(state.p)) {
+                    const targetParam = state.p;
+                    const applied = await applyExistingTextureToFontGlyph(
+                        targetParam,
+                        selectedPath,
+                        state.keys
+                    );
+                    if (!applied) {
+                        showToast('引用失败', '该贴图无法转换为当前字体字形的目标路径。');
+                        return false;
+                    }
+                    close();
+                    if (typeof refreshExternalConfigSnapshot === 'function') {
+                        refreshExternalConfigSnapshot();
+                    }
+                    refreshAfterAssignment();
+                    showToast(
+                        '已引用字体贴图',
+                        `${targetParam._fontGlyph.group === 'combo' ? 'ComboPrefix' : 'ScorePrefix'} 已按 ${selectedPath} 更新。`
+                    );
+                    return true;
+                }
                 const previousPath = getCurrentPath(state.p, state.keys);
                 if (normalizeTextureLookupPath(previousPath) === normalizeTextureLookupPath(selectedPath)) {
                     close();
@@ -175,9 +197,15 @@
                 }
 
                 try {
+                    const replacement = typeof prepareTextureReplacement === 'function'
+                        ? prepareTextureReplacement(state.p, state.keys, selectedPath)
+                        : null;
                     recordSkinUndoBeforeChange(`引用已有贴图: ${selectedPath}`, { force: true });
                     assignTextureParamLookup(state.keys, state.p, selectedPath);
                     syncParamInputValue(state.p.key, normalizeTextureLookupPath(selectedPath));
+                    if (typeof completeTextureReplacement === 'function') {
+                        completeTextureReplacement(replacement);
+                    }
                     close();
                     if (typeof refreshExternalConfigSnapshot === 'function') {
                         refreshExternalConfigSnapshot();

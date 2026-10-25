@@ -199,6 +199,9 @@
                 globalSkinImageLookups: new Map(globalSkinImageLookups),
                 skinImageStore: cloneSkinImageStore(skinImageStore),
                 skinFallbackImageStore: cloneSkinImageStore(skinFallbackImageStore),
+                skinHitsoundReplacements: typeof cloneSkinHitsoundReplacements === 'function'
+                    ? cloneSkinHitsoundReplacements()
+                    : new Map(),
                 userReplacedTextures: new Map(userReplacedTextures),
                 deletedSkinTexturePaths: new Set(deletedSkinTexturePaths),
                 createdSkinTextureParams: new Map(Array.from(createdSkinTextureParams.entries(), ([k, v]) => [k, { ...v }])),
@@ -276,8 +279,24 @@
             const currentNonTextureConfigs = preserveNonTexture
                 ? cloneManiaSkinConfigs(maniaSkinConfigurations)
                 : null;
+            const hitsoundReplacementsChanged = !preserveNonTexture &&
+                typeof areSkinHitsoundReplacementsEqual === 'function' &&
+                !areSkinHitsoundReplacementsEqual(
+                    skinHitsoundReplacements,
+                    snap.skinHitsoundReplacements
+                );
             isPerformingUndoRedo = true;
             try {
+                // 0. 还原皮肤音效覆盖层，再重建当前生效的音效目录
+                if (hitsoundReplacementsChanged) {
+                    if (typeof restoreSkinHitsoundReplacements === 'function') {
+                        restoreSkinHitsoundReplacements(snap.skinHitsoundReplacements);
+                    }
+                    if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
+                        refreshSkinHitsoundCatalogWithReplacements();
+                    }
+                }
+
                 // 1. 还原 userReplacedTextures
                 userReplacedTextures.clear();
                 if (snap.userReplacedTextures) {
@@ -386,6 +405,9 @@
                         );
                     }
                 }
+                if (typeof clearComboburstRuntimeEffects === 'function') {
+                    clearComboburstRuntimeEffects();
+                }
                 if (typeof refreshSkinCursor === 'function') refreshSkinCursor();
 
                 // 5. 还原活动键位
@@ -411,6 +433,10 @@
                     textureLibraryUi.refresh();
                 }
                 updateSkinInfoDisplay();
+                if (hitsoundReplacementsChanged &&
+                    typeof refreshManiaHitsoundPlaybackAfterEdit === 'function') {
+                    void refreshManiaHitsoundPlaybackAfterEdit();
+                }
                 if (selectedCanvasElement) {
                     const liveElem = canvasInteractiveElements.find(e => {
                         if (selectedCanvasElement.noteInstanceKey && e.noteInstanceKey) {
@@ -506,6 +532,9 @@
                     globalSkinImageLookups: new Map(globalSkinImageLookups),
                     skinImageStore: cloneSkinImageStore(skinImageStore),
                     skinFallbackImageStore: cloneSkinImageStore(skinFallbackImageStore),
+                    skinHitsoundReplacements: typeof cloneSkinHitsoundReplacements === 'function'
+                        ? cloneSkinHitsoundReplacements()
+                        : new Map(),
                     deletedSkinTexturePaths: new Set(deletedSkinTexturePaths)
                 };
                 undoStack.length = 0;
@@ -558,6 +587,17 @@
             clearTextureProjectImportState();
             currentSkinZip = null;
             currentSkinFileName = '默认皮肤';
+            if (typeof clearSkinHitsoundReplacements === 'function') {
+                clearSkinHitsoundReplacements();
+            } else {
+                skinHitsoundReplacements.clear();
+            }
+            skinHitsoundCatalog.clear();
+            skinHitsoundSummary = {
+                groupCount: 0,
+                fileCount: 0,
+                selectedFileCount: 0
+            };
             deactivateEditableDefaultSkinWorkspace();
 
             userReplacedTextures.clear();
@@ -598,7 +638,25 @@
 
             if (ui.osk) ui.osk.value = '';
             await loadDefaultSkin();
+            const defaultHitsoundCatalog = typeof ensureDefaultSkinHitsoundsLoaded === 'function'
+                ? await ensureDefaultSkinHitsoundsLoaded()
+                : new Map();
+            skinHitsoundCatalog = new Map(defaultHitsoundCatalog);
+            if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
+                refreshSkinHitsoundCatalogWithReplacements();
+            } else {
+                skinHitsoundSummary = typeof summarizeSkinHitsoundCatalog === 'function'
+                    ? summarizeSkinHitsoundCatalog(skinHitsoundCatalog)
+                    : {
+                        groupCount: skinHitsoundCatalog.size,
+                        fileCount: skinHitsoundCatalog.size,
+                        selectedFileCount: skinHitsoundCatalog.size
+                    };
+            }
             activateEditableDefaultSkinWorkspace(keyCount);
+            if (typeof prepareManiaHitsoundPlayback === 'function' && currentBeatmap && activeNotes.length > 0) {
+                await prepareManiaHitsoundPlayback();
+            }
 
             selectedCanvasElement = null;
             const card = document.getElementById('canvasSelectedCard');

@@ -206,7 +206,7 @@
             return renamed;
         }
 
-        function deleteTextureLibrarySource(source) {
+        function markTextureLibrarySourceDeleted(source, options = {}) {
             if (!source || !source.path) throw new Error('缺少要删除的贴图');
             const storeKeys = collectTextureLibraryStoreKeys(source);
             const sourceBase = normalizeSkinKey(source.path);
@@ -218,7 +218,9 @@
                 fallbackFrames.every((frame, index) => frame === source.frames[index]);
             const removedFiles = new Set();
 
-            recordSkinUndoBeforeChange(`删除贴图: ${source.path}`, { force: true });
+            if (options.recordUndo !== false) {
+                recordSkinUndoBeforeChange(`删除贴图: ${source.path}`, { force: true });
+            }
             deleteTextureLibraryStoreSource(skinImageStore, storeKeys);
             if (fallbackMatchesSource) {
                 deleteTextureLibraryStoreSource(
@@ -252,13 +254,25 @@
                 deletedSkinTexturePaths.add(normalizeTextureLibraryArchiveName(filename));
             }
 
-            const clearedReferences = clearTextureLibraryParamReferences(storeKeys);
-            deleteCreatedTextureParams(source.path);
+            const clearedReferences = options.clearReferences === true
+                ? clearTextureLibraryParamReferences(storeKeys)
+                : 0;
+            if (options.deleteCreatedParams !== false) {
+                deleteCreatedTextureParams(source.path);
+            }
             return {
                 path: source.path,
                 removedFiles: Array.from(removedFiles),
                 clearedReferences
             };
+        }
+
+        function deleteTextureLibrarySource(source) {
+            return markTextureLibrarySourceDeleted(source, {
+                recordUndo: true,
+                clearReferences: true,
+                deleteCreatedParams: true
+            });
         }
 
         function getCreatedTextureParams(path) {

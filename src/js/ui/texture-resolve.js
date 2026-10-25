@@ -294,6 +294,9 @@
         }
 
         function getTextureParamIniValue(keys, p) {
+            if (isFontGlyphTextureParam(p)) {
+                return p._fontGlyph.path || p.default || '';
+            }
             const mCfg = maniaSkinConfigurations.get(keys) || maniaSkinConfigurations.get(4) || {};
             const aliases = getTextureParamAliases(p.key, keys || 4);
 
@@ -430,6 +433,10 @@
         function resolveTextureParam(keys, p) {
             const keyCount = keys || 4;
 
+            if (isFontGlyphTextureParam(p)) {
+                return resolveFontGlyphTextureParam(keyCount, p);
+            }
+
             // ---- A. 逐轨贴图：与画布 getManiaSkinImage 共用同一份查找顺序 ----
             if (p._trackLookup != null) {
                 const out = {};
@@ -492,6 +499,9 @@
         // 通用贴图按 resolveTextureParam 解析出的实际生效名去贴图库里取帧序列。
         function resolveTextureParamFrames(keys, p) {
             const keyCount = keys || 4;
+            if (isFontGlyphTextureParam(p)) {
+                return resolveFontGlyphTextureFrames(keyCount, p);
+            }
             if (p._trackLookup != null) {
                 const frames = getManiaSkinAnimationFrames(keyCount, p._trackLookup, p._trackCol);
                 if (frames && frames.length > 0) return frames;

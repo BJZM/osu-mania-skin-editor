@@ -23,21 +23,41 @@
                         </svg>
                     </button>
 
-                    <div class="volume-control">
-                        <button class="volume-mute-btn" id="volumeMuteBtn" title="静音切换">
-                            <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                <path class="vol-wave" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                                <path class="vol-wave-loud" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-                            </svg>
-                            <svg class="mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                                <line x1="23" y1="9" x2="17" y2="15"></line>
-                                <line x1="17" y1="9" x2="23" y2="15"></line>
-                            </svg>
-                        </button>
-                        <input type="range" id="volumeRange" class="volume-slider" min="0" max="1" step="0.01" value="0.8">
-                        <span id="volumeText" class="volume-percent">80%</span>
+                    <div class="volume-mixer" role="group" aria-label="音量控制">
+                        <div class="volume-control">
+                            <button type="button" class="volume-mute-btn" id="volumeMuteBtn" title="歌曲静音切换" aria-label="歌曲静音切换" aria-pressed="false">
+                                <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path class="vol-wave" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                    <path class="vol-wave-loud" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                                </svg>
+                                <svg class="mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                                </svg>
+                            </button>
+                            <span class="volume-label">歌曲</span>
+                            <input type="range" id="volumeRange" class="volume-slider" min="0" max="1" step="0.01" value="0.8" aria-label="歌曲音量">
+                            <span id="volumeText" class="volume-percent">80%</span>
+                        </div>
+                        <div class="volume-control">
+                            <button type="button" class="volume-mute-btn" id="effectsVolumeMuteBtn" title="音效静音切换" aria-label="音效静音切换" aria-pressed="false">
+                                <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <path class="vol-wave" d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                    <path class="vol-wave-loud" d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                                </svg>
+                                <svg class="mute-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                                </svg>
+                            </button>
+                            <span class="volume-label">音效</span>
+                            <input type="range" id="effectsVolumeRange" class="volume-slider" min="0" max="1" step="0.01" value="0.8" aria-label="音效音量">
+                            <span id="effectsVolumeText" class="volume-percent">80%</span>
+                        </div>
                     </div>
                 </div>
 
@@ -45,6 +65,13 @@
 
                 <!-- 中区：故事板/视频开关、流速调节与背景暗化 -->
                 <div class="deck-group deck-tweaks">
+                    <div class="tweak-switch-item studio-utility-toggle" title="开启 / 关闭编辑器内的连击提示图预览；游戏内总开关需要在 osu!stable 中开启或关闭">
+                        <span class="tweak-label">连击提示图</span>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="comboburstPreviewToggle">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                     <div class="tweak-switch-item studio-utility-toggle" title="开启判定提示动态演示：按真实比率展示 300MAX/300/200/100/50 及 Miss 断连恢复">
                         <span class="tweak-label">判定演示</span>
                         <label class="ios-switch">

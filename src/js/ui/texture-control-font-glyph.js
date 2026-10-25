@@ -45,21 +45,16 @@
                 const btnGroup = document.createElement('div');
                 btnGroup.className = 'hud-glyph-actions';
 
-                const uploadBtn = document.createElement('button');
-                uploadBtn.type = 'button';
-                uploadBtn.className = 'hud-glyph-btn upload';
-                uploadBtn.title = `上传并替换 ${g.tex}.png 贴图`;
-                uploadBtn.innerHTML = `
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <polyline points="21 15 16 10 5 21"></polyline>
-                    </svg>
-                    <span>导入</span>
-                `;
-                uploadBtn.onclick = () => {
-                    triggerTextureUpload(g.tex, null, uploadParamKey, null, '1x');
-                };
+                const uploadDropdown = buildTextureUploadDropdown({
+                    uploadTargetName: g.tex,
+                    targetKey: null,
+                    paramKey: uploadParamKey,
+                    keys,
+                    existingParam: g.param,
+                    hoverHost: itemCard,
+                    mainLabel: '导入',
+                    dropdownClass: 'hud-glyph-upload-dropdown'
+                });
 
                 const locateBtn = document.createElement('button');
                 locateBtn.type = 'button';
@@ -84,7 +79,7 @@
                     }
                 };
 
-                btnGroup.appendChild(uploadBtn);
+                btnGroup.appendChild(uploadDropdown);
                 btnGroup.appendChild(locateBtn);
 
                 itemCard.appendChild(previewBox);

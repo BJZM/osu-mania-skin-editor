@@ -13,16 +13,18 @@
 
 ## 输出
 - 确认后当前参数路径被改写，参数面板和画布刷新；支持在搜索框中直接输入贴图名（或按 Enter / 确认按钮）自动解析并应用已有贴图。
-- **后置条件**：弹窗关闭；不新增或覆盖贴图文件。
+- 字体字形目标会从已有 `*-0` / `*-dot` / `*-percent` 路径反推出 ScorePrefix 或 ComboPrefix；无法反推字形组时，把所选图片写入当前字形的既定前缀路径。
+- **后置条件**：弹窗关闭；常规路径引用不复制图片，只有无法反推字体组时才把所选图片写入当前字形目标路径。
 
 ## 依赖模块
 - `texture-existing-sources` 候选列表接口。
 - `texture-existing-picker-view` 候选网格渲染接口。
 - `texture-param-lookup` 路径写入接口。
+- `texture-replacement` 旧资源引用回收接口。
 - `recordSkinUndoBeforeChange`、`syncParamInputValue`、`renderSkinEditorParams`、`drawFrame`。
 
 ## 副作用 / 外部资源
-- 修改 DOM、skin.ini 内存映射和撤销快照；触发画布重绘。
+- 修改 DOM、skin.ini 内存映射和撤销快照；旧资源失去最后一个引用时写入逻辑删除标记；触发画布重绘。
 
 ## 非功能
 - 搜索只过滤已加载候选，不重复扫描资源。

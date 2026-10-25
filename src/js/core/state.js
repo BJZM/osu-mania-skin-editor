@@ -28,6 +28,7 @@
             LightFramePerSecond: 'LightFramePerSecond',
             ExplosionWidth: 'ExplosionWidth',
             ExplosionScale: 'ExplosionScale',
+            ComboBurstStyle: 'ComboBurstStyle',
             ComboBreakColour: 'ComboBreakColour',
             ColourHold: 'ColourHold',
             ColourLight: 'ColourLight',
@@ -62,6 +63,15 @@
 
         let skinImageStore = new Map();
         let skinFallbackImageStore = new Map();
+        let skinHitsoundCatalog = new Map();
+        let skinHitsoundSummary = {
+            groupCount: 0,
+            fileCount: 0,
+            selectedFileCount: 0
+        };
+        // 详细设置里的皮肤音效替换先作为虚拟覆盖层保存，导出时才写入 ZIP。
+        // 这样撤回、复原初始皮肤与导出后继续撤回都不会破坏导入的原始资源。
+        let skinHitsoundReplacements = new Map();
         let defaultSkinImageStore = new Map();
         let defaultSkinFallbackStore = new Map();
         let isDefaultSkinLoaded = false;
@@ -86,6 +96,7 @@
                 CursorRotate: 0,
                 CursorExpand: 1,
                 CursorCentre: 1,
+                ComboBurstRandom: 0,
             },
             colours: {},
             fonts: {},
@@ -144,6 +155,9 @@
         let previewBreakResumeTime = 0;
         let playbackBreakResumeTime = 0;
         let playbackSavedCombo = 0;
+
+        // 连击提示图仅控制编辑器内预览；osu!stable 的游戏内总开关无法由皮肤控制。
+        let isComboburstPreviewEnabled = false;
 
         // 判定演示分布序列 (对齐实际高水平结算比例：300及以上占比超94%，300g与300保持约2.5:1，中间穿插少量200/100/50，末尾Miss断连)
         const JUDGEMENT_PREVIEW_PATTERN = (() => {
@@ -212,6 +226,10 @@
         let enableVideo = true;
         let activeNotes = [];
         let isPreviewMode = false;
+        let musicVolume = 0.8;
+        let effectVolume = 0.8;
+        let musicMuted = false;
+        let effectMuted = false;
         let audio = new Audio();
         let audioBlobUrl = null;
 
@@ -286,6 +304,9 @@
             volumeRange: document.getElementById('volumeRange'),
             volumeText: document.getElementById('volumeText'),
             volumeMuteBtn: document.getElementById('volumeMuteBtn'),
+            effectsVolumeRange: document.getElementById('effectsVolumeRange'),
+            effectsVolumeText: document.getElementById('effectsVolumeText'),
+            effectsVolumeMuteBtn: document.getElementById('effectsVolumeMuteBtn'),
             // 加载与通知组件
             loadingOverlay: document.getElementById('loadingOverlay'),
             loadingTitle: document.getElementById('loadingTitle'),

@@ -462,8 +462,16 @@
                             break;
                         }
                         case 'specialstyle':
-                        case 'comboburststyle':
                             break;
+                        case 'comboburststyle': {
+                            const normalizedStyle = String(V || '').trim().toLowerCase();
+                            const namedStyles = { left: 0, right: 1, both: 2, random: 2 };
+                            const style = namedStyles[normalizedStyle] != null
+                                ? namedStyles[normalizedStyle]
+                                : parseInt(V, 10);
+                            if (style >= 0 && style <= 2) currentConfig.ComboBurstStyle = style;
+                            break;
+                        }
                         default:
                             if (imgKeyCi.startsWith('colour') || imgKeyCi.startsWith('color')) {
                                 const clMatch = imgKeyCi.match(/^colou?rlight(\d+)?$/);
