@@ -8,6 +8,9 @@
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![platform](https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey)
 
+# QQ群
+交流群854634917，可以反馈bug提建议。
+
 ## 声明
 
 本项目完全通过 vibe coding 制作：代码、文档与资源均由 AI 辅助生成并持续迭代，甚至连上传GitHub也是通过agent完成的，作者本人完全业余。
