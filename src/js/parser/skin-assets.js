@@ -26,12 +26,33 @@
             return removed;
         }
 
+        function isStageSideImageKey(key) {
+            const normalized = String(key || '').replace(/\s+/g, '');
+            return /^(?:stage[_-]?(?:left|right)|(?:left|right)stageimage)\d*$/i.test(normalized);
+        }
+
+        function isStageSideImagePath(relativePath) {
+            const baseName = String(relativePath || '')
+                .replace(/\\/g, '/')
+                .split('/')
+                .pop()
+                .replace(/@2x(?=\.[^.]+$)/i, '')
+                .replace(/\.[^.]+$/, '')
+                .replace(/[^a-z0-9]/gi, '')
+                .toLowerCase();
+            return /^(?:mania)?(?:stageleft|stageright)$/.test(baseName) ||
+                /^(?:mania)?(?:leftstageimage|rightstageimage)$/.test(baseName);
+        }
+
         function processSkinImage(img, relativePath = '', preserveBlack = false) {
             if (!img.width || !img.height) return img;
             // osu!mania 长条尾部贴图 (NoteImage*T / mania-note*T / tail / keyT) 依赖其黑色底色作为遮罩 (mask)
             // 覆盖在矩形身体上形成圆拱造型，绝不能将黑色抠成透明，否则会导致长条身体穿透暴露。
             // preserveBlack 用于 skin.ini 把其它文件名别名到尾巴槽位的情况，例如 NoteImage0T: Arrows\noteH。
-            if (preserveBlack || (relativePath && /(tail|notet|keyt)/i.test(relativePath))) {
+            // 舞台左右侧图同样必须保留完整不透明像素；它们的黑色服装、描边等不是透明蒙版。
+            if (preserveBlack ||
+                isStageSideImagePath(relativePath) ||
+                (relativePath && /(tail|notet|keyt)/i.test(relativePath))) {
                 return img;
             }
             const c = document.createElement('canvas');

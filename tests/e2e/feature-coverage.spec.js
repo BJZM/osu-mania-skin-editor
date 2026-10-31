@@ -236,6 +236,40 @@ test('A1 启动面板先导入谱面，皮肤来源确定前只显示背景并�
   expect(initial.startupVisible).toBe(true);
   expect(initial.skinReady).toBe(false);
 
+  // 复现加载中途：currentBeatmap 已赋值，但启动标记尚未置位。这一帧只能是空画布，不能闪出默认皮肤。
+  const duringLoad = await page.evaluate(() => {
+    const previousBeatmap = currentBeatmap;
+    const previousNotes = activeNotes;
+    const previousFade = bgFadeStartTime;
+    currentBeatmap = {
+      difficulty: { circleSize: 4, sliderTickRate: 1 },
+      hitObjects: [],
+      general: {}
+    };
+    activeNotes = [];
+    bgFadeStartTime = -BG_FADE_DURATION;
+    startupWorkflowBeatmapReady = false;
+    startupWorkflowSkinReady = false;
+    const defer = shouldDeferSkinRendering();
+    drawFrame();
+    cancelAnimationFrame(animationId);
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let lit = 0;
+    for (let y = 0; y < canvas.height; y += 8) {
+      for (let x = 0; x < canvas.width; x += 8) {
+        const i = (y * canvas.width + x) * 4;
+        if (data[i] > 24 || data[i + 1] > 24 || data[i + 2] > 24) lit++;
+      }
+    }
+    currentBeatmap = previousBeatmap;
+    activeNotes = previousNotes;
+    bgFadeStartTime = previousFade;
+    drawFrame();
+    return { defer, lit };
+  });
+  expect(duringLoad.defer).toBe(true);
+  expect(duringLoad.lit).toBe(0);
+
   // 先导入谱面：只显示背景，舞台与音符继续等待皮肤来源。
   await importBeatmap(page);
   await page.waitForFunction(() => startupWorkflowBeatmapReady === true);
@@ -948,6 +982,11 @@ test('E1 判定线开关：JudgementLine=0 时白色判定线消失', async ({ p
     skinImageStore.clear();
     skinFallbackImageStore.clear();
     defaultSkinImageStore.clear();
+    markStartupBeatmapReady();
+    markStartupSkinReady();
+    cancelAnimationFrame(animationId);
+    isPlaying = false;
+    isSeeking = true;
     currentBeatmap = { keys: 4, difficulty: { circleSize: 4 }, hitObjects: [], timingPoints: [] };
     currentTimingPoints = [];
     activeNotes = [];
@@ -994,6 +1033,11 @@ test('E2 UpsideDown 会把判定线与演奏区镜像到画布另一侧', async 
     skinImageStore.clear();
     skinFallbackImageStore.clear();
     defaultSkinImageStore.clear();
+    markStartupBeatmapReady();
+    markStartupSkinReady();
+    cancelAnimationFrame(animationId);
+    isPlaying = false;
+    isSeeking = true;
     currentBeatmap = { keys: 4, difficulty: { circleSize: 4 }, hitObjects: [], timingPoints: [] };
     currentTimingPoints = [];
     activeNotes = [];
@@ -2046,39 +2090,178 @@ test('I7 打击特效贴图使用 stable 全局键，不再按轨道展开', asy
   expect(errors).toEqual([]);
 });
 
-test('I8 ColourHold 透明度参与连击数字着色', async ({ page }) => {
+test('I8 ColourHold 头部呼吸脉冲与尾部预警快闪动画机制', async ({ page }) => {
   const errors = await boot(page);
 
   const result = await page.evaluate(() => {
     const source = document.createElement('canvas');
-    source.width = 1;
+    source.width = 5;
     source.height = 1;
     const sourceCtx = source.getContext('2d');
     sourceCtx.fillStyle = '#ffffff';
     sourceCtx.fillRect(0, 0, 1, 1);
+    sourceCtx.fillStyle = '#808080';
+    sourceCtx.fillRect(1, 0, 1, 1);
+    sourceCtx.fillStyle = '#000000';
+    sourceCtx.fillRect(2, 0, 1, 1);
+    sourceCtx.fillStyle = 'rgba(255,255,255,0.5)';
+    sourceCtx.fillRect(3, 0, 1, 1);
 
-    const readTintedAlpha = (alpha) => {
-      const tinted = getTintedDigitCanvas(source, { r: 255, g: 0, b: 0, a: alpha });
-      return tinted.getContext('2d').getImageData(0, 0, 1, 1).data[3];
+    const readPixels = (canvas, width) => {
+      const data = canvas.getContext('2d').getImageData(0, 0, width, 1).data;
+      return Array.from({ length: width }, (_, i) => Array.from(data.slice(i * 4, i * 4 + 4)));
     };
 
     const keys = getActiveKeyCount();
     ensureManiaConfigForKeys(keys);
-    getManiaConfigForKeys(keys).ColourHold = { r: 255, g: 0, b: 0, a: 0 };
+
+    const fullTint = getTintedDigitCanvas(source, { r: 255, g: 0, b: 0, a: 255 });
+    const multipliedPixels = readPixels(fullTint, 5);
+
+    const white = document.createElement('canvas');
+    white.width = 1;
+    white.height = 1;
+    const whiteCtx = white.getContext('2d');
+    whiteCtx.fillStyle = '#ffffff';
+    whiteCtx.fillRect(0, 0, 1, 1);
+    const halfAlpha = getTintedDigitCanvas(white, { r: 255, g: 0, b: 0, a: 128 });
+    const halfAlphaPixel = readPixels(halfAlpha, 1)[0];
+
+    const cfg = getManiaConfigForKeys(keys);
+    cfg.ColourHold = { r: 0, g: 0, b: 255, a: 255 };
+    resetComboHoldColourTint();
+    const idle = { ...getComboHoldColourTint(keys, false, 1000) };
+    const pressStart = { ...getComboHoldColourTint(keys, true, 1000) };
+    const pressHalf = { ...getComboHoldColourTint(keys, true, 1150) };
+    const held = { ...getComboHoldColourTint(keys, true, 1300) };
+    const tailWarnStart = { ...getComboHoldColourTint(keys, true, 2000, { isTailWarning: true }) };
+    const tailWarnHalf = { ...getComboHoldColourTint(keys, true, 2050) };
+    const tailWarnEnd = { ...getComboHoldColourTint(keys, true, 2100) };
+    const released = { ...getComboHoldColourTint(keys, false, 2300) };
+
+    cfg.ColourHold = { r: 255, g: 255, b: 255, a: 0 };
+    resetComboHoldColourTint();
+    const transparentPressStart = { ...getComboHoldColourTint(keys, true, 3000) };
+    const transparentPressQuarter = { ...getComboHoldColourTint(keys, true, 3075) };
+    const transparentPressHalf = { ...getComboHoldColourTint(keys, true, 3150) };
+    const transparentHeld = { ...getComboHoldColourTint(keys, true, 3300) };
+    const transparentTailWarnStart = { ...getComboHoldColourTint(keys, true, 4000, { isTailWarning: true }) };
+    const transparentTailWarnHalf = { ...getComboHoldColourTint(keys, true, 4050) };
+    const transparentTailWarnEnd = { ...getComboHoldColourTint(keys, true, 4100) };
+    const transparentReleased = { ...getComboHoldColourTint(keys, false, 4300) };
+
+    // 短长条打断测试：头部脉冲未播完（80ms < 300ms）收到尾部预警，瞬间突变回白并播放快闪
+    resetComboHoldColourTint();
+    getComboHoldColourTint(keys, true, 5000);
+    const shortLNInterruptStart = { ...getComboHoldColourTint(keys, true, 5080, { isTailWarning: true }) };
+    const shortLNInterruptHalf = { ...getComboHoldColourTint(keys, true, 5130) };
+    const shortLNInterruptEnd = { ...getComboHoldColourTint(keys, true, 5180) };
+
+    // 跨轨长条衔接测试：长条连续按住时，后一根长条跳过头部脉冲
+    resetComboHoldColourTint();
+    getComboHoldColourTint(keys, true, 6000);
+    getComboHoldColourTint(keys, true, 6300);
+    const continuousHandoff = { ...getComboHoldColourTint(keys, true, 7000) };
+
+    const zeroAlphaPixel = readPixels(getTintedDigitCanvas(white, transparentPressHalf), 1)[0];
+    const pinComboHoldColour = (isHolding, color) => {
+      comboAnimState.holdColourActive = isHolding;
+      comboAnimState.holdColourCurrent = { ...color };
+    };
+    const countVisiblePixels = (isHolding) => {
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      comboAnimState.breakStartTime = -1000;
+      comboAnimState.breakCount = 0;
+      drawCombo(123, canvas.width / 2, canvas.height / 2, keys, canvas.height / 768, isHolding);
+      const regionSize = Math.min(300, canvas.width, canvas.height);
+      const pixels = ctx.getImageData(
+        Math.max(0, Math.floor(canvas.width / 2 - regionSize / 2)),
+        Math.max(0, Math.floor(canvas.height / 2 - regionSize / 2)),
+        regionSize,
+        regionSize
+      ).data;
+      let visible = 0;
+      for (let i = 3; i < pixels.length; i += 4) {
+        if (pixels[i] > 0) visible++;
+      }
+      ctx.restore();
+      return visible;
+    };
+    pinComboHoldColour(true, transparentPressHalf);
+    const holdVisiblePixels = countVisiblePixels(true);
+    pinComboHoldColour(false, transparentTailWarnHalf);
+    const tailWarnVisiblePixels = countVisiblePixels(false);
+    pinComboHoldColour(false, transparentHeld);
+    const heldWhiteVisiblePixels = countVisiblePixels(false);
     const ini = generateSkinIniText();
 
     return {
-      full: readTintedAlpha(255),
-      half: readTintedAlpha(128),
-      zero: readTintedAlpha(0),
-      exportsZeroAlpha: /ColourHold\s*:\s*255,0,0,0/.test(ini)
+      multipliedPixels,
+      halfAlphaPixel,
+      holdColours: {
+        idle,
+        pressStart,
+        pressHalf,
+        held,
+        tailWarnStart,
+        tailWarnHalf,
+        tailWarnEnd,
+        released,
+        transparentPressStart,
+        transparentPressQuarter,
+        transparentPressHalf,
+        transparentHeld,
+        transparentTailWarnStart,
+        transparentTailWarnHalf,
+        transparentTailWarnEnd,
+        transparentReleased,
+        shortLNInterruptStart,
+        shortLNInterruptHalf,
+        shortLNInterruptEnd,
+        continuousHandoff,
+        zeroAlphaPixel,
+        holdVisiblePixels,
+        tailWarnVisiblePixels,
+        heldWhiteVisiblePixels,
+      },
+      exportsZeroAlpha: /ColourHold\s*:\s*255,255,255,0/.test(ini)
     };
   });
 
-  expect(result.full).toBe(255);
-  expect(result.half).toBeGreaterThanOrEqual(127);
-  expect(result.half).toBeLessThanOrEqual(129);
-  expect(result.zero).toBe(0);
+  expect(result.multipliedPixels).toEqual([
+    [255, 0, 0, 255],
+    [128, 0, 0, 255],
+    [0, 0, 0, 255],
+    [255, 0, 0, 128],
+    [0, 0, 0, 0],
+  ]);
+  expect(result.halfAlphaPixel).toEqual([255, 0, 0, 128]);
+  expect(result.holdColours.idle).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.pressStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.pressHalf).toEqual({ r: 0, g: 0, b: 255, a: 255 });
+  expect(result.holdColours.held).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.tailWarnStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.tailWarnHalf).toEqual({ r: 0, g: 0, b: 255, a: 255 });
+  expect(result.holdColours.tailWarnEnd).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.released).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.transparentPressStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.transparentPressQuarter).toEqual({ r: 255, g: 255, b: 255, a: 128 });
+  expect(result.holdColours.transparentPressHalf).toEqual({ r: 255, g: 255, b: 255, a: 0 });
+  expect(result.holdColours.transparentHeld).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.transparentTailWarnStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.transparentTailWarnHalf).toEqual({ r: 255, g: 255, b: 255, a: 0 });
+  expect(result.holdColours.transparentTailWarnEnd).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.transparentReleased).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.shortLNInterruptStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.shortLNInterruptHalf).toEqual({ r: 255, g: 255, b: 255, a: 0 });
+  expect(result.holdColours.shortLNInterruptEnd).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.continuousHandoff).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.zeroAlphaPixel[3]).toBe(0);
+  expect(result.holdColours.holdVisiblePixels).toBe(0);
+  expect(result.holdColours.tailWarnVisiblePixels).toBe(0);
+  expect(result.holdColours.heldWhiteVisiblePixels).toBeGreaterThan(0);
   expect(result.exportsZeroAlpha).toBe(true);
   expect(errors).toEqual([]);
 });

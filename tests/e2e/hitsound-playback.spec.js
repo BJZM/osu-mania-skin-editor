@@ -203,6 +203,64 @@ test('默认皮肤在没有皮肤 ZIP 时提供 Legacy 打击音效回退', asyn
   expect(errors).toEqual([]);
 });
 
+test('打击音效按歌曲时钟提前排程以抵消输出延迟', async ({ page }) => {
+  const errors = await boot(page);
+  await page.setInputFiles('#oszInput', MINIMAL_BEATMAP);
+  await page.waitForFunction(() => beatmaps.length > 0 && activeNotes.length > 0, null, { timeout: 60000 });
+  await page.click('#startupUseDefaultSkinBtn');
+  await page.waitForFunction(
+    () => isStartupWorkspaceReady() &&
+      getManiaHitsoundDebugSnapshot().ready &&
+      getManiaHitsoundDebugSnapshot().resolvedNoteCount > 0,
+    null,
+    { timeout: 60000 }
+  );
+
+  const timing = await page.evaluate(async () => {
+    await resumeManiaHitsoundPlayback();
+    const clock = captureManiaHitsoundClock(10);
+    const when = getManiaHitsoundContextTime(10.08, 10);
+    return {
+      lead: clock.lead,
+      ahead: when - clock.contextNow
+    };
+  });
+  expect(timing.lead).toBeGreaterThan(0);
+  expect(timing.lead).toBeLessThanOrEqual(0.085);
+  expect(timing.ahead).toBeCloseTo(0.08 - timing.lead, 2);
+
+  await page.click('#playPauseBtn');
+  await page.waitForFunction(() => isPlaying && !audio.paused);
+
+  const scheduled = await page.evaluate(() => {
+    const note = activeNotes.find((item) =>
+      item.hitsoundSampleRefs &&
+      item.hitsoundSampleRefs.length > 0 &&
+      item.startTime > 1500
+    );
+    const leadMs = getManiaHitsoundLeadSeconds(getManiaHitsoundAudioContext()) * 1000;
+    const aheadMs = Math.round(leadMs) + 30;
+    const mediaNowMs = note.startTime - aheadMs;
+    audio.currentTime = mediaNowMs / 1000;
+    reconcileManiaHitsoundCues(mediaNowMs);
+    const before = getManiaHitsoundDebugSnapshot().triggerCount;
+    scheduleManiaHitsounds(mediaNowMs);
+    const snapshot = getManiaHitsoundDebugSnapshot();
+    const played = snapshot.lastPlayed.filter((item) => item.noteTime === note.startTime);
+    return {
+      handled: note.hitsoundCueHandled,
+      triggers: snapshot.triggerCount - before,
+      scheduledAheadMs: played.length ? played[0].scheduledAheadMs : null
+    };
+  });
+
+  expect(scheduled.handled).toBe(true);
+  expect(scheduled.triggers).toBeGreaterThan(0);
+  expect(scheduled.scheduledAheadMs).toBeGreaterThan(20);
+  expect(scheduled.scheduledAheadMs).toBeLessThan(45);
+  expect(errors).toEqual([]);
+});
+
 test('恢复前台时丢弃迟到的音效，并继续触发当前 note', async ({ page }) => {
   const errors = await boot(page);
   await page.setInputFiles('#oszInput', CRYSTAL_WORLD);

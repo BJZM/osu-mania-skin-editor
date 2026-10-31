@@ -8,7 +8,7 @@
     <title>osu!mania 可视化皮肤编辑器</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <meta name="theme-color" content="#1b1622">
-    <link rel="stylesheet" href="src/css/style.css?v=20261020_1">
+    <link rel="stylesheet" href="src/css/style.css?v=20261031_4">
 </head>
 
 <body>
@@ -1521,35 +1521,47 @@
 
                 <div class="deck-divider"></div>
 
-                <!-- 中区：故事板/视频开关、流速调节与背景暗化 -->
+                <!-- 中区：更多播放设置（向左展开）、流速调节与背景暗化 -->
                 <div class="deck-group deck-tweaks">
-                    <div class="tweak-switch-item studio-utility-toggle" title="开启 / 关闭编辑器内的连击提示图预览；游戏内总开关需要在 osu!stable 中开启或关闭">
-                        <span class="tweak-label">连击提示图</span>
-                        <label class="ios-switch">
-                            <input type="checkbox" id="comboburstPreviewToggle">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="tweak-switch-item studio-utility-toggle" title="开启判定提示动态演示：按真实比率展示 300MAX/300/200/100/50 及 Miss 断连恢复">
-                        <span class="tweak-label">判定演示</span>
-                        <label class="ios-switch">
-                            <input type="checkbox" id="previewJudgementToggle">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="tweak-switch-item" title="开启 / 关闭故事板渲染 (对齐 osu!stable 故事板开关)">
-                        <span class="tweak-label">故事板</span>
-                        <label class="ios-switch">
-                            <input type="checkbox" id="storyboardToggle" checked disabled>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    <div class="tweak-switch-item" title="开启 / 关闭视频背景播放 (对齐 osu!stable 视频背景开关)">
-                        <span class="tweak-label">视频</span>
-                        <label class="ios-switch">
-                            <input type="checkbox" id="videoToggle" checked disabled>
-                            <span class="slider"></span>
-                        </label>
+                    <div class="playback-more" id="playbackMoreSettings">
+                        <div class="playback-more-panel" id="playbackMorePanel" aria-hidden="true">
+                            <div class="playback-more-panel-inner">
+                                <div class="tweak-switch-item studio-utility-toggle" title="开启 / 关闭编辑器内的连击提示图预览；游戏内总开关需要在 osu!stable 中开启或关闭">
+                                    <span class="tweak-label">连击提示图</span>
+                                    <label class="ios-switch">
+                                        <input type="checkbox" id="comboburstPreviewToggle">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="tweak-switch-item studio-utility-toggle" title="开启判定提示动态演示：按真实比率展示 300MAX/300/200/100/50 及 Miss 断连恢复">
+                                    <span class="tweak-label">判定演示</span>
+                                    <label class="ios-switch">
+                                        <input type="checkbox" id="previewJudgementToggle">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="tweak-switch-item" title="开启 / 关闭故事板渲染 (对齐 osu!stable 故事板开关)">
+                                    <span class="tweak-label">故事板</span>
+                                    <label class="ios-switch">
+                                        <input type="checkbox" id="storyboardToggle" checked disabled>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                                <div class="tweak-switch-item" title="开启 / 关闭视频背景播放 (对齐 osu!stable 视频背景开关)">
+                                    <span class="tweak-label">视频</span>
+                                    <label class="ios-switch">
+                                        <input type="checkbox" id="videoToggle" checked disabled>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary playback-more-toggle" id="playbackMoreToggle" aria-expanded="false" aria-controls="playbackMorePanel" title="展开更多播放设置">
+                            <span class="playback-more-label">更多播放设置</span>
+                            <svg class="playback-more-chevron" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="7.5 2.5 4 6 7.5 9.5"></polyline>
+                            </svg>
+                        </button>
                     </div>
                     <div class="tweak-slider-item" title="流速调节 (Scroll Speed 1-40)">
                         <span class="tweak-label">流速 </span>
@@ -2232,7 +2244,7 @@
                 <section class="about-hero">
                     <div class="about-app-name">osu!mania Skin Editor</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.4.0</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.4.1</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>
@@ -2300,12 +2312,12 @@
     <!-- osu! stable 默认皮肤资源配置 -->
     <script defer src="src/js/default_skin.js?v=20261009_3"></script>
     <!-- 中英文界面词条与语言切换 -->
-    <script defer src="src/js/core/i18n-dictionary.js?v=20261019_1"></script>
+    <script defer src="src/js/core/i18n-dictionary.js?v=20261031_2"></script>
     <script defer src="src/js/core/i18n.js?v=20261019_1"></script>
     <!-- 主逻辑脚本：按依赖顺序加载（普通脚本引入，兼容 file:// 协议） -->
     <!-- 1) 全局状态、skin.ini 解析与参数元数据 -->
     <script defer src="src/js/core/stage-layout.js?v=20261009_2"></script>
-    <script defer src="src/js/core/state.js?v=20261010_7"></script>
+    <script defer src="src/js/core/state.js?v=20261025_2"></script>
     <script defer src="src/js/skin/skin-ini.js?v=20261009_2"></script>
     <script defer src="src/js/skin/mania-config.js?v=20261009_2"></script>
     <script defer src="src/js/skin/parameter-schema-mania.js?v=20261016_1"></script>
@@ -2320,16 +2332,16 @@
     <script defer src="src/js/parser/zip-timing.js?v=20261010_4"></script>
     <script defer src="src/js/parser/beatmap-load.js?v=20261013_2"></script>
     <script defer src="src/js/parser/beatmap-import.js?v=20261012_2"></script>
-    <script defer src="src/js/parser/skin-assets.js?v=20261013_3"></script>
+    <script defer src="src/js/parser/skin-assets.js?v=20261025_2"></script>
     <script defer src="src/js/parser/skin-hitsound-assets.js?v=20261024_1"></script>
     <script defer src="src/js/parser/default-skin-hitsounds.js?v=20261024_1"></script>
     <script defer src="src/js/parser/tiff.js?v=20261009_2"></script>
-    <script defer src="src/js/parser/skin-import.js?v=20261013_3"></script>
+    <script defer src="src/js/parser/skin-import.js?v=20261025_2"></script>
     <!-- 3) Canvas 画布绘制核心 -->
     <script defer src="src/js/render/effects.js?v=20261009_2"></script>
     <script defer src="src/js/render/fonts.js?v=20261009_6"></script>
     <script defer src="src/js/render/textures.js?v=20261017_1"></script>
-    <script defer src="src/js/render/combo.js?v=20261010_3"></script>
+    <script defer src="src/js/render/combo.js?v=20261025_2"></script>
     <script defer src="src/js/render/comboburst-assets.js?v=20261025_1"></script>
     <script defer src="src/js/render/comboburst.js?v=20261025_1"></script>
     <script defer src="src/js/render/video-transcoder.js?v=20261010_2"></script>
@@ -2342,11 +2354,11 @@
     <script defer src="src/js/render/frame-notes.js?v=20261016_1"></script>
     <script defer src="src/js/render/frame-stage-light.js?v=20261016_1"></script>
     <script defer src="src/js/render/frame-lighting.js?v=20261016_1"></script>
-    <script defer src="src/js/render/frame-playfield.js?v=20261016_1"></script>
-    <script defer src="src/js/render/frame.js?v=20261024_3"></script>
+    <script defer src="src/js/render/frame-playfield.js?v=20261025_3"></script>
+    <script defer src="src/js/render/frame.js?v=20261031_1"></script>
     <script defer src="src/js/render/judgements.js?v=20261009_2"></script>
     <script defer src="src/js/render/hud.js?v=20261013_2"></script>
-    <script defer src="src/js/render/diagnostics.js?v=20261009_2"></script>
+    <script defer src="src/js/render/diagnostics.js?v=20261031_1"></script>
     <!-- 在后续 UI 脚本解析时并行加载默认皮肤图片 -->
     <script defer src="src/js/core/bootstrap.js?v=20261010_2"></script>
     <!-- 4) 皮肤光标覆盖层 -->
@@ -2355,11 +2367,11 @@
     <script defer src="src/js/ui/feedback.js?v=20261010_3"></script>
     <script defer src="src/js/ui/startup-actions.js?v=20261017_1"></script>
     <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
-    <script defer src="src/js/ui/transport.js?v=20261013_2"></script>
-    <script defer src="src/js/ui/hitsound-playback.js?v=20261024_1"></script>
+    <script defer src="src/js/ui/transport.js?v=20261031_3"></script>
+    <script defer src="src/js/ui/hitsound-playback.js?v=20261031_1"></script>
     <script defer src="src/js/ui/canvas-element-index.js?v=20261016_1"></script>
     <script defer src="src/js/ui/canvas-editor.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/ini-export.js?v=20261009_3"></script>
+    <script defer src="src/js/ui/ini-export.js?v=20261031_1"></script>
     <script defer src="src/js/ui/param-core.js?v=20261009_6"></script>
     <script defer src="src/js/ui/texture-resolve.js?v=20261017_1"></script>
     <script defer src="src/js/ui/texture-font-glyphs.js?v=20261024_1"></script>
@@ -2383,7 +2395,7 @@
     <script defer src="src/js/ui/comboburst-editor.js?v=20261025_1"></script>
     <script defer src="src/js/ui/param-render.js?v=20261009_5"></script>
     <script defer src="src/js/ui/texture-project-archive.js?v=20261020_1"></script>
-    <script defer src="src/js/ui/export.js?v=20261020_1"></script>
+    <script defer src="src/js/ui/export.js?v=20261031_1"></script>
     <script defer src="src/js/ui/history.js?v=20261009_2"></script>
     <script defer src="src/js/ui/editor-card-controls.js?v=20261016_1"></script>
     <script defer src="src/js/ui/editor-dialog.js?v=20261016_1"></script>
@@ -2411,7 +2423,7 @@
     <script defer src="src/js/ui/texture-image-editor.js?v=20261017_2"></script>
     <script defer src="src/js/ui/canvas-key-image-height.js?v=20261016_1"></script>
     <script defer src="src/js/ui/canvas-interactions.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/shortcuts.js?v=20261012_1"></script>
+    <script defer src="src/js/ui/shortcuts.js?v=20261025_1"></script>
     <script defer src="src/js/ui/app-shell.js?v=20261012_2"></script>
     <script defer src="src/js/ui/agent-session.js?v=20261021_1"></script>
 </body>

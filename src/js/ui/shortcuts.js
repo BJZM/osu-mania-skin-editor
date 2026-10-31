@@ -3,10 +3,35 @@
 // 依赖：ui/history.js、ui/transport.js、ui/texture-upload.js
 // ============================================================================
 
+        function hasRefreshGuardSkinWorkspace() {
+            return !!(
+                (typeof startupWorkflowSkinReady !== 'undefined' && startupWorkflowSkinReady) ||
+                (typeof currentSkinZip !== 'undefined' && currentSkinZip) ||
+                (typeof isEditableDefaultSkinWorkspaceActive === 'function' &&
+                    isEditableDefaultSkinWorkspaceActive())
+            );
+        }
+
+        function confirmF5Reload() {
+            const message = window.I18n
+                ? window.I18n.t('刷新之后所有的未导出改动将全部丢失，是否继续刷新？')
+                : '刷新之后所有的未导出改动将全部丢失，是否继续刷新？';
+            if (!window.confirm(message)) return;
+            window.location.reload();
+        }
+
         function initSkinEditorShortcutsUI() {
         document.addEventListener('keydown', (e) => {
             const isCtrlOrCmd = e.ctrlKey || e.metaKey;
             const keyLower = e.key ? e.key.toLowerCase() : '';
+
+            if (e.key === 'F5' || e.code === 'F5') {
+                if (!hasRefreshGuardSkinWorkspace()) return;
+                e.preventDefault();
+                if (!e.repeat) confirmF5Reload();
+                return;
+            }
+
             const imageEditorModal = document.getElementById('textureImageEditorModal');
             const isTextureImageEditorOpen = !!(
                 imageEditorModal &&

@@ -5,7 +5,9 @@
 ## 接口
 
 - `prepareManiaHitsoundPlayback()`：根据当前谱面、timing points、activeNotes、谱面 ZIP 与皮肤 ZIP 重建样本引用并解码。
-- `playManiaHitSound(note, currentTime)`：播放一个 note 已解析的 hitnormal/additions，返回启动的音频源数量。
+- `playManiaHitSound(note, currentTime, startAtContextTime)`：播放一个 note 已解析的 hitnormal/additions，返回启动的音频源数量。传入音频上下文时间时按该时刻开播。
+- `scheduleManiaHitsounds(currentTimeMs)`：播放中按歌曲时钟提前排程，并用 `AudioContext.outputLatency` 抵消输出延迟，使音效到达扬声器时音符落到判定线。
+- `reconcileManiaHitsoundCues(currentTimeMs)`：暂停、拖动进度或跳转后停掉已排程音效，并按新时间重记哪些音符已经错过。
 - `resumeManiaHitsoundPlayback()` / `stopActiveManiaHitsounds()`：跟随歌曲播放与暂停。
 - `syncManiaHitsoundVolume()`：同步独立音效音量与静音状态。
 - `disposeManiaHitsoundPlayback()`：切换谱面时释放缓冲区并停止残留音频。
@@ -23,7 +25,7 @@
 
 - note 上写入 `hitsoundSampleRefs`，每个引用包含来源、路径、音效名和 note 音量；来源可为 `beatmap`、`skin`、`replacement` 或 `default`。
 - **回退顺序**：对每个标准音效候选名依次查找谱面、当前皮肤、Legacy 默认皮肤；因此当前皮肤缺少某个文件时会继续使用默认音效。
-- **后置条件**：同一时刻的多个 note 独立创建音频源并自然混音；暂停后不会留下尾音；迟到超过 100ms 的 note 标记为已处理但不补播。
+- **后置条件**：同一时刻的多个 note 独立创建音频源并自然混音；暂停、结束或拖动进度后不会留下已排程的尾音。播放中会提前约一个输出延迟排程，音效与判定线对齐。暂停期间只补播已经落到当前时间、且迟到不超过 100ms 的 note；更早的 note 标记为已处理但不补播。
 
 ## 依赖模块
 

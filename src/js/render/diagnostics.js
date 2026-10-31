@@ -156,6 +156,7 @@
             comboAnimState.incStartTime = -1000;
             comboAnimState.breakStartTime = -1000;
             comboAnimState.breakCount = 0;
+            resetComboHoldColourTint();
             for (let i = 0; i < activeNotes.length; i++) {
                 let note = activeNotes[i];
                 if (note.isHold) {
@@ -165,6 +166,9 @@
                 } else {
                     note.hit = (currentTimeMs >= note.startTime);
                 }
+            }
+            if (typeof reconcileManiaHitsoundCues === 'function') {
+                reconcileManiaHitsoundCues(currentTimeMs);
             }
         }
 

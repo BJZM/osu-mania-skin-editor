@@ -271,6 +271,11 @@
             incStartTime: -1000,
             breakStartTime: -1000,
             breakCount: 0,
+            holdColourActive: false,
+            holdColourCurrent: { r: 255, g: 255, b: 255, a: 255 },
+            holdColourFrom: { r: 255, g: 255, b: 255, a: 255 },
+            holdColourTarget: { r: 255, g: 255, b: 255, a: 255 },
+            holdColourTransitionStartTime: -1000,
         };
 
         let canvasBgImage = new Image();

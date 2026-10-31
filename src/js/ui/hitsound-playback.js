@@ -20,6 +20,8 @@
         let maniaHitsoundBufferCache = new Map();
         let maniaHitsoundActiveSources = new Set();
         let maniaHitsoundPrepareToken = 0;
+        let maniaHitsoundScheduleIndex = 0;
+        const MANIA_HITSOUND_MAX_LATENESS_MS = 100;
         let maniaHitsoundPlaybackStats = {
             ready: false,
             noteCount: 0,
@@ -73,12 +75,71 @@
         function stopActiveManiaHitsounds() {
             for (const source of maniaHitsoundActiveSources) {
                 try { source.stop(); } catch (_) {}
+                try { source.disconnect(); } catch (_) {}
             }
             maniaHitsoundActiveSources.clear();
         }
 
+        function getManiaHitsoundLeadSeconds(context) {
+            const output = Number(context && context.outputLatency);
+            if (Number.isFinite(output) && output > 0.001) return Math.min(0.085, output);
+            const base = Number(context && context.baseLatency);
+            if (Number.isFinite(base) && base > 0.001) return Math.min(0.045, base);
+            return 0.025;
+        }
+
+        function getManiaHitsoundLookaheadMs(context) {
+            return Math.ceil(getManiaHitsoundLeadSeconds(context) * 1000) + 60;
+        }
+
+        function captureManiaHitsoundClock(mediaNowSeconds) {
+            const context = maniaHitsoundAudioContext;
+            if (!context) return null;
+            const rate = audio && Number(audio.playbackRate);
+            const playbackRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+            const mediaNow = Number.isFinite(mediaNowSeconds)
+                ? mediaNowSeconds
+                : (typeof getPlaybackTimeSeconds === 'function'
+                    ? getPlaybackTimeSeconds()
+                    : (audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0));
+            return {
+                context,
+                contextNow: context.currentTime,
+                mediaNow,
+                playbackRate,
+                lead: getManiaHitsoundLeadSeconds(context)
+            };
+        }
+
+        function getManiaHitsoundContextTime(eventMediaSeconds, mediaNowSeconds) {
+            const clock = captureManiaHitsoundClock(mediaNowSeconds);
+            if (!clock || !Number.isFinite(eventMediaSeconds)) return 0;
+            return clock.contextNow + (eventMediaSeconds - clock.mediaNow) / clock.playbackRate - clock.lead;
+        }
+
+        function maniaHitsoundLookaheadOpen() {
+            return !!isPlaying && !isSeeking && !!audio && !audio.paused;
+        }
+
+        function reconcileManiaHitsoundCues(currentTimeMs) {
+            stopActiveManiaHitsounds();
+            maniaHitsoundScheduleIndex = 0;
+            const time = Number(currentTimeMs);
+            const notes = activeNotes || [];
+            for (let i = 0; i < notes.length; i++) {
+                notes[i].hitsoundCueHandled = Number.isFinite(time) && notes[i].startTime <= time;
+            }
+            while (
+                maniaHitsoundScheduleIndex < notes.length &&
+                notes[maniaHitsoundScheduleIndex].hitsoundCueHandled
+            ) {
+                maniaHitsoundScheduleIndex++;
+            }
+        }
+
         function disposeManiaHitsoundPlayback() {
             maniaHitsoundPrepareToken++;
+            maniaHitsoundScheduleIndex = 0;
             stopActiveManiaHitsounds();
             maniaHitsoundBufferCache.clear();
             maniaHitsoundPlaybackStats = {
@@ -343,9 +404,11 @@
 
             const refsByKey = new Map();
             let resolvedNoteCount = 0;
+            maniaHitsoundScheduleIndex = 0;
             for (const note of activeNotes) {
                 const refs = buildManiaNoteHitsoundRefs(note);
                 note.hitsoundSampleRefs = refs;
+                note.hitsoundCueHandled = false;
                 if (refs.length > 0) resolvedNoteCount++;
                 for (const ref of refs) {
                     if (!refsByKey.has(ref.key)) refsByKey.set(ref.key, ref);
@@ -386,7 +449,7 @@
             return getManiaHitsoundDebugSnapshot();
         }
 
-        function playManiaHitSound(note, currentTime) {
+        function playManiaHitSound(note, currentTime, startAtContextTime) {
             if (!note || !maniaHitsoundAudioContext || !maniaHitsoundMasterGain) return 0;
             const refs = Array.isArray(note.hitsoundSampleRefs) ? note.hitsoundSampleRefs : [];
             if (refs.length === 0) return 0;
@@ -397,6 +460,10 @@
             }
 
             syncManiaHitsoundVolume();
+            const contextNow = maniaHitsoundAudioContext.currentTime;
+            const when = Number.isFinite(startAtContextTime)
+                ? Math.max(contextNow, startAtContextTime)
+                : contextNow;
             let started = 0;
             for (const ref of refs) {
                 const buffer = maniaHitsoundBufferCache.get(ref.key);
@@ -410,7 +477,7 @@
                     sampleGain.connect(maniaHitsoundMasterGain);
                     source.onended = () => maniaHitsoundActiveSources.delete(source);
                     maniaHitsoundActiveSources.add(source);
-                    source.start();
+                    source.start(when);
                     started++;
                     maniaHitsoundPlaybackStats.sourceCount++;
                     if (maniaHitsoundPlaybackStats.lastPlayed.length >= 30) {
@@ -419,6 +486,7 @@
                     maniaHitsoundPlaybackStats.lastPlayed.push({
                         noteTime: note.startTime,
                         playbackTime: currentTime,
+                        scheduledAheadMs: (when - contextNow) * 1000,
                         source: ref.source,
                         path: ref.path,
                         sound: ref.sound,
@@ -430,6 +498,52 @@
             }
             if (started > 0) maniaHitsoundPlaybackStats.triggerCount++;
             return started;
+        }
+
+        function noteHitsoundIsTooLate(note, currentTimeMs) {
+            const lateness = currentTimeMs - note.startTime;
+            if (lateness <= 0) return false;
+            if (typeof isPlaybackEventFresh === 'function') {
+                return !isPlaybackEventFresh(note.startTime, currentTimeMs);
+            }
+            return lateness > MANIA_HITSOUND_MAX_LATENESS_MS;
+        }
+
+        function scheduleManiaHitsounds(currentTimeMs) {
+            if (isSeeking || !maniaHitsoundPlaybackStats.ready) return;
+            const notes = activeNotes;
+            const context = maniaHitsoundAudioContext;
+            if (!context || !notes || notes.length === 0) return;
+
+            const lookahead = maniaHitsoundLookaheadOpen()
+                ? getManiaHitsoundLookaheadMs(context)
+                : 0;
+            const horizon = currentTimeMs + lookahead;
+            if (maniaHitsoundScheduleIndex > notes.length) maniaHitsoundScheduleIndex = 0;
+            while (maniaHitsoundScheduleIndex > 0) {
+                const previous = notes[maniaHitsoundScheduleIndex - 1];
+                if (!previous || previous.hitsoundCueHandled) break;
+                if (previous.startTime < currentTimeMs - MANIA_HITSOUND_MAX_LATENESS_MS) break;
+                maniaHitsoundScheduleIndex--;
+            }
+
+            const clock = captureManiaHitsoundClock(currentTimeMs / 1000);
+            if (!clock) return;
+            while (maniaHitsoundScheduleIndex < notes.length) {
+                const note = notes[maniaHitsoundScheduleIndex];
+                if (note.startTime > horizon) break;
+                maniaHitsoundScheduleIndex++;
+                if (note.hitsoundCueHandled) continue;
+                if (noteHitsoundIsTooLate(note, currentTimeMs)) {
+                    note.hitsoundCueHandled = true;
+                    continue;
+                }
+                const when = clock.contextNow
+                    + (note.startTime / 1000 - clock.mediaNow) / clock.playbackRate
+                    - clock.lead;
+                playManiaHitSound(note, currentTimeMs, when);
+                note.hitsoundCueHandled = true;
+            }
         }
 
         function getManiaHitsoundDebugSnapshot() {

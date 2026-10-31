@@ -360,13 +360,7 @@
             titleArea.append(title, key);
 
             const replacement = skinHitsoundReplacements.get(group.key);
-            header.append(
-                titleArea,
-                createHitsoundBadge(
-                    replacement ? '已替换' : '可编辑',
-                    replacement ? 'is-replaced' : 'is-editable'
-                )
-            );
+            header.appendChild(titleArea);
 
             const meta = document.createElement('div');
             meta.className = 'hitsound-meta';
@@ -441,7 +435,7 @@
             key.className = 'hitsound-key';
             key.textContent = 'beatmap';
             titleArea.append(title, key);
-            header.append(titleArea, createHitsoundBadge('谱面只读', 'is-readonly'));
+            header.appendChild(titleArea);
 
             const sounds = document.createElement('div');
             sounds.className = 'hitsound-meta';

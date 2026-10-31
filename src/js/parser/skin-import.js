@@ -124,6 +124,7 @@
                 // 2. 收集 skin.ini 中引用的贴图标识
                 const iniReferencedKeys = new Set();
                 const tailMaskImageKeys = new Set();
+                const opaqueStageSideImageKeys = new Set();
                 const addImageKeyWithBasename = (targetSet, value) => {
                     if (typeof value !== 'string' || !value.trim()) return;
                     const clean = normalizeSkinKey(value);
@@ -136,6 +137,9 @@
                         if (config.ImageLookups) {
                             for (const [key, val] of config.ImageLookups.entries()) {
                                 addImageKeyWithBasename(iniReferencedKeys, val);
+                                if (isStageSideImageKey(key)) {
+                                    addImageKeyWithBasename(opaqueStageSideImageKeys, val);
+                                }
                                 // NoteImage*T 指向的文件名不一定包含 T/tail，必须按实际槽位保护其黑色遮罩。
                                 if (/^(?:noteimage\d*t|holdnotetailimage\d*)$/i.test(key)) {
                                     addImageKeyWithBasename(tailMaskImageKeys, val);
@@ -147,6 +151,9 @@
                 if (globalSkinImageLookups.size > 0) {
                     for (const [key, val] of globalSkinImageLookups.entries()) {
                         addImageKeyWithBasename(iniReferencedKeys, val);
+                        if (isStageSideImageKey(key)) {
+                            addImageKeyWithBasename(opaqueStageSideImageKeys, val);
+                        }
                         if (/^(?:noteimage\d*t|holdnotetailimage\d*)$/i.test(key)) {
                             addImageKeyWithBasename(tailMaskImageKeys, val);
                         }
@@ -265,7 +272,9 @@
                                 const imageKey = normalizeSkinKey(relativePath).replace(/@2x/g, '');
                                 const imageBase = imageKey.split('/').pop();
                                 const preserveBlack = tailMaskImageKeys.has(imageKey) ||
-                                    (imageBase && tailMaskImageKeys.has(imageBase));
+                                    (imageBase && tailMaskImageKeys.has(imageBase)) ||
+                                    opaqueStageSideImageKeys.has(imageKey) ||
+                                    (imageBase && opaqueStageSideImageKeys.has(imageBase));
                                 const processedImg = processSkinImage(img, relativePath, preserveBlack);
                                 if (processedImg !== img) {
                                     await new Promise((resolve) => {

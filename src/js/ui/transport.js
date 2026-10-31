@@ -82,11 +82,13 @@
 
         function pauseAudioAndBeatmap() {
             try { audio.pause(); } catch (_) {}
-            if (typeof stopActiveManiaHitsounds === 'function') {
-                stopActiveManiaHitsounds();
-            }
             rememberResumePlaybackPosition();
             isPlaying = false;
+            if (typeof reconcileManiaHitsoundCues === 'function') {
+                reconcileManiaHitsoundCues(getPlaybackTimeSeconds() * 1000);
+            } else if (typeof stopActiveManiaHitsounds === 'function') {
+                stopActiveManiaHitsounds();
+            }
             pauseStoryboardPlayback();
             playbackBreakResumeTime = 0;
             setPlayPauseUi(false);
@@ -128,6 +130,9 @@
             if (typeof canPlayWithStartupSelection === 'function' && !canPlayWithStartupSelection()) return;
             clearResumePlaybackPosition();
             isSeeking = true;
+            if (typeof stopActiveManiaHitsounds === 'function') {
+                stopActiveManiaHitsounds();
+            }
         }
 
         function stopSeeking() {
@@ -329,3 +334,66 @@
             syncNotesStateWithTime(0);
             drawFrame();
         };
+
+        (function initPlaybackMoreSettings() {
+            const root = document.getElementById('playbackMoreSettings');
+            const toggle = document.getElementById('playbackMoreToggle');
+            const panel = document.getElementById('playbackMorePanel');
+            const inner = panel ? panel.querySelector('.playback-more-panel-inner') : null;
+            if (!root || !toggle || !panel || !inner) return;
+
+            const titleClosed = '展开更多播放设置';
+            const titleOpen = '收起更多播放设置';
+            const label = toggle.querySelector('.playback-more-label');
+
+            function syncPlaybackMoreWidth() {
+                const width = Math.ceil(inner.scrollWidth);
+                if (width > 0) {
+                    panel.style.setProperty('--playback-more-width', `${width}px`);
+                }
+            }
+
+            function setPlaybackMoreOpen(open) {
+                syncPlaybackMoreWidth();
+                root.classList.toggle('is-open', open);
+                toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                toggle.title = open ? titleOpen : titleClosed;
+                toggle.setAttribute('aria-label', open ? titleOpen : titleClosed);
+                if (label) label.setAttribute('aria-hidden', open ? 'true' : 'false');
+                panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+                panel.querySelectorAll('input').forEach((input) => {
+                    if (open) input.removeAttribute('tabindex');
+                    else input.setAttribute('tabindex', '-1');
+                });
+            }
+
+            syncPlaybackMoreWidth();
+            setPlaybackMoreOpen(false);
+
+            toggle.addEventListener('click', (event) => {
+                event.stopPropagation();
+                setPlaybackMoreOpen(!root.classList.contains('is-open'));
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!root.classList.contains('is-open')) return;
+                if (root.contains(event.target)) return;
+                setPlaybackMoreOpen(false);
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && root.classList.contains('is-open')) {
+                    setPlaybackMoreOpen(false);
+                }
+            });
+
+            window.addEventListener('resize', syncPlaybackMoreWidth);
+            window.addEventListener('app-language-changed', () => {
+                window.requestAnimationFrame(syncPlaybackMoreWidth);
+            });
+
+            if (typeof ResizeObserver !== 'undefined') {
+                const observer = new ResizeObserver(() => syncPlaybackMoreWidth());
+                observer.observe(inner);
+            }
+        })();

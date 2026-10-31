@@ -163,12 +163,12 @@ test('音效窗口分成可编辑皮肤音效与只读谱面音效', async ({ pa
 
   const skinCard = page.locator('[data-hitsound-category="skin"][data-hitsound-key="normal-hitnormal"]');
   await expect(skinCard).toHaveCount(1);
-  await expect(skinCard).toContainText('可编辑');
+  await expect(skinCard.locator('.hitsound-card-header .hitsound-badge')).toHaveCount(0);
   await expect(skinCard.locator('[data-hitsound-action="replace"]')).toHaveCount(1);
 
   const beatmapCard = page.locator('[data-hitsound-category="beatmap"]').filter({ hasText: 'map-hit.wav' });
   await expect(beatmapCard).toHaveCount(1);
-  await expect(beatmapCard).toContainText('谱面只读');
+  await expect(beatmapCard.locator('.hitsound-card-header .hitsound-badge')).toHaveCount(0);
   await expect(beatmapCard).toContainText('被 2 个音符使用');
   await expect(beatmapCard.locator('[data-hitsound-action="replace"]')).toHaveCount(0);
   await expect(beatmapCard.locator('[data-hitsound-action="preview"]')).toHaveCount(1);
@@ -190,8 +190,8 @@ test('音效替换支持跨页签撤回重做，导出不破坏导入包', async
     skinHitsoundCatalog.get('normal-hitnormal').selectedPath
   )).toBe('normal-hitnormal.wav');
   await expect(page.locator(
-    '[data-hitsound-category="skin"][data-hitsound-key="normal-hitnormal"]'
-  )).toContainText('已替换');
+    '[data-hitsound-category="skin"][data-hitsound-key="normal-hitnormal"] .hitsound-card-header .hitsound-badge'
+  )).toHaveCount(0);
   await expect(page.locator(
     '[data-hitsound-category="skin"][data-hitsound-key="normal-hitnormal"] [data-hitsound-action="reset"]'
   )).toHaveCount(1);

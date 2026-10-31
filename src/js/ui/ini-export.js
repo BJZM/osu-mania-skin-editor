@@ -1,65 +1,238 @@
 // ============================================================================
-// ini-export.js - 将当前 Mania 配置生成 skin.ini 文本
+// ini-export.js - 将当前 Mania 配置生成 skin.ini 文本，并在导出时补回原文件独有参数
 // 依赖：skin/parameter-schema.js、skin/mania-config.js
 // ============================================================================
 
-        // =========================================================================
-        // 完整的 skin.ini 参数定义元数据字典 (SKIN_INI_PARAM_SCHEMA)
-        // =========================================================================
-        function generateSkinIniText() {
-            function canonicalizeImageKey(key) {
-                const low = key.toLowerCase();
-                const mKey = low.match(/^keyimage(\d+)(d|down)?$/);
-                if (mKey) {
-                    const num = mKey[1];
-                    const isDown = mKey[2] ? (mKey[2] === 'd' ? 'D' : 'Down') : '';
-                    return `KeyImage${num}${isDown}`;
-                }
-                if (low === 'keyimage') return 'KeyImage';
-                if (low === 'keyimagedown') return 'KeyImageDown';
+        function canonicalizeImageKey(key) {
+            const low = key.toLowerCase();
+            const mKey = low.match(/^keyimage(\d+)(d|down)?$/);
+            if (mKey) {
+                const num = mKey[1];
+                const isDown = mKey[2] ? (mKey[2] === 'd' ? 'D' : 'Down') : '';
+                return `KeyImage${num}${isDown}`;
+            }
+            if (low === 'keyimage') return 'KeyImage';
+            if (low === 'keyimagedown') return 'KeyImageDown';
 
-                const mNote = low.match(/^noteimage(\d+)([hlt])?$/);
-                if (mNote) {
-                    const num = mNote[1];
-                    const suffix = mNote[2] ? mNote[2].toUpperCase() : '';
-                    return `NoteImage${num}${suffix}`;
-                }
-                if (low === 'noteimage') return 'NoteImage';
+            const mNote = low.match(/^noteimage(\d+)([hlt])?$/);
+            if (mNote) {
+                const num = mNote[1];
+                const suffix = mNote[2] ? mNote[2].toUpperCase() : '';
+                return `NoteImage${num}${suffix}`;
+            }
+            if (low === 'noteimage') return 'NoteImage';
 
-                const mHold = low.match(/^holdnote(head|tail|body)image(\d+)?$/);
-                if (mHold) {
-                    const type = mHold[1].charAt(0).toUpperCase() + mHold[1].slice(1);
-                    const num = mHold[2] !== undefined ? mHold[2] : '';
-                    if (num !== '') {
-                        const s = (type === 'Head') ? 'H' : ((type === 'Body') ? 'L' : 'T');
-                        return `NoteImage${num}${s}`;
-                    }
-                    return `HoldNote${type}Image`;
+            const mHold = low.match(/^holdnote(head|tail|body)image(\d+)?$/);
+            if (mHold) {
+                const type = mHold[1].charAt(0).toUpperCase() + mHold[1].slice(1);
+                const num = mHold[2] !== undefined ? mHold[2] : '';
+                if (num !== '') {
+                    const s = (type === 'Head') ? 'H' : ((type === 'Body') ? 'L' : 'T');
+                    return `NoteImage${num}${s}`;
                 }
-
-                const map = {
-                    stageleft: 'StageLeft',
-                    stageright: 'StageRight',
-                    stagebottom: 'StageBottom',
-                    stagehint: 'StageHint',
-                    stagelight: 'StageLight',
-                    leftstageimage: 'LeftStageImage',
-                    rightstageimage: 'RightStageImage',
-                    bottomstageimage: 'BottomStageImage',
-                    hit300g: 'Hit300g',
-                    hit300: 'Hit300',
-                    hit200: 'Hit200',
-                    hit100: 'Hit100',
-                    hit50: 'Hit50',
-                    hit0: 'Hit0',
-                    lightingn: 'LightingN',
-                    lightingl: 'LightingL',
-                    warningarrow: 'WarningArrow'
-                };
-                if (map[low]) return map[low];
-                return key;
+                return `HoldNote${type}Image`;
             }
 
+            const map = {
+                stageleft: 'StageLeft',
+                stageright: 'StageRight',
+                stagebottom: 'StageBottom',
+                stagehint: 'StageHint',
+                stagelight: 'StageLight',
+                leftstageimage: 'LeftStageImage',
+                rightstageimage: 'RightStageImage',
+                bottomstageimage: 'BottomStageImage',
+                hit300g: 'Hit300g',
+                hit300: 'Hit300',
+                hit200: 'Hit200',
+                hit100: 'Hit100',
+                hit50: 'Hit50',
+                hit0: 'Hit0',
+                lightingn: 'LightingN',
+                lightingl: 'LightingL',
+                warningarrow: 'WarningArrow'
+            };
+            if (map[low]) return map[low];
+            return key;
+        }
+
+        function splitIniExportKeyVal(line) {
+            let text = String(line || '');
+            const commentIdx = text.indexOf('//');
+            if (commentIdx >= 0) text = text.substring(0, commentIdx);
+            const hashIdx = text.indexOf('#');
+            if (hashIdx >= 0) text = text.substring(0, hashIdx);
+            const idx = text.indexOf(':');
+            if (idx < 0) return null;
+            const key = text.substring(0, idx).trim();
+            if (!key) return null;
+            return { key, value: text.substring(idx + 1).trim() };
+        }
+
+        function normalizeIniSectionKind(name) {
+            const kind = String(name || '').trim().toLowerCase();
+            return kind === 'colors' ? 'colours' : kind;
+        }
+
+        // 编辑器会把同一参数写成稳定键名。比较「生成结果里有没有」时按这个身份，
+        // 避免 Combo / ComboPrefix 这类重写后再把原键附回去。
+        function canonicalExportedIniKey(sectionKind, key) {
+            const low = String(key || '').trim().toLowerCase();
+            if (sectionKind === 'fonts' && (low === 'combo' || low === 'comboprefix')) return 'comboprefix';
+            if (sectionKind === 'mania') {
+                if (low === 'showjudgementline' || low === 'judgementline') return 'judgementline';
+                if (low === 'explosionwidth' || low === 'lightingnwidth') return 'lightingnwidth';
+                if (low === 'holdnotelightwidth' || low === 'lightinglwidth') return 'lightinglwidth';
+            }
+            return canonicalizeImageKey(key).toLowerCase().replace(/^color/, 'colour');
+        }
+
+        function parseIniExportDocument(text) {
+            const lines = String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/);
+            const leading = [];
+            const sections = [];
+            let current = null;
+            for (const line of lines) {
+                const header = line.match(/^\s*\[([^\]]+)\]\s*$/);
+                if (header) {
+                    current = { name: header[1].trim(), lines: [] };
+                    sections.push(current);
+                    continue;
+                }
+                if (!current) leading.push(line);
+                else current.lines.push(line);
+            }
+            return { leading, sections };
+        }
+
+        function maniaKeysFromSectionLines(lines) {
+            for (const line of lines) {
+                const pair = splitIniExportKeyVal(line);
+                if (!pair || pair.key.toLowerCase() !== 'keys') continue;
+                const keys = parseInt(pair.value, 10);
+                if (!isNaN(keys) && keys > 0) return keys;
+            }
+            return null;
+        }
+
+        function sectionSlotId(section) {
+            const kind = normalizeIniSectionKind(section.name);
+            if (kind !== 'mania') return kind;
+            const keys = maniaKeysFromSectionLines(section.lines);
+            return keys == null ? null : `mania:${keys}`;
+        }
+
+        function collectSectionKeyIds(section) {
+            const kind = normalizeIniSectionKind(section.name);
+            const ids = new Set();
+            for (const line of section.lines) {
+                const pair = splitIniExportKeyVal(line);
+                if (!pair) continue;
+                ids.add(canonicalExportedIniKey(kind, pair.key));
+            }
+            return ids;
+        }
+
+        function originalPairsInOrder(section) {
+            const kind = normalizeIniSectionKind(section.name);
+            const ordered = [];
+            const indexById = new Map();
+            for (const line of section.lines) {
+                const pair = splitIniExportKeyVal(line);
+                if (!pair) continue;
+                const id = canonicalExportedIniKey(kind, pair.key);
+                const entry = { key: pair.key, value: pair.value, id };
+                if (indexById.has(id)) ordered[indexById.get(id)] = entry;
+                else {
+                    indexById.set(id, ordered.length);
+                    ordered.push(entry);
+                }
+            }
+            return ordered;
+        }
+
+        function appendLinesAfterLastKey(section, linesToAdd) {
+            if (!linesToAdd.length) return;
+            let insertAt = section.lines.length;
+            let foundKey = false;
+            for (let i = 0; i < section.lines.length; i++) {
+                if (!splitIniExportKeyVal(section.lines[i])) continue;
+                insertAt = i + 1;
+                foundKey = true;
+            }
+            if (!foundKey) insertAt = section.lines.length;
+            section.lines.splice(insertAt, 0, ...linesToAdd);
+        }
+
+        // 导出合成规则：
+        // 1. 原 ini 和生成结果都有的参数，用生成值覆盖；
+        // 2. 只有生成结果有的参数，保留默认值或编辑器里改过的值；
+        // 3. 只有原 ini 有的参数，按原值、原顺序直接接在对应段落末尾，不再分栏；
+        //    生成结果里没有的整段（其他模式）则按原顺序接在文件末尾。
+        function mergeUnwrittenSkinIniParameters(generatedText, originalText) {
+            const original = String(originalText || '').replace(/^\uFEFF/, '');
+            if (!original.trim()) return generatedText;
+
+            const generatedDoc = parseIniExportDocument(generatedText);
+            const originalDoc = parseIniExportDocument(original);
+            const generatedBySlot = new Map();
+            for (const section of generatedDoc.sections) {
+                const slot = sectionSlotId(section);
+                if (slot && !generatedBySlot.has(slot)) generatedBySlot.set(slot, section);
+            }
+
+            const emittedBySlot = new Map();
+            for (const [slot, section] of generatedBySlot) {
+                emittedBySlot.set(slot, collectSectionKeyIds(section));
+            }
+
+            const extraSections = [];
+            for (const section of originalDoc.sections) {
+                const slot = sectionSlotId(section);
+                const pairs = originalPairsInOrder(section);
+                if (!slot || !generatedBySlot.has(slot)) {
+                    if (pairs.length > 0) extraSections.push({ name: section.name, pairs });
+                    continue;
+                }
+                const emitted = emittedBySlot.get(slot);
+                const missing = [];
+                for (const pair of pairs) {
+                    if (emitted.has(pair.id)) continue;
+                    emitted.add(pair.id);
+                    missing.push(`${pair.key}: ${pair.value}`);
+                }
+                appendLinesAfterLastKey(generatedBySlot.get(slot), missing);
+            }
+
+            const lines = generatedDoc.leading.slice();
+            for (const section of generatedDoc.sections) {
+                lines.push(`[${section.name}]`);
+                lines.push(...section.lines);
+            }
+            for (const extra of extraSections) {
+                if (lines.length && lines[lines.length - 1] !== '') lines.push('');
+                lines.push(`[${extra.name}]`);
+                for (const pair of extra.pairs) lines.push(`${pair.key}: ${pair.value}`);
+            }
+
+            const cleaned = [];
+            for (const line of lines) {
+                if (line === '' && cleaned.length > 0 && cleaned[cleaned.length - 1] === '') continue;
+                cleaned.push(line);
+            }
+            while (cleaned.length > 0 && cleaned[cleaned.length - 1] === '') cleaned.pop();
+            return cleaned.join('\r\n');
+        }
+
+        function buildExportedSkinIniText() {
+            const generated = generateSkinIniText();
+            const original = (typeof currentSkinMetadata !== 'undefined' && currentSkinMetadata)
+                ? currentSkinMetadata.rawIniText
+                : '';
+            return mergeUnwrittenSkinIniParameters(generated, original);
+        }
+
+        function generateSkinIniText() {
             function getImageCategory(key) {
                 const low = key.toLowerCase();
                 if (low.startsWith('keyimage')) return 'key';

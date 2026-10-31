@@ -76,6 +76,11 @@
                 stageRightWidth = nativeW * scale768;
             }
 
+            // 舞台侧图属于演奏区前景，不能继承背景或故事板残留的透明度/混合模式。
+            ctx.save();
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.filter = 'none';
             for (const segment of stageSegments) {
                 if (stageLeftWidth > 0) {
                     ctx.drawImage(stageLeftImg, segment.x - stageLeftWidth, 0, stageLeftWidth, canvas.height);
@@ -84,6 +89,7 @@
                     ctx.drawImage(stageRightImg, segment.x + segment.width, 0, stageRightWidth, canvas.height);
                 }
             }
+            ctx.restore();
 
             // ---- 2.4 渲染轨道分界线 ColumnLineWidth ----
             // 对齐 osu!lazer LegacyStageBackground：
@@ -265,7 +271,9 @@
                 }
             }
 
-            // 3b. 若 ShowJudgementLine 为 true (配置 1 或默认)，渲染连续贯穿整轨的白色判定横线（即使有轨道间距也保持连续不断开）
+            // 3b. 若 ShowJudgementLine 为 true (配置 1 或默认)，渲染白色判定横线。
+            // KeyImage 在后续帧步骤里画在判定线之上，用普通 source-over 叠上去：
+            // 不透明像素盖住判定线，alpha=0 的透明区域仍能看到下面的判定线。
             if (showLine) {
                 ctx.fillStyle = '#ffffff';
                 for (const segment of stageSegments) {

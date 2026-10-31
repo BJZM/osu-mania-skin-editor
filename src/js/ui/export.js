@@ -147,8 +147,8 @@
                 }
             }
 
-            // 1. 生成最新完整 skin.ini 文本并覆盖写入
-            const newIniText = generateSkinIniText();
+            // 1. 以当前编辑结果为底，再按原顺序补回生成结果里没有的原参数（含其他模式）
+            const newIniText = buildExportedSkinIniText();
             let iniFilename = 'skin.ini';
             for (const filename of Object.keys(zip.files)) {
                 if (filename.toLowerCase().endsWith('skin.ini')) {

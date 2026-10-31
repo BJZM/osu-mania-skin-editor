@@ -457,8 +457,44 @@
 
         let digitTintCanvas = null;
         let digitTintCtx = null;
+        let digitTintImageData = null;
+        let digitTintSourceCanvas = null;
+        let digitTintSourceCtx = null;
+        const digitTintSourceCache = new WeakMap();
+
+        function getDigitTintSourceData(img) {
+            const cached = digitTintSourceCache.get(img);
+            if (cached && cached.width === img.width && cached.height === img.height) {
+                return cached;
+            }
+            if (!digitTintSourceCanvas) {
+                digitTintSourceCanvas = document.createElement('canvas');
+                digitTintSourceCtx = digitTintSourceCanvas.getContext('2d', { willReadFrequently: true });
+            }
+            if (digitTintSourceCanvas.width !== img.width || digitTintSourceCanvas.height !== img.height) {
+                digitTintSourceCanvas.width = img.width;
+                digitTintSourceCanvas.height = img.height;
+            }
+            digitTintSourceCtx.clearRect(0, 0, img.width, img.height);
+            digitTintSourceCtx.drawImage(img, 0, 0);
+            const entry = {
+                width: img.width,
+                height: img.height,
+                data: digitTintSourceCtx.getImageData(0, 0, img.width, img.height).data,
+            };
+            digitTintSourceCache.set(img, entry);
+            return entry;
+        }
+
         function getTintedDigitCanvas(img, color) {
             if (!img) return img;
+            const r = Math.max(0, Math.min(255, Number(color?.r ?? 255)));
+            const g = Math.max(0, Math.min(255, Number(color?.g ?? 255)));
+            const b = Math.max(0, Math.min(255, Number(color?.b ?? 255)));
+            const aValue = Number(color?.a ?? 255);
+            const a = Number.isFinite(aValue) ? Math.max(0, Math.min(255, aValue)) : 255;
+            if (r === 255 && g === 255 && b === 255 && a === 255) return img;
+
             if (!digitTintCanvas) {
                 digitTintCanvas = document.createElement('canvas');
                 digitTintCtx = digitTintCanvas.getContext('2d');
@@ -466,19 +502,19 @@
             if (digitTintCanvas.width !== img.width || digitTintCanvas.height !== img.height) {
                 digitTintCanvas.width = img.width;
                 digitTintCanvas.height = img.height;
+                digitTintImageData = null;
             }
-            digitTintCtx.clearRect(0, 0, digitTintCanvas.width, digitTintCanvas.height);
-            digitTintCtx.drawImage(img, 0, 0);
-            if (color) {
-                digitTintCtx.globalCompositeOperation = 'source-in';
-                const r = (color.r != null) ? color.r : 255;
-                const g = (color.g != null) ? color.g : 255;
-                const b = (color.b != null) ? color.b : 255;
-                const aValue = Number(color.a);
-                const a = Number.isFinite(aValue) ? Math.max(0, Math.min(255, aValue)) / 255 : 1;
-                digitTintCtx.fillStyle = `rgba(${r},${g},${b},${a})`;
-                digitTintCtx.fillRect(0, 0, digitTintCanvas.width, digitTintCanvas.height);
-                digitTintCtx.globalCompositeOperation = 'source-over';
+            if (!digitTintImageData) {
+                digitTintImageData = digitTintCtx.createImageData(img.width, img.height);
             }
+            const sourceData = getDigitTintSourceData(img).data;
+            const targetData = digitTintImageData.data;
+            for (let i = 0; i < sourceData.length; i += 4) {
+                targetData[i] = Math.round(sourceData[i] * r / 255);
+                targetData[i + 1] = Math.round(sourceData[i + 1] * g / 255);
+                targetData[i + 2] = Math.round(sourceData[i + 2] * b / 255);
+                targetData[i + 3] = Math.round(sourceData[i + 3] * a / 255);
+            }
+            digitTintCtx.putImageData(digitTintImageData, 0, 0);
             return digitTintCanvas;
         }

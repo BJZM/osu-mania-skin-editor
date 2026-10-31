@@ -82,7 +82,11 @@
         }
 
         function shouldDeferSkinRendering() {
-            return startupWorkflowBeatmapReady && !startupWorkflowSkinReady;
+            // 皮肤来源确定前不画舞台。loadBeatmapDifficulty 会先写入 currentBeatmap，
+            // 并在曲绘 onload / 淡入 rAF 里提前 drawFrame；startupWorkflowBeatmapReady
+            // 要等整段加载结束才置位。若只看这个标记，那几帧会把已预载的默认皮肤画出来再清掉。
+            if (startupWorkflowSkinReady) return false;
+            return startupWorkflowBeatmapReady || !!currentBeatmap;
         }
 
         function canPlayWithStartupSelection() {

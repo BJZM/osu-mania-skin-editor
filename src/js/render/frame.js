@@ -406,6 +406,9 @@
                 // ---- 计算连击数与长按状态 ----
                 let currentCombo = 0;
                 let isHoldingLN = false;
+                let minTailRemainingMs = Infinity;
+                let isTailWarning = false;
+                const tailTimeThresholdMs = (typeof COMBO_HOLD_TAIL_WARN_THRESHOLD_MS !== 'undefined') ? COMBO_HOLD_TAIL_WARN_THRESHOLD_MS : 120;
                 if (!isPreviewMode) {
                     for (let i = 0; i < notesList.length; i++) {
                         const n = notesList[i];
@@ -414,6 +417,10 @@
                                 currentCombo++;
                                 if (currentTime < n.endTime) {
                                     isHoldingLN = true;
+                                    const tailRemaining = n.endTime - currentTime;
+                                    if (tailRemaining < minTailRemainingMs) {
+                                        minTailRemainingMs = tailRemaining;
+                                    }
                                 }
                             }
                             // 对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中每经过一个 Tick，Combo 持续递增
@@ -433,13 +440,36 @@
                             if (currentTime >= n.startTime) currentCombo++;
                         }
                     }
+                    if (isHoldingLN && minTailRemainingMs <= tailTimeThresholdMs) {
+                        isTailWarning = true;
+                    }
                 } else {
                     currentCombo = 100;
                     isHoldingLN = false;
+                    for (let i = 0; i < notesList.length; i++) {
+                        const n = notesList[i];
+                        if (n.isHold && currentTime >= n.startTime && currentTime < n.endTime) {
+                            isHoldingLN = true;
+                            const tailRemaining = n.endTime - currentTime;
+                            if (tailRemaining < minTailRemainingMs) {
+                                minTailRemainingMs = tailRemaining;
+                            }
+                        }
+                    }
+                    if (isHoldingLN && minTailRemainingMs <= tailTimeThresholdMs) {
+                        isTailWarning = true;
+                    }
                 }
 
                 if (performance.now() < testHoldingUntil) {
                     isHoldingLN = true;
+                    const previewRemaining = testHoldingUntil - performance.now();
+                    if (previewRemaining <= tailTimeThresholdMs) {
+                        isTailWarning = true;
+                    }
+                    if (previewRemaining < minTailRemainingMs) {
+                        minTailRemainingMs = previewRemaining;
+                    }
                 }
                 if (performance.now() < testComboBreakUntil) {
                     currentCombo = 0;
@@ -503,6 +533,9 @@
                 }
 
                 if (!isPreviewMode) {
+                    if (typeof scheduleManiaHitsounds === 'function') {
+                        scheduleManiaHitsounds(currentTime);
+                    }
                     const now = performance.now();
                     for (let i = 0; i < notesList.length; i++) {
                         let note = notesList[i];
@@ -510,9 +543,6 @@
                             note.hit = true;
                             // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
                             if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
-                            if (typeof playManiaHitSound === 'function') {
-                                playManiaHitSound(note, currentTime);
-                            }
                             // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
                             if (!note.isHold) {
                                 if (isPreviewJudgementActive) {
@@ -800,7 +830,12 @@
                     comboPosY = (isUpsideDown ? (480 - DEFAULT_COMBO_POSITION) : DEFAULT_COMBO_POSITION) * scale48;
                 }
                 let comboPosX = startX + totalTrackWidth / 2;
-                drawCombo(currentCombo, comboPosX, comboPosY, keys, scale768, isHoldingLN, startX, totalTrackWidth);
+                const holdDetails = {
+                    isHolding: isHoldingLN,
+                    isTailWarning: isTailWarning,
+                    minTailRemainingMs: minTailRemainingMs
+                };
+                drawCombo(currentCombo, comboPosX, comboPosY, keys, scale768, isHoldingLN, startX, totalTrackWidth, holdDetails);
 
                 const defaultScorePosRaw = isUpsideDown ? (480 - DEFAULT_SCORE_POSITION) : DEFAULT_SCORE_POSITION;
                 let scorePosY = (scorePosFromSkin !== null)
@@ -868,6 +903,7 @@
                     (isPreviewMode && skinFrameAnimationActive) ||
                     (performance.now() - comboAnimState.breakStartTime < 400) ||
                     (performance.now() - comboAnimState.incStartTime < 300) ||
+                    isComboHoldColourTransitionActive() ||
                     (performance.now() < testComboBreakUntil) ||
                     (performance.now() - bgFadeStartTime < BG_FADE_DURATION) ||
                     (performance.now() < testHoldingUntil) ||

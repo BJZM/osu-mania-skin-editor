@@ -26,7 +26,78 @@
             ctx.drawImage(img, offsetX, offsetY, renderW, renderH);
         }
 
-        function renderComboDigits(str, centerX, centerY, keys, scale768, scaleX, scaleY, alpha, isBreakGhost, isHolding = false) {
+        const COMBO_HOLD_COLOUR_TRANSITION_MS = 300;
+        const COMBO_HOLD_COLOUR_WHITE = { r: 255, g: 255, b: 255, a: 255 };
+
+        function normalizeComboHoldColour(color) {
+            const readChannel = (value) => {
+                const parsed = Number(value);
+                return Number.isFinite(parsed) ? Math.max(0, Math.min(255, parsed)) : 255;
+            };
+            return {
+                r: readChannel(color?.r),
+                g: readChannel(color?.g),
+                b: readChannel(color?.b),
+                a: readChannel(color?.a),
+            };
+        }
+
+        function comboHoldColoursEqual(a, b) {
+            return !!a && !!b && a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
+        }
+
+        function resetComboHoldColourTint() {
+            comboAnimState.holdColourActive = false;
+            comboAnimState.holdColourCurrent = { ...COMBO_HOLD_COLOUR_WHITE };
+            comboAnimState.holdColourFrom = { ...COMBO_HOLD_COLOUR_WHITE };
+            comboAnimState.holdColourTarget = { ...COMBO_HOLD_COLOUR_WHITE };
+            comboAnimState.holdColourTransitionStartTime = -1000;
+        }
+
+        function isComboHoldColourTransitionActive(now = performance.now()) {
+            if (comboHoldColoursEqual(comboAnimState.holdColourFrom, comboAnimState.holdColourTarget)) {
+                return false;
+            }
+            const elapsed = now - comboAnimState.holdColourTransitionStartTime;
+            return elapsed >= 0 && elapsed < COMBO_HOLD_COLOUR_TRANSITION_MS;
+        }
+
+        function getComboHoldColourTint(keys, isHolding, now = performance.now()) {
+            const state = comboAnimState;
+            const active = !!isHolding;
+            const cfgHold = getManiaSkinConfig(keys, LML.ColourHold)?.value || { r: 255, g: 191, b: 51, a: 255 };
+            const holdColour = normalizeComboHoldColour(cfgHold);
+
+            // stable ManiaComboCounter: 按下 White -> ColourHold，松开 ColourHold -> White，均为 300ms。
+            if (active !== state.holdColourActive) {
+                state.holdColourFrom = active ? { ...COMBO_HOLD_COLOUR_WHITE } : { ...holdColour };
+                state.holdColourTarget = active ? { ...holdColour } : { ...COMBO_HOLD_COLOUR_WHITE };
+                state.holdColourCurrent = { ...state.holdColourFrom };
+                state.holdColourActive = active;
+                state.holdColourTransitionStartTime = now;
+            } else if (active && !comboHoldColoursEqual(holdColour, state.holdColourTarget)) {
+                state.holdColourFrom = { ...state.holdColourCurrent };
+                state.holdColourTarget = { ...holdColour };
+                state.holdColourTransitionStartTime = now;
+            }
+
+            const elapsed = now - state.holdColourTransitionStartTime;
+            if (elapsed >= COMBO_HOLD_COLOUR_TRANSITION_MS) {
+                state.holdColourCurrent = { ...state.holdColourTarget };
+            } else if (elapsed > 0) {
+                const progress = elapsed / COMBO_HOLD_COLOUR_TRANSITION_MS;
+                const lerp = (from, to) => Math.round(from + (to - from) * progress);
+                state.holdColourCurrent = {
+                    r: lerp(state.holdColourFrom.r, state.holdColourTarget.r),
+                    g: lerp(state.holdColourFrom.g, state.holdColourTarget.g),
+                    b: lerp(state.holdColourFrom.b, state.holdColourTarget.b),
+                    a: lerp(state.holdColourFrom.a, state.holdColourTarget.a),
+                };
+            }
+            return state.holdColourCurrent;
+        }
+
+        function renderComboDigits(str, centerX, centerY, keys, scale768, scaleX, scaleY, alpha, isBreakGhost, holdColour = null) {
             let digits = [];
             let totalWidth = 0;
             const overlapVal = getSkinFontOverlap('combo', keys);
@@ -71,9 +142,8 @@
                         const cfgCol = getManiaSkinConfig(keys, LML.ComboBreakColour)?.value || { r: 255, g: 0, b: 0 };
                         const tinted = getTintedDigitCanvas(digitImg, cfgCol);
                         ctx.drawImage(tinted, curX, centerY - charH / 2, charW, charH);
-                    } else if (isHolding) {
-                        const cfgHold = getManiaSkinConfig(keys, LML.ColourHold)?.value || { r: 255, g: 191, b: 51, a: 255 };
-                        const tinted = getTintedDigitCanvas(digitImg, cfgHold);
+                    } else if (holdColour) {
+                        const tinted = getTintedDigitCanvas(digitImg, holdColour);
                         ctx.drawImage(tinted, curX, centerY - charH / 2, charW, charH);
                     } else {
                         ctx.drawImage(digitImg, curX, centerY - charH / 2, charW, charH);
@@ -85,10 +155,8 @@
                     ctx.font = `bold ${Math.round(fallbackH * 0.9)}px sans-serif`;
                     if (isBreakGhost) {
                         ctx.fillStyle = '#ff2222';
-                    } else if (isHolding) {
-                        const cfgHold = getManiaSkinConfig(keys, LML.ColourHold)?.value || { r: 255, g: 191, b: 51, a: 255 };
-                        const a = (cfgHold.a != null && !isNaN(cfgHold.a)) ? cfgHold.a / 255 : 1.0;
-                        ctx.fillStyle = `rgba(${cfgHold.r}, ${cfgHold.g}, ${cfgHold.b}, ${a})`;
+                    } else if (holdColour) {
+                        ctx.fillStyle = `rgba(${holdColour.r}, ${holdColour.g}, ${holdColour.b}, ${holdColour.a / 255})`;
                     } else {
                         ctx.fillStyle = '#ffffff';
                     }
@@ -104,6 +172,7 @@
         // osu!lazer 连击数渲染引擎 (对齐 LegacyManiaComboCounter: 768p 分辨率基准缩放 + 1.4x 纵向拉伸弹跳 + 增长透明度恒定 1.0 + 断连红色爆破扩散与遮罩)
         function drawCombo(combo, centerX, centerY, keys, scale768, isHolding = false, trackStartX = null, trackWidth = null) {
             const now = performance.now();
+            const holdColour = getComboHoldColourTint(keys, isHolding, now);
 
             // 1. 断连爆破残影动画与遮罩闪烁 (对齐 lazer LegacyManiaComboCounter.onCountRolling: 膨胀扩散淡出)
             const breakDuration = 350;
@@ -123,7 +192,7 @@
                     ctx.restore();
                 }
 
-                renderComboDigits(ghostStr, centerX, centerY, keys, scale768, ghostScale, ghostScale, ghostAlpha, true, false);
+                renderComboDigits(ghostStr, centerX, centerY, keys, scale768, ghostScale, ghostScale, ghostAlpha, true, null);
             }
 
             if (combo <= 0) return;
@@ -138,5 +207,5 @@
                 scaleY = 1.4 - 0.4 * easeOut;
             }
 
-            renderComboDigits(combo.toString(), centerX, centerY, keys, scale768, 1.0, scaleY, 1.0, false, isHolding);
+            renderComboDigits(combo.toString(), centerX, centerY, keys, scale768, 1.0, scaleY, 1.0, false, holdColour);
         }
