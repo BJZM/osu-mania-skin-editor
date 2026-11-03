@@ -1,8 +1,8 @@
 {
   "name": "osu-mania-skin-editor",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
-  "description": "Visual editor and previewer for osu!stable mania skins",
+  "description": "osu!mania 皮肤编辑器（Skin Editor）：可视化制作、修改、预览并导出 osu!stable mania 皮肤",
   "author": "BJZM",
   "license": "MIT",
   "main": "electron/main.cjs",

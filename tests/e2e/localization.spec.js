@@ -43,6 +43,8 @@ test.describe('Chinese and English interface', () => {
     await page.goto('/index.html');
 
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+    await expect(page).toHaveTitle('osu!mania 皮肤编辑器 | 可视化皮肤制作与预览');
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /osu!mania 皮肤编辑器/);
     await expect(page.locator('#openSkinEditorBtn')).toContainText('详细设置');
 
     await page.locator('#otherMenuBtn').click();
@@ -55,7 +57,7 @@ test.describe('Chinese and English interface', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.locator('#openSkinEditorBtn')).toContainText('Detailed settings');
     await expect(page.locator('#openTextureImageEditorBtn')).toContainText('Texture import and editing');
-    await expect.poll(() => page.title()).toBe('osu!mania Visual Skin Editor');
+    await expect.poll(() => page.title()).toBe('osu!mania Skin Editor | Visual Skin Making and Preview');
     await expect.poll(() => page.evaluate(() => localStorage.getItem('osu-mania-skin-editor.language'))).toBe('en');
 
     await page.reload();
@@ -83,6 +85,59 @@ test.describe('Chinese and English interface', () => {
     const missing = await page.evaluate(() => window.I18n.getMissing());
     console.log(`Missing English entries (${missing.length}):\n${missing.join('\n')}`);
     expect(missing).toEqual([]);
+  });
+
+  test('incremental DOM changes only translate their own subtree', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('osu-mania-skin-editor.language', 'en');
+    });
+    await page.goto('/index.html');
+    await page.waitForFunction(() => window.I18n && window.I18n.getLanguage() === 'en');
+
+    const result = await page.evaluate(async () => {
+      const waitForObserver = () => new Promise((resolve) => setTimeout(resolve, 50));
+      const textHost = document.createElement('span');
+      textHost.textContent = 'temporary benchmark text';
+      document.body.appendChild(textHost);
+      await waitForObserver();
+
+      const originalCreateTreeWalker = Document.prototype.createTreeWalker;
+      const walkerRoots = [];
+      Document.prototype.createTreeWalker = function captureTreeWalker(root, ...args) {
+        walkerRoots.push(root === document.documentElement ? 'document' : 'subtree');
+        return originalCreateTreeWalker.call(this, root, ...args);
+      };
+
+      textHost.firstChild.nodeValue = '导出皮肤成功';
+      await waitForObserver();
+      const textResult = {
+        localizedText: textHost.textContent,
+        walkerRoots: walkerRoots.slice()
+      };
+
+      walkerRoots.length = 0;
+      const subtreeHost = document.createElement('div');
+      subtreeHost.innerHTML = '<button title="等待选择皮肤">导出皮肤成功</button>';
+      document.body.appendChild(subtreeHost);
+      await waitForObserver();
+      const button = subtreeHost.querySelector('button');
+      const subtreeResult = {
+        localizedText: button.textContent,
+        localizedTitle: button.title,
+        walkerRoots: walkerRoots.slice()
+      };
+
+      Document.prototype.createTreeWalker = originalCreateTreeWalker;
+      textHost.remove();
+      subtreeHost.remove();
+      return { textResult, subtreeResult };
+    });
+
+    expect(result.textResult.localizedText).toBe('Skin exported');
+    expect(result.textResult.walkerRoots).not.toContain('document');
+    expect(result.subtreeResult.localizedText).toBe('Skin exported');
+    expect(result.subtreeResult.localizedTitle).toBe('Waiting for a skin');
+    expect(result.subtreeResult.walkerRoots).toEqual(['subtree']);
   });
 
   test('dynamic editor views stay in English after importing a beatmap and skin', async ({ page }) => {

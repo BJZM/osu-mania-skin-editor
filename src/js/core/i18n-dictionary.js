@@ -730,6 +730,7 @@
                 '完美判定打击特效': 'Perfect judgement hit effect',
 
                 '关于 osu!mania 皮肤编辑器': 'About osu!mania Skin Editor',
+                'osu!mania 皮肤编辑器': 'osu!mania Skin Editor',
                 '版本': 'Version',
                 '用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。': 'Preview, edit, and export osu!stable-compatible skin.ini settings and textures.',
                 '版权': 'Copyright',

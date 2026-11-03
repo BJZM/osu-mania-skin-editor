@@ -8,7 +8,9 @@ test('LN scroll length follows stable default speed and inherited SV', async ({ 
   await page.waitForFunction(
     () => typeof drawFrame === 'function' &&
       typeof createManiaScrollState === 'function' &&
-      typeof parseTimingPointsFromOsuText === 'function',
+      typeof parseTimingPointsFromOsuText === 'function' &&
+      typeof markStartupBeatmapReady === 'function' &&
+      typeof markStartupSkinReady === 'function',
     null,
     { timeout: 30000 }
   );
@@ -32,6 +34,9 @@ test('LN scroll length follows stable default speed and inherited SV', async ({ 
     const withoutSvLength = getManiaScrollPositionAt(endTime, withoutSvState)
       - getManiaScrollPositionAt(startTime, withoutSvState);
 
+    markStartupBeatmapReady();
+    markStartupSkinReady();
+    cancelAnimationFrame(animationId);
     currentBeatmap = {
       difficulty: { circleSize: 4 },
       hitObjects: []
@@ -125,7 +130,9 @@ test('Scroll speed calculation matches osu!stable / lazer (ComputeScrollTime, ge
   await page.waitForFunction(
     () => typeof computeManiaScrollTime === 'function' &&
       typeof getManiaSpeedFactor === 'function' &&
-      typeof drawFrame === 'function',
+      typeof drawFrame === 'function' &&
+      typeof markStartupBeatmapReady === 'function' &&
+      typeof markStartupSkinReady === 'function',
     null,
     { timeout: 30000 }
   );
@@ -151,6 +158,9 @@ test('Scroll speed calculation matches osu!stable / lazer (ComputeScrollTime, ge
     currentTime = 0;
     isPlaying = false;
     canvasEditMode = true;
+    markStartupBeatmapReady();
+    markStartupSkinReady();
+    cancelAnimationFrame(animationId);
 
     // 在默认 HitPosition (402) 下测量时间跨度 300ms 的长条高度
     const hpDefault = 402;

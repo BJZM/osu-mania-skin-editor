@@ -1,10 +1,10 @@
-# osu!mania Skin Editor
+# osu!mania 皮肤编辑器（Skin Editor）
 
-一款面向 osu!mania 皮肤作者与玩家的可视化编辑器。导入皮肤与谱面后，可以在接近 osu!stable 的画面中实时预览、调整 `skin.ini` 参数与贴图，并导出可直接导入游戏的 `.osk` 皮肤包。
+**osu!mania 皮肤编辑器**（osu!mania Skin Editor）是一款面向 osu!mania 皮肤作者与玩家的可视化编辑器。导入皮肤与谱面后，可以在接近 osu!stable 的画面中实时预览、调整 `skin.ini` 参数与贴图，并导出可直接导入游戏的 `.osk` 皮肤包。
 
 [在线使用](https://osu-mania-skin-editor.pages.dev/) · [下载 Windows 便携版](https://github.com/BJZM/osu-mania-skin-editor/releases) · [反馈问题](https://github.com/BJZM/osu-mania-skin-editor/issues)
 
-![version](https://img.shields.io/badge/version-0.4.1-blue)
+![version](https://img.shields.io/badge/version-0.4.2-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![platform](https://img.shields.io/badge/platform-Web%20%7C%20Windows-lightgrey)
 
@@ -119,11 +119,11 @@ npm install
 npm run dist:win
 ```
 
-生成的文件位于 `dist/osu-mania-skin-editor-0.4.1-x64.exe`。
+生成的文件位于 `dist/osu-mania-skin-editor-0.4.2-x64.exe`。
 
 ## 反馈与帮助
 
-当前版本为 `v0.4.1`，后续仍会持续迭代。遇到问题或希望补充新的编辑功能，可以通过 [GitHub Issues](https://github.com/BJZM/osu-mania-skin-editor/issues) 反馈。
+当前版本为 `v0.4.2`，后续仍会持续迭代。遇到问题或希望补充新的编辑功能，可以通过 [GitHub Issues](https://github.com/BJZM/osu-mania-skin-editor/issues) 反馈。
 
 界面内的「帮助」按钮提供贴图规则速查，「关于」按钮会展示版本、许可与第三方声明。
 

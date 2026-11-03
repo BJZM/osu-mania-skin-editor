@@ -24,7 +24,6 @@
             let currentLanguage = DEFAULT_LANGUAGE;
             let observer = null;
             let isApplying = false;
-            let pendingSweep = 0;
 
             for (const [source, translated] of Object.entries(exact)) {
                 if (!exactReverse.has(translated)) exactReverse.set(translated, source);
@@ -227,13 +226,6 @@
 
             function startObserver() {
                 if (observer || typeof MutationObserver === 'undefined') return;
-                const scheduleSweep = () => {
-                    if (currentLanguage !== 'en' || pendingSweep) return;
-                    pendingSweep = window.setTimeout(() => {
-                        pendingSweep = 0;
-                        translateSubtree(document.documentElement);
-                    }, 0);
-                };
                 observer = new MutationObserver((mutations) => {
                     if (isApplying) return;
                     for (const mutation of mutations) {
@@ -247,10 +239,6 @@
                         }
                         for (const node of mutation.addedNodes) translateSubtree(node);
                     }
-                    // 部分模块通过大段 innerHTML / DocumentFragment 批量挂载节点；
-                    // 子节点级回调可能早于完整 UI 状态形成。微任务后再扫一遍全树，
-                    // 确保新渲染的卡片、标签与属性也使用当前语言。
-                    scheduleSweep();
                 });
                 observer.observe(document.documentElement, {
                     subtree: true,
@@ -274,19 +262,15 @@
                 const title = document.querySelector('title');
                 if (title) {
                     if (language === 'en') {
-                        title.textContent = 'osu!mania Visual Skin Editor';
+                        title.textContent = 'osu!mania Skin Editor | Visual Skin Making and Preview';
                     } else {
-                        title.textContent = exactReverse.get(title.textContent) || 'osu!mania 可视化皮肤编辑器';
+                        title.textContent = exactReverse.get(title.textContent) || 'osu!mania 皮肤编辑器 | 可视化皮肤制作与预览';
                     }
                 }
             }
 
             function setLanguage(language) {
                 const nextLanguage = SUPPORTED_LANGUAGES.has(language) ? language : DEFAULT_LANGUAGE;
-                if (pendingSweep) {
-                    window.clearTimeout(pendingSweep);
-                    pendingSweep = 0;
-                }
                 currentLanguage = nextLanguage;
                 storeLanguage(nextLanguage);
                 syncLanguageControls(nextLanguage);

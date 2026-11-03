@@ -5,8 +5,8 @@
 
 // 应用元信息，供“关于”弹窗与版本展示使用；与 package.json 保持同步。
 window.APP_INFO = Object.freeze({
-    name: 'osu!mania Skin Editor',
-    version: '0.4.1',
+    name: 'osu!mania 皮肤编辑器',
+    version: '0.4.2',
     author: 'BJZM',
     year: 2026,
     license: 'MIT'

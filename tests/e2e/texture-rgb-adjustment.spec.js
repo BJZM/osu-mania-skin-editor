@@ -32,9 +32,9 @@ async function selectKeyImage(page) {
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
 }
 
-function readOpaquePixel(page) {
-  return page.evaluate(() => {
-    const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+function readOpaquePixel(page, lookup = 'KeyImage', column = 0) {
+  return page.evaluate(({ lookup, column }) => {
+    const img = getManiaSkinImage(getActiveKeyCount(), LML[lookup], column);
     if (!img) return null;
     const canvas = document.createElement('canvas');
     canvas.width = img.width;
@@ -69,12 +69,12 @@ function readOpaquePixel(page) {
       y: best.y,
       rgba: best.rgba
     };
-  });
+  }, { lookup, column });
 }
 
-function readPixel(page, point) {
-  return page.evaluate(({ x, y }) => {
-    const img = getManiaSkinImage(getActiveKeyCount(), LML.KeyImage, 0);
+function readPixel(page, point, lookup = 'KeyImage', column = 0) {
+  return page.evaluate(({ x, y, lookup, column }) => {
+    const img = getManiaSkinImage(getActiveKeyCount(), LML[lookup], column);
     if (!img) return null;
     const canvas = document.createElement('canvas');
     canvas.width = img.width;
@@ -82,7 +82,7 @@ function readPixel(page, point) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
     return Array.from(ctx.getImageData(x, y, 1, 1).data);
-  }, point);
+  }, { ...point, lookup, column });
 }
 
 test('RGB 分量调整实时更新贴图并保持透明度', async ({ page }) => {
@@ -147,6 +147,45 @@ test('RGB 调整支持撤销、重做和保存后恢复参数', async ({ page })
   await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'KeyImage0');
   const restored = await page.evaluate(() => textureImageEditorUi.getState().rgbAdjustment);
   expect(restored).toEqual({ r: 40, g: 100, b: 100 });
+  expect(errors).toEqual([]);
+});
+
+test('RGB 调整保存后会写入普通贴图的实际像素', async ({ page }) => {
+  const errors = await boot(page);
+  await page.click('#openTextureImageEditorBtn');
+  await page.waitForFunction(() => document.getElementById('textureImageEditorModal').classList.contains('active'));
+  await page.click('#textureImagePickerGrid [data-param-key="NoteImage0"]');
+  await page.waitForFunction(() => textureImageEditorUi.getState().selectedKey === 'NoteImage0');
+
+  const source = await readOpaquePixel(page, 'NoteImage');
+  expect(source).not.toBeNull();
+  await page.fill('#textureImageRgbRValue', '50');
+  await page.fill('#textureImageRgbGValue', '150');
+  await page.fill('#textureImageRgbBValue', '100');
+  await page.waitForFunction(() => {
+    const value = textureImageEditorUi.getState().rgbAdjustment;
+    return value.r === 50 && value.g === 150 && value.b === 100;
+  });
+  await page.waitForTimeout(220);
+
+  const adjusted = await readPixel(page, source, 'NoteImage');
+  const expected = [
+    Math.min(255, Math.round(source.rgba[0] * 0.5)),
+    Math.min(255, Math.round(source.rgba[1] * 1.5)),
+    source.rgba[2],
+    source.rgba[3]
+  ];
+  expect(adjusted).toEqual(expected);
+
+  await page.click('#textureImageApplyBtn');
+  const scopeModal = page.locator('#textureImageApplyScopeModal');
+  if (await scopeModal.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await page.click('#textureImageApplyScopeCurrentBtn');
+  }
+  await page.waitForFunction(() => textureImageEditorUi.getState().dirtyTabCount === 0);
+  await page.waitForTimeout(220);
+
+  expect(await readPixel(page, source, 'NoteImage')).toEqual(expected);
   expect(errors).toEqual([]);
 });
 

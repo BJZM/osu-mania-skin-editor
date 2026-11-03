@@ -5,7 +5,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>osu!mania 可视化皮肤编辑器</title>
+    <title>osu!mania 皮肤编辑器 | 可视化皮肤制作与预览</title>
+    <meta name="description" content="osu!mania 皮肤编辑器（Skin Editor）用于制作、修改和预览 osu!stable mania 皮肤，支持 4K、7K、贴图替换、skin.ini 调整与 .osk 导出。">
+    <meta name="keywords" content="osu!mania 皮肤编辑器, osu mania skin editor, osu!mania 皮肤制作, mania 皮肤, osu skin editor, 4K, 7K, osk">
+    <meta name="application-name" content="osu!mania 皮肤编辑器">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="osu!mania 皮肤编辑器">
+    <meta property="og:title" content="osu!mania 皮肤编辑器 | 可视化皮肤制作与预览">
+    <meta property="og:description" content="制作、修改和预览 osu!stable mania 皮肤，支持 4K、7K、贴图替换、skin.ini 调整与 .osk 导出。">
+    <meta property="og:url" content="https://osu-mania-skin-editor.pages.dev/">
+    <meta property="og:locale" content="zh_CN">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="osu!mania 皮肤编辑器 | 可视化皮肤制作与预览">
+    <meta name="twitter:description" content="制作、修改和预览 osu!stable mania 皮肤，支持 4K、7K、贴图替换、skin.ini 调整与 .osk 导出。">
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <meta name="theme-color" content="#1b1622">
     <link rel="stylesheet" href="src/css/style.css?v=20261031_4">
@@ -2242,9 +2254,9 @@
 
             <div class="help-modal-body about-modal-body">
                 <section class="about-hero">
-                    <div class="about-app-name">osu!mania Skin Editor</div>
+                    <div class="about-app-name">osu!mania 皮肤编辑器</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.4.1</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.4.2</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>
@@ -2313,11 +2325,11 @@
     <script defer src="src/js/default_skin.js?v=20261009_3"></script>
     <!-- 中英文界面词条与语言切换 -->
     <script defer src="src/js/core/i18n-dictionary.js?v=20261031_2"></script>
-    <script defer src="src/js/core/i18n.js?v=20261019_1"></script>
+    <script defer src="src/js/core/i18n.js?v=20261101_1"></script>
     <!-- 主逻辑脚本：按依赖顺序加载（普通脚本引入，兼容 file:// 协议） -->
     <!-- 1) 全局状态、skin.ini 解析与参数元数据 -->
     <script defer src="src/js/core/stage-layout.js?v=20261009_2"></script>
-    <script defer src="src/js/core/state.js?v=20261025_2"></script>
+    <script defer src="src/js/core/state.js?v=20261103_1"></script>
     <script defer src="src/js/skin/skin-ini.js?v=20261009_2"></script>
     <script defer src="src/js/skin/mania-config.js?v=20261009_2"></script>
     <script defer src="src/js/skin/parameter-schema-mania.js?v=20261016_1"></script>
@@ -2340,8 +2352,8 @@
     <!-- 3) Canvas 画布绘制核心 -->
     <script defer src="src/js/render/effects.js?v=20261009_2"></script>
     <script defer src="src/js/render/fonts.js?v=20261009_6"></script>
-    <script defer src="src/js/render/textures.js?v=20261017_1"></script>
-    <script defer src="src/js/render/combo.js?v=20261025_2"></script>
+    <script defer src="src/js/render/textures.js?v=20261101_1"></script>
+    <script defer src="src/js/render/combo.js?v=20261103_1"></script>
     <script defer src="src/js/render/comboburst-assets.js?v=20261025_1"></script>
     <script defer src="src/js/render/comboburst.js?v=20261025_1"></script>
     <script defer src="src/js/render/video-transcoder.js?v=20261010_2"></script>
@@ -2360,12 +2372,12 @@
     <script defer src="src/js/render/hud.js?v=20261013_2"></script>
     <script defer src="src/js/render/diagnostics.js?v=20261031_1"></script>
     <!-- 在后续 UI 脚本解析时并行加载默认皮肤图片 -->
-    <script defer src="src/js/core/bootstrap.js?v=20261010_2"></script>
+    <script defer src="src/js/core/bootstrap.js?v=20261103_1"></script>
     <!-- 4) 皮肤光标覆盖层 -->
     <script defer src="src/js/cursor.js?v=20261009_3"></script>
     <!-- 5) 界面交互层与启动初始化（必须最后加载） -->
     <script defer src="src/js/ui/feedback.js?v=20261010_3"></script>
-    <script defer src="src/js/ui/startup-actions.js?v=20261017_1"></script>
+    <script defer src="src/js/ui/startup-actions.js?v=20261101_1"></script>
     <script defer src="src/js/ui/layout.js?v=20261009_2"></script>
     <script defer src="src/js/ui/transport.js?v=20261031_3"></script>
     <script defer src="src/js/ui/hitsound-playback.js?v=20261031_1"></script>
@@ -2391,7 +2403,7 @@
     <script defer src="src/js/ui/texture-control-font-glyph.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-control-colours.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-controls.js?v=20261016_1"></script>
-    <script defer src="src/js/ui/hitsound-editor.js?v=20261024_1"></script>
+    <script defer src="src/js/ui/hitsound-editor.js?v=20261101_1"></script>
     <script defer src="src/js/ui/comboburst-editor.js?v=20261025_1"></script>
     <script defer src="src/js/ui/param-render.js?v=20261009_5"></script>
     <script defer src="src/js/ui/texture-project-archive.js?v=20261020_1"></script>
@@ -2419,7 +2431,7 @@
     <script defer src="src/js/ui/texture-image-editor-frame-edit.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-keyimage-groups.js?v=20261016_1"></script>
     <script defer src="src/js/ui/texture-image-editor-store-serialize.js?v=20261017_1"></script>
-    <script defer src="src/js/ui/texture-image-editor-save-close.js?v=20261016_1"></script>
+    <script defer src="src/js/ui/texture-image-editor-save-close.js?v=20261103_1"></script>
     <script defer src="src/js/ui/texture-image-editor.js?v=20261017_2"></script>
     <script defer src="src/js/ui/canvas-key-image-height.js?v=20261016_1"></script>
     <script defer src="src/js/ui/canvas-interactions.js?v=20261016_1"></script>

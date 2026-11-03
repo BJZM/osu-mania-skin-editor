@@ -27,6 +27,7 @@
         }
 
         const COMBO_HOLD_COLOUR_TRANSITION_MS = 300;
+        const COMBO_HOLD_COLOUR_TAIL_WARNING_MS = 100;
         const COMBO_HOLD_COLOUR_WHITE = { r: 255, g: 255, b: 255, a: 255 };
 
         function normalizeComboHoldColour(color) {
@@ -42,56 +43,67 @@
             };
         }
 
-        function comboHoldColoursEqual(a, b) {
-            return !!a && !!b && a.r === b.r && a.g === b.g && a.b === b.b && a.a === b.a;
-        }
-
         function resetComboHoldColourTint() {
             comboAnimState.holdColourActive = false;
             comboAnimState.holdColourCurrent = { ...COMBO_HOLD_COLOUR_WHITE };
-            comboAnimState.holdColourFrom = { ...COMBO_HOLD_COLOUR_WHITE };
-            comboAnimState.holdColourTarget = { ...COMBO_HOLD_COLOUR_WHITE };
             comboAnimState.holdColourTransitionStartTime = -1000;
+            comboAnimState.holdColourTailWarningActive = false;
         }
 
         function isComboHoldColourTransitionActive(now = performance.now()) {
-            if (comboHoldColoursEqual(comboAnimState.holdColourFrom, comboAnimState.holdColourTarget)) {
+            if (!comboAnimState.holdColourActive) {
                 return false;
             }
+            const duration = comboAnimState.holdColourTailWarningActive
+                ? COMBO_HOLD_COLOUR_TAIL_WARNING_MS
+                : COMBO_HOLD_COLOUR_TRANSITION_MS;
             const elapsed = now - comboAnimState.holdColourTransitionStartTime;
-            return elapsed >= 0 && elapsed < COMBO_HOLD_COLOUR_TRANSITION_MS;
+            return elapsed >= 0 && elapsed < duration;
         }
 
-        function getComboHoldColourTint(keys, isHolding, now = performance.now()) {
+        function getComboHoldColourTint(keys, isHolding, now = performance.now(), options = {}) {
             const state = comboAnimState;
             const active = !!isHolding;
             const cfgHold = getManiaSkinConfig(keys, LML.ColourHold)?.value || { r: 255, g: 191, b: 51, a: 255 };
             const holdColour = normalizeComboHoldColour(cfgHold);
 
-            // stable ManiaComboCounter: 按下 White -> ColourHold，松开 ColourHold -> White，均为 300ms。
-            if (active !== state.holdColourActive) {
-                state.holdColourFrom = active ? { ...COMBO_HOLD_COLOUR_WHITE } : { ...holdColour };
-                state.holdColourTarget = active ? { ...holdColour } : { ...COMBO_HOLD_COLOUR_WHITE };
-                state.holdColourCurrent = { ...state.holdColourFrom };
-                state.holdColourActive = active;
+            if (!active) {
+                state.holdColourActive = false;
+                state.holdColourTailWarningActive = false;
+                state.holdColourCurrent = { ...COMBO_HOLD_COLOUR_WHITE };
+                state.holdColourTransitionStartTime = -1000;
+                return state.holdColourCurrent;
+            }
+
+            // 按住：White -> ColourHold -> White，共 300ms；
+            // 尾部预警：同样的往返脉冲压缩到 100ms。连续衔接不重新开始按住脉冲。
+            if (!state.holdColourActive) {
+                state.holdColourActive = true;
+                state.holdColourTailWarningActive = false;
                 state.holdColourTransitionStartTime = now;
-            } else if (active && !comboHoldColoursEqual(holdColour, state.holdColourTarget)) {
-                state.holdColourFrom = { ...state.holdColourCurrent };
-                state.holdColourTarget = { ...holdColour };
+            }
+            if (options.isTailWarning && !state.holdColourTailWarningActive) {
+                state.holdColourTailWarningActive = true;
                 state.holdColourTransitionStartTime = now;
             }
 
+            const duration = state.holdColourTailWarningActive
+                ? COMBO_HOLD_COLOUR_TAIL_WARNING_MS
+                : COMBO_HOLD_COLOUR_TRANSITION_MS;
             const elapsed = now - state.holdColourTransitionStartTime;
-            if (elapsed >= COMBO_HOLD_COLOUR_TRANSITION_MS) {
-                state.holdColourCurrent = { ...state.holdColourTarget };
-            } else if (elapsed > 0) {
-                const progress = elapsed / COMBO_HOLD_COLOUR_TRANSITION_MS;
-                const lerp = (from, to) => Math.round(from + (to - from) * progress);
+            if (elapsed <= 0 || elapsed >= duration) {
+                state.holdColourCurrent = { ...COMBO_HOLD_COLOUR_WHITE };
+                if (!options.isTailWarning && state.holdColourTailWarningActive) {
+                    state.holdColourTailWarningActive = false;
+                }
+            } else {
+                const progress = elapsed / duration;
+                const direction = progress <= 0.5 ? progress * 2 : (1 - progress) * 2;
                 state.holdColourCurrent = {
-                    r: lerp(state.holdColourFrom.r, state.holdColourTarget.r),
-                    g: lerp(state.holdColourFrom.g, state.holdColourTarget.g),
-                    b: lerp(state.holdColourFrom.b, state.holdColourTarget.b),
-                    a: lerp(state.holdColourFrom.a, state.holdColourTarget.a),
+                    r: Math.round(COMBO_HOLD_COLOUR_WHITE.r + (holdColour.r - COMBO_HOLD_COLOUR_WHITE.r) * direction),
+                    g: Math.round(COMBO_HOLD_COLOUR_WHITE.g + (holdColour.g - COMBO_HOLD_COLOUR_WHITE.g) * direction),
+                    b: Math.round(COMBO_HOLD_COLOUR_WHITE.b + (holdColour.b - COMBO_HOLD_COLOUR_WHITE.b) * direction),
+                    a: Math.round(COMBO_HOLD_COLOUR_WHITE.a + (holdColour.a - COMBO_HOLD_COLOUR_WHITE.a) * direction),
                 };
             }
             return state.holdColourCurrent;
@@ -170,9 +182,11 @@
         }
 
         // osu!lazer 连击数渲染引擎 (对齐 LegacyManiaComboCounter: 768p 分辨率基准缩放 + 1.4x 纵向拉伸弹跳 + 增长透明度恒定 1.0 + 断连红色爆破扩散与遮罩)
-        function drawCombo(combo, centerX, centerY, keys, scale768, isHolding = false, trackStartX = null, trackWidth = null) {
+        function drawCombo(combo, centerX, centerY, keys, scale768, isHolding = false, trackStartX = null, trackWidth = null, holdDetails = null) {
             const now = performance.now();
-            const holdColour = getComboHoldColourTint(keys, isHolding, now);
+            const holdColour = getComboHoldColourTint(keys, isHolding, now, {
+                isTailWarning: !!holdDetails?.isTailWarning
+            });
 
             // 1. 断连爆破残影动画与遮罩闪烁 (对齐 lazer LegacyManiaComboCounter.onCountRolling: 膨胀扩散淡出)
             const breakDuration = 350;

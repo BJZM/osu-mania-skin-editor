@@ -2164,17 +2164,16 @@ test('I8 ColourHold 头部呼吸脉冲与尾部预警快闪动画机制', async 
     const continuousHandoff = { ...getComboHoldColourTint(keys, true, 7000) };
 
     const zeroAlphaPixel = readPixels(getTintedDigitCanvas(white, transparentPressHalf), 1)[0];
-    const pinComboHoldColour = (isHolding, color) => {
-      comboAnimState.holdColourActive = isHolding;
-      comboAnimState.holdColourCurrent = { ...color };
-    };
-    const countVisiblePixels = (isHolding) => {
+    const countVisiblePixels = (isHolding, holdColour) => {
+      const originalGetComboHoldColourTint = getComboHoldColourTint;
+      getComboHoldColourTint = () => holdColour;
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       comboAnimState.breakStartTime = -1000;
       comboAnimState.breakCount = 0;
       drawCombo(123, canvas.width / 2, canvas.height / 2, keys, canvas.height / 768, isHolding);
+      getComboHoldColourTint = originalGetComboHoldColourTint;
       const regionSize = Math.min(300, canvas.width, canvas.height);
       const pixels = ctx.getImageData(
         Math.max(0, Math.floor(canvas.width / 2 - regionSize / 2)),
@@ -2189,12 +2188,9 @@ test('I8 ColourHold 头部呼吸脉冲与尾部预警快闪动画机制', async 
       ctx.restore();
       return visible;
     };
-    pinComboHoldColour(true, transparentPressHalf);
-    const holdVisiblePixels = countVisiblePixels(true);
-    pinComboHoldColour(false, transparentTailWarnHalf);
-    const tailWarnVisiblePixels = countVisiblePixels(false);
-    pinComboHoldColour(false, transparentHeld);
-    const heldWhiteVisiblePixels = countVisiblePixels(false);
+    const holdVisiblePixels = countVisiblePixels(true, transparentPressHalf);
+    const tailWarnVisiblePixels = countVisiblePixels(true, transparentTailWarnHalf);
+    const heldWhiteVisiblePixels = countVisiblePixels(true, transparentHeld);
     const ini = generateSkinIniText();
 
     return {

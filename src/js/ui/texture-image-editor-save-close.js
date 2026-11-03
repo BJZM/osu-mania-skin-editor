@@ -374,7 +374,9 @@
                         (value) => setLongBodyProgress('正在生成完整长条...', value)
                     )];
                 } else {
-                    framesToSave = buildPreviewFrames();
+                    framesToSave = buildPreviewFrames().map((frame) =>
+                        applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
+                    );
                 }
                 if (!framesToSave || framesToSave.length === 0 || !framesToSave[0]) {
                     throw new Error('无法生成要保存的贴图');
