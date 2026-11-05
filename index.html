@@ -2152,7 +2152,7 @@
                         </div>
                         <div class="help-desc-item">
                             <span class="desc-key">动画与颜色：</span>
-                            <span class="desc-val">连击增长瞬间整组数字会<strong>纵向弹性拉伸到 1.4 倍再回弹</strong>（只是动画，不是贴图规则）；断连时旧连击数变红并向外扩散淡出。长条按住期间数字会改用 <code>ColourHold</code> 着色。</span>
+                            <span class="desc-val">连击增长瞬间整组数字会<strong>纵向弹性拉伸到 1.4 倍再回弹</strong>（只是动画，不是贴图规则）；断连时旧连击数变红并向外扩散淡出。长条按住期间的变色对应 <code>ColourHold</code>。osu!stable 里这段行为太过神秘，而且对游戏影响不大，所以这里不再精确逆向，只还原大概：按住时使用该颜色和透明度，按下与松开各有一段短过渡。</span>
                         </div>
                     </div>
                 </div>
@@ -2256,7 +2256,7 @@
                 <section class="about-hero">
                     <div class="about-app-name">osu!mania 皮肤编辑器</div>
                     <div class="about-app-meta">
-                        <span>版本 <strong id="aboutAppVersion">0.4.2</strong></span>
+                        <span>版本 <strong id="aboutAppVersion">0.4.3</strong></span>
                         <span class="about-license-tag">MIT License</span>
                     </div>
                     <p class="about-app-desc">用于预览、修改并导出 osu!stable 兼容的 skin.ini 与贴图资源。</p>

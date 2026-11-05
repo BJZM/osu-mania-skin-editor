@@ -301,7 +301,7 @@
                 zhName: '按住hold时连击字体颜色变换',
                 enName: 'ColourHold',
                 comment: 'RGBA 颜色 (默认 255,191,51,255)',
-                desc: '按住长条（Hold Note）时，屏幕中央连击数字（Combo）变色的滤镜高亮色彩。支持颜色与透明度调节，并支持一键实时预览变色效果。',
+                desc: '按住长条时连击数字的变色。osu!stable 的 ColourHold 太过神秘，而且对游戏影响不大，所以这里不再精确逆向，只还原大概：按住期间使用这个颜色和透明度，按下与松开各有一段短过渡。支持一键实时预览。',
                 category: '颜色',
                 tab: 'mania',
                 type: 'colour_hold',

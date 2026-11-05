@@ -2090,7 +2090,7 @@ test('I7 打击特效贴图使用 stable 全局键，不再按轨道展开', asy
   expect(errors).toEqual([]);
 });
 
-test('I8 ColourHold 头部呼吸脉冲与尾部预警快闪动画机制', async ({ page }) => {
+test('I8 ColourHold 按住保持颜色与透明度，按下和松开短过渡', async ({ page }) => {
   const errors = await boot(page);
 
   const result = await page.evaluate(() => {
@@ -2128,42 +2128,43 @@ test('I8 ColourHold 头部呼吸脉冲与尾部预警快闪动画机制', async 
     const halfAlphaPixel = readPixels(halfAlpha, 1)[0];
 
     const cfg = getManiaConfigForKeys(keys);
+    const fade = COMBO_HOLD_COLOUR_FADE_MS;
     cfg.ColourHold = { r: 0, g: 0, b: 255, a: 255 };
     resetComboHoldColourTint();
     const idle = { ...getComboHoldColourTint(keys, false, 1000) };
     const pressStart = { ...getComboHoldColourTint(keys, true, 1000) };
-    const pressHalf = { ...getComboHoldColourTint(keys, true, 1150) };
-    const held = { ...getComboHoldColourTint(keys, true, 1300) };
-    const tailWarnStart = { ...getComboHoldColourTint(keys, true, 2000, { isTailWarning: true }) };
-    const tailWarnHalf = { ...getComboHoldColourTint(keys, true, 2050) };
-    const tailWarnEnd = { ...getComboHoldColourTint(keys, true, 2100) };
-    const released = { ...getComboHoldColourTint(keys, false, 2300) };
+    const pressHalf = { ...getComboHoldColourTint(keys, true, 1000 + fade / 2) };
+    const held = { ...getComboHoldColourTint(keys, true, 1000 + fade) };
+    const heldLater = { ...getComboHoldColourTint(keys, true, 1600) };
+    const releaseStart = { ...getComboHoldColourTint(keys, false, 1600) };
+    const releaseHalf = { ...getComboHoldColourTint(keys, false, 1600 + fade / 2) };
+    const released = { ...getComboHoldColourTint(keys, false, 1600 + fade) };
 
     cfg.ColourHold = { r: 255, g: 255, b: 255, a: 0 };
     resetComboHoldColourTint();
     const transparentPressStart = { ...getComboHoldColourTint(keys, true, 3000) };
-    const transparentPressQuarter = { ...getComboHoldColourTint(keys, true, 3075) };
-    const transparentPressHalf = { ...getComboHoldColourTint(keys, true, 3150) };
-    const transparentHeld = { ...getComboHoldColourTint(keys, true, 3300) };
-    const transparentTailWarnStart = { ...getComboHoldColourTint(keys, true, 4000, { isTailWarning: true }) };
-    const transparentTailWarnHalf = { ...getComboHoldColourTint(keys, true, 4050) };
-    const transparentTailWarnEnd = { ...getComboHoldColourTint(keys, true, 4100) };
-    const transparentReleased = { ...getComboHoldColourTint(keys, false, 4300) };
+    const transparentPressHalf = { ...getComboHoldColourTint(keys, true, 3000 + fade / 2) };
+    const transparentHeld = { ...getComboHoldColourTint(keys, true, 3000 + fade) };
+    const transparentHeldLater = { ...getComboHoldColourTint(keys, true, 3600) };
+    const transparentReleaseStart = { ...getComboHoldColourTint(keys, false, 3600) };
+    const transparentReleaseHalf = { ...getComboHoldColourTint(keys, false, 3600 + fade / 2) };
+    const transparentReleased = { ...getComboHoldColourTint(keys, false, 3600 + fade) };
 
-    // 短长条打断测试：头部脉冲未播完（80ms < 300ms）收到尾部预警，瞬间突变回白并播放快闪
+    // 过渡还没走完就松开：从当前颜色和透明度往回过渡，而不是跳回白色。
     resetComboHoldColourTint();
     getComboHoldColourTint(keys, true, 5000);
-    const shortLNInterruptStart = { ...getComboHoldColourTint(keys, true, 5080, { isTailWarning: true }) };
-    const shortLNInterruptHalf = { ...getComboHoldColourTint(keys, true, 5130) };
-    const shortLNInterruptEnd = { ...getComboHoldColourTint(keys, true, 5180) };
+    const earlyReleaseFrom = { ...getComboHoldColourTint(keys, true, 5080) };
+    const earlyReleaseStart = { ...getComboHoldColourTint(keys, false, 5080) };
+    const earlyReleaseHalf = { ...getComboHoldColourTint(keys, false, 5130) };
+    const earlyReleaseEnd = { ...getComboHoldColourTint(keys, false, 5180) };
 
-    // 跨轨长条衔接测试：长条连续按住时，后一根长条跳过头部脉冲
+    // 长条首尾相接时按住状态不断，颜色保持，不重新过渡。
     resetComboHoldColourTint();
     getComboHoldColourTint(keys, true, 6000);
-    getComboHoldColourTint(keys, true, 6300);
+    const continuousAfterFade = { ...getComboHoldColourTint(keys, true, 6000 + fade) };
     const continuousHandoff = { ...getComboHoldColourTint(keys, true, 7000) };
 
-    const zeroAlphaPixel = readPixels(getTintedDigitCanvas(white, transparentPressHalf), 1)[0];
+    const zeroAlphaPixel = readPixels(getTintedDigitCanvas(white, transparentHeld), 1)[0];
     const countVisiblePixels = (isHolding, holdColour) => {
       const originalGetComboHoldColourTint = getComboHoldColourTint;
       getComboHoldColourTint = () => holdColour;
@@ -2188,39 +2189,39 @@ test('I8 ColourHold 头部呼吸脉冲与尾部预警快闪动画机制', async 
       ctx.restore();
       return visible;
     };
-    const holdVisiblePixels = countVisiblePixels(true, transparentPressHalf);
-    const tailWarnVisiblePixels = countVisiblePixels(true, transparentTailWarnHalf);
-    const heldWhiteVisiblePixels = countVisiblePixels(true, transparentHeld);
+    const holdVisiblePixels = countVisiblePixels(true, transparentHeld);
+    const releasedVisiblePixels = countVisiblePixels(false, transparentReleased);
     const ini = generateSkinIniText();
 
     return {
       multipliedPixels,
       halfAlphaPixel,
+      fadeMs: fade,
       holdColours: {
         idle,
         pressStart,
         pressHalf,
         held,
-        tailWarnStart,
-        tailWarnHalf,
-        tailWarnEnd,
+        heldLater,
+        releaseStart,
+        releaseHalf,
         released,
         transparentPressStart,
-        transparentPressQuarter,
         transparentPressHalf,
         transparentHeld,
-        transparentTailWarnStart,
-        transparentTailWarnHalf,
-        transparentTailWarnEnd,
+        transparentHeldLater,
+        transparentReleaseStart,
+        transparentReleaseHalf,
         transparentReleased,
-        shortLNInterruptStart,
-        shortLNInterruptHalf,
-        shortLNInterruptEnd,
+        earlyReleaseFrom,
+        earlyReleaseStart,
+        earlyReleaseHalf,
+        earlyReleaseEnd,
+        continuousAfterFade,
         continuousHandoff,
         zeroAlphaPixel,
         holdVisiblePixels,
-        tailWarnVisiblePixels,
-        heldWhiteVisiblePixels,
+        releasedVisiblePixels,
       },
       exportsZeroAlpha: /ColourHold\s*:\s*255,255,255,0/.test(ini)
     };
@@ -2234,30 +2235,31 @@ test('I8 ColourHold 头部呼吸脉冲与尾部预警快闪动画机制', async 
     [0, 0, 0, 0],
   ]);
   expect(result.halfAlphaPixel).toEqual([255, 0, 0, 128]);
+  expect(result.fadeMs).toBe(100);
   expect(result.holdColours.idle).toEqual({ r: 255, g: 255, b: 255, a: 255 });
   expect(result.holdColours.pressStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.pressHalf).toEqual({ r: 0, g: 0, b: 255, a: 255 });
-  expect(result.holdColours.held).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.tailWarnStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.tailWarnHalf).toEqual({ r: 0, g: 0, b: 255, a: 255 });
-  expect(result.holdColours.tailWarnEnd).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.pressHalf).toEqual({ r: 128, g: 128, b: 255, a: 255 });
+  expect(result.holdColours.held).toEqual({ r: 0, g: 0, b: 255, a: 255 });
+  expect(result.holdColours.heldLater).toEqual({ r: 0, g: 0, b: 255, a: 255 });
+  expect(result.holdColours.releaseStart).toEqual({ r: 0, g: 0, b: 255, a: 255 });
+  expect(result.holdColours.releaseHalf).toEqual({ r: 128, g: 128, b: 255, a: 255 });
   expect(result.holdColours.released).toEqual({ r: 255, g: 255, b: 255, a: 255 });
   expect(result.holdColours.transparentPressStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.transparentPressQuarter).toEqual({ r: 255, g: 255, b: 255, a: 128 });
-  expect(result.holdColours.transparentPressHalf).toEqual({ r: 255, g: 255, b: 255, a: 0 });
-  expect(result.holdColours.transparentHeld).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.transparentTailWarnStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.transparentTailWarnHalf).toEqual({ r: 255, g: 255, b: 255, a: 0 });
-  expect(result.holdColours.transparentTailWarnEnd).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.transparentPressHalf).toEqual({ r: 255, g: 255, b: 255, a: 128 });
+  expect(result.holdColours.transparentHeld).toEqual({ r: 255, g: 255, b: 255, a: 0 });
+  expect(result.holdColours.transparentHeldLater).toEqual({ r: 255, g: 255, b: 255, a: 0 });
+  expect(result.holdColours.transparentReleaseStart).toEqual({ r: 255, g: 255, b: 255, a: 0 });
+  expect(result.holdColours.transparentReleaseHalf).toEqual({ r: 255, g: 255, b: 255, a: 128 });
   expect(result.holdColours.transparentReleased).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.shortLNInterruptStart).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.shortLNInterruptHalf).toEqual({ r: 255, g: 255, b: 255, a: 0 });
-  expect(result.holdColours.shortLNInterruptEnd).toEqual({ r: 255, g: 255, b: 255, a: 255 });
-  expect(result.holdColours.continuousHandoff).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.earlyReleaseFrom).toEqual({ r: 255, g: 255, b: 255, a: 51 });
+  expect(result.holdColours.earlyReleaseStart).toEqual({ r: 255, g: 255, b: 255, a: 51 });
+  expect(result.holdColours.earlyReleaseHalf).toEqual({ r: 255, g: 255, b: 255, a: 153 });
+  expect(result.holdColours.earlyReleaseEnd).toEqual({ r: 255, g: 255, b: 255, a: 255 });
+  expect(result.holdColours.continuousAfterFade).toEqual({ r: 255, g: 255, b: 255, a: 0 });
+  expect(result.holdColours.continuousHandoff).toEqual({ r: 255, g: 255, b: 255, a: 0 });
   expect(result.holdColours.zeroAlphaPixel[3]).toBe(0);
   expect(result.holdColours.holdVisiblePixels).toBe(0);
-  expect(result.holdColours.tailWarnVisiblePixels).toBe(0);
-  expect(result.holdColours.heldWhiteVisiblePixels).toBeGreaterThan(0);
+  expect(result.holdColours.releasedVisiblePixels).toBeGreaterThan(0);
   expect(result.exportsZeroAlpha).toBe(true);
   expect(errors).toEqual([]);
 });
