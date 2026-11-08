@@ -229,11 +229,26 @@
                 a.href = downloadUrl;
                 a.download = exportFileName;
                 document.body.appendChild(a);
-                a.click();
+                const pendingDownload = window.skinEditorDesktop &&
+                    typeof window.skinEditorDesktop.waitForNextDownload === 'function'
+                    ? window.skinEditorDesktop.waitForNextDownload()
+                    : null;
+                try {
+                    a.click();
+                } catch (downloadError) {
+                    if (pendingDownload) pendingDownload.cancel();
+                    throw downloadError;
+                }
                 document.body.removeChild(a);
+                const downloadState = pendingDownload ? await pendingDownload.promise : 'completed';
                 setTimeout(() => URL.revokeObjectURL(downloadUrl), 8000);
 
                 hideProgress();
+                if (downloadState !== 'completed') {
+                    showToast('导出已取消', '文件没有保存，当前操作仍未导出。');
+                    return false;
+                }
+                if (window.skinWorkspaceRevision) window.skinWorkspaceRevision.markExported();
                 const projectDetail = projectSummary
                     ? `，工程源图 ${projectSummary.sourceCount} 张`
                     : '，不含工程编辑数据';

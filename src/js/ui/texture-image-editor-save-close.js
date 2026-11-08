@@ -722,7 +722,7 @@
             return true;
         }
 
-        async function close() {
+        async function close(options = {}) {
             commitActiveTabState();
             const dirtyTabs = tabs.filter(isTabDirty);
             if (dirtyTabs.length === 0) {
@@ -730,10 +730,13 @@
                 return true;
             }
 
-            const decision = await requestUnsavedDecision({
-                title: dirtyTabs[0] ? getTabTitle(dirtyTabs[0]) : '',
-                count: dirtyTabs.length
-            });
+            const preset = options && options.unsavedDecision;
+            const decision = preset === 'save' || preset === 'discard' || preset === 'cancel'
+                ? preset
+                : await requestUnsavedDecision({
+                    title: dirtyTabs[0] ? getTabTitle(dirtyTabs[0]) : '',
+                    count: dirtyTabs.length
+                });
             if (decision === 'cancel') return false;
             if (decision === 'discard') {
                 finalizeEditorClose({ restoreSnapshot: true });

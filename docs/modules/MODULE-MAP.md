@@ -31,6 +31,7 @@
 | texture-project-archive | 在 `.osk` / `.zip` 内保存和恢复可续编的创建参数、普通贴图源图与投皮会话，并支持干净发布导出 | implemented | skin-assets, global-skin-state, texture-image-editor-recipes, texture-image-editor-state, JSZip |
 | skin-agent-session | 为 Agent 提供描述、贴图与参数事务、预览、校验和归档导出，并保证批次级撤回与 revision 并发保护 | implemented | history, texture-upload, texture-resolve, export-skin, global-skin-state |
 | agent-bridge | 通过鉴权本机 HTTP、Electron IPC 与 preload 将 MCP 请求转发给可信 Renderer | implemented | skin-agent-session, electron-ipc |
+| skin-workspace-revision | 给当前皮肤状态编号，并判断该状态是否已经成功导出 | implemented | 无 |
 
 ## 依赖图
 
@@ -105,4 +106,5 @@ graph TD
   agentSession --> skinState
   agentBridge[agent-bridge] --> agentSession
   agentBridge --> electronIpc[electron-ipc]
+  skinRevision[skin-workspace-revision]
 ```

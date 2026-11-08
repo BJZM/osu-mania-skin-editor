@@ -163,7 +163,20 @@ let staticServer = null;
 let agentBridgeServer = null;
 let agentBridgeToken = null;
 let agentBridgeDiscoveryPaths = [];
+let allowMainWindowClose = false;
+let rendererCloseGuardReady = false;
 const pendingAgentRequests = new Map();
+
+ipcMain.on('desktop:close-guard-ready', (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents) return;
+  rendererCloseGuardReady = true;
+});
+
+ipcMain.on('desktop:allow-close', (event) => {
+  if (!mainWindow || event.sender !== mainWindow.webContents || mainWindow.isDestroyed()) return;
+  allowMainWindowClose = true;
+  mainWindow.close();
+});
 
 ipcMain.on('skin-agent:response', (event, payload) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return;
@@ -347,8 +360,20 @@ async function createMainWindow() {
   });
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.on('close', (event) => {
+    if (allowMainWindowClose || !rendererCloseGuardReady) return;
+    event.preventDefault();
+    mainWindow.webContents.send('desktop:close-requested');
+  });
+  mainWindow.webContents.on('did-start-navigation', (_event, _url, _isInPlace, isMainFrame) => {
+    if (!isMainFrame) return;
+    allowMainWindowClose = false;
+    rendererCloseGuardReady = false;
+  });
   mainWindow.on('closed', () => {
     mainWindow = null;
+    allowMainWindowClose = false;
+    rendererCloseGuardReady = false;
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://') || url.startsWith('https://')) void shell.openExternal(url);
@@ -377,6 +402,10 @@ if (!hasSingleInstanceLock) {
       item.setSaveDialogOptions({
         title: '保存文件',
         buttonLabel: '保存'
+      });
+      item.once('done', (_doneEvent, state) => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        mainWindow.webContents.send('desktop:download-finished', { state });
       });
     });
 

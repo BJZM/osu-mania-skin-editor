@@ -667,6 +667,7 @@
                 try {
                     const result = await buildSkinArchiveBlob(format, { mode });
                     const arrayBuffer = await result.blob.arrayBuffer();
+                    if (window.skinWorkspaceRevision) window.skinWorkspaceRevision.markExported();
                     return {
                         revision,
                         format,

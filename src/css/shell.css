@@ -1302,4 +1302,57 @@
             }
         }
 
+        .unsaved-exit-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 8000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .unsaved-exit-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(6, 5, 10, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .unsaved-exit-dialog {
+            position: relative;
+            width: min(460px, calc(100vw - 32px));
+            padding: 22px;
+            border: none;
+            border-radius: 10px;
+            background: #181520;
+            color: #ffffff;
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.72);
+            box-sizing: border-box;
+            animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .unsaved-exit-dialog h3 {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.3;
+        }
+
+        .unsaved-exit-dialog p {
+            margin: 10px 0 0;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .unsaved-exit-actions {
+            display: flex;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
         /* ==========================================================================

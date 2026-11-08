@@ -225,7 +225,10 @@
                     }]))
                     : null,
                 longBodyComposerSessions: cloneLongBodyComposerSessionsForHistory(),
-                activeEditorKeyCount: activeEditorKeyCount
+                activeEditorKeyCount: activeEditorKeyCount,
+                revisionId: window.skinWorkspaceRevision
+                    ? window.skinWorkspaceRevision.currentId()
+                    : 0
             };
         }
 
@@ -246,6 +249,7 @@
                 undoStack.push(snap);
                 if (undoStack.length > MAX_UNDO_STACK) undoStack.shift();
                 redoStack.length = 0;
+                if (window.skinWorkspaceRevision) window.skinWorkspaceRevision.advance();
                 continuousActionActive = true;
                 updateUndoButtonState();
                 if (window.skinAgentSession &&
@@ -446,6 +450,7 @@
                     }) || selectedCanvasElement;
                     syncCanvasSelectedCard(liveElem);
                 }
+                if (window.skinWorkspaceRevision) window.skinWorkspaceRevision.adopt(snap);
             } catch (err) {
                 console.error('[Undo/Redo] 还原皮肤快照失败:', err);
             } finally {
@@ -525,6 +530,7 @@
 
         function saveInitialSkinSnapshot() {
             try {
+                if (window.skinWorkspaceRevision) window.skinWorkspaceRevision.reset();
                 initialSkinSnapshot = {
                     maniaSkinConfigurations: cloneManiaSkinConfigs(maniaSkinConfigurations),
                     currentSkinMetadata: JSON.parse(JSON.stringify(currentSkinMetadata)),
@@ -535,7 +541,8 @@
                     skinHitsoundReplacements: typeof cloneSkinHitsoundReplacements === 'function'
                         ? cloneSkinHitsoundReplacements()
                         : new Map(),
-                    deletedSkinTexturePaths: new Set(deletedSkinTexturePaths)
+                    deletedSkinTexturePaths: new Set(deletedSkinTexturePaths),
+                    revisionId: 0
                 };
                 undoStack.length = 0;
                 redoStack.length = 0;
