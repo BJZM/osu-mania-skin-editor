@@ -303,6 +303,8 @@
             </aside>
         <div class="canvas-wrapper" id="canvasWrapper">
             <canvas id="gameCanvas" width="1280" height="720"></canvas>
+            <canvas id="songSelectCanvas" width="1280" height="720" style="display: none;"></canvas>
+            <canvas id="mainMenuCanvas" width="1280" height="720" style="display: none;"></canvas>
 
             <!-- 全屏悬浮按钮 -->
             <button class="fullscreen-btn" id="fullscreenBtn" title="全屏 (F)">
@@ -1466,6 +1468,41 @@
                 </div>
             </div>
         </div>
+            <!-- 右侧场景切换选项卡 (游戏内 / 选歌页面 / 主页面) -->
+            <aside class="stage-nav-rail" id="stageNavRail" aria-label="场景预览切换">
+                <button type="button" class="stage-nav-tab-btn active" id="tabViewGameplay" data-tab="gameplay" title="游戏内 (Mania 实时预览)">
+                    <span class="stage-nav-tab-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                            <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+                            <line x1="6" y1="12" x2="6" y2="12"></line>
+                            <line x1="10" y1="12" x2="10" y2="12"></line>
+                            <line x1="14" y1="12" x2="14" y2="12"></line>
+                            <line x1="18" y1="12" x2="18" y2="12"></line>
+                        </svg>
+                    </span>
+                    <span class="stage-nav-tab-label">游戏内</span>
+                </button>
+                <button type="button" class="stage-nav-tab-btn" id="tabViewSongSelect" data-tab="song-select" title="选歌页面 (曲目轮盘与详情)">
+                    <span class="stage-nav-tab-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                            <path d="M9 18V5l12-2v13"></path>
+                            <circle cx="6" cy="18" r="3"></circle>
+                            <circle cx="18" cy="16" r="3"></circle>
+                        </svg>
+                    </span>
+                    <span class="stage-nav-tab-label">选歌页面</span>
+                </button>
+                <button type="button" class="stage-nav-tab-btn" id="tabViewMainMenu" data-tab="main-menu" title="主页面 (osu! 菜单与大图标)">
+                    <span class="stage-nav-tab-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <line x1="12" y1="2" x2="12" y2="6"></line>
+                        </svg>
+                    </span>
+                    <span class="stage-nav-tab-label">主页面</span>
+                </button>
+            </aside>
         </div>
 
         <!-- 现代化全功能底栏播放器与控制台 (Docked Studio Player Bar) -->
@@ -2383,6 +2420,11 @@
     <script defer src="src/js/render/judgements.js?v=20261009_2"></script>
     <script defer src="src/js/render/hud.js?v=20261013_2"></script>
     <script defer src="src/js/render/diagnostics.js?v=20261031_1"></script>
+    <script defer src="src/js/render/main-menu-preview.js?v=20261111_1"></script>
+    <script defer src="src/js/render/song-select-layout.js?v=20261111_6"></script>
+    <script defer src="src/js/render/song-select-catalog.js?v=20261111_3"></script>
+    <script defer src="src/js/render/song-select-paint.js?v=20261111_7"></script>
+    <script defer src="src/js/render/song-select-preview.js?v=20261111_6"></script>
     <!-- 在后续 UI 脚本解析时并行加载默认皮肤图片 -->
     <script defer src="src/js/core/bootstrap.js?v=20261103_1"></script>
     <!-- 4) 皮肤光标覆盖层 -->
@@ -2452,6 +2494,7 @@
     <script defer src="src/js/ui/app-shell.js?v=20261012_2"></script>
     <script defer src="src/js/ui/unsaved-exit-prompt.js?v=20261108_1"></script>
     <script defer src="src/js/ui/agent-session.js?v=20261108_1"></script>
+    <script defer src="src/js/ui/stage-view-tabs.js?v=20261111_1"></script>
 </body>
 
 </html>

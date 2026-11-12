@@ -1656,7 +1656,7 @@
             aspect-ratio: 16 / 9;
             height: calc(100% - 24px);
             max-height: calc(100vh - 128px);
-            max-width: calc(100vw - 244px);
+            max-width: calc(100vw - 290px);
             margin: auto;
             display: flex;
             justify-content: center;
@@ -2459,6 +2459,96 @@
             flex-wrap: wrap;
             gap: 8px;
             margin-top: 18px;
+        }
+
+        /* ===== 右侧场景切换选项卡 (游戏内 / 选歌页面 / 主页面) ===== */
+        .stage-nav-rail {
+            position: relative;
+            width: 46px;
+            height: 100%;
+            flex-shrink: 0;
+            z-index: 10;
+            background: #14121a !important;
+            border: none;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 16px 5px;
+            gap: 12px;
+            box-shadow: none;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        .stage-nav-tab-btn {
+            width: 36px;
+            min-height: 84px;
+            padding: 10px 4px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.72);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .stage-nav-tab-btn .stage-nav-tab-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .stage-nav-tab-btn .stage-nav-tab-label {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            font-size: 11px;
+            letter-spacing: 3px;
+            line-height: 1.2;
+            font-weight: 500;
+        }
+
+        .stage-nav-tab-btn:hover {
+            background: #ffffff !important;
+            color: #111118 !important;
+            border: none;
+            box-shadow: none !important;
+        }
+
+        .stage-nav-tab-btn.active {
+            background: #ffffff !important;
+            color: #111118 !important;
+            font-weight: 600;
+            border: none;
+        }
+
+        .stage-nav-tab-btn:active {
+            transform: scale(0.96);
+            background: #e2e2e8;
+        }
+
+        .stage-nav-tab-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .canvas-wrapper:fullscreen ~ .stage-nav-rail,
+        .canvas-wrapper:-webkit-full-screen ~ .stage-nav-rail,
+        :fullscreen .stage-nav-rail,
+        .player-main-area:has(:fullscreen) .stage-nav-rail {
+            display: none !important;
         }
 
         /* ==========================================================================

@@ -44,6 +44,19 @@
                 /^(?:mania)?(?:leftstageimage|rightstageimage)$/.test(baseName);
         }
 
+        // Menu/song-select/ranking UI art and JPEGs do not use black-key transparency in osu!stable.
+        function isOpaqueUiAssetPath(relativePath) {
+            const normalized = String(relativePath || '').replace(/\\/g, '/');
+            if (/\.jpe?g$/i.test(normalized)) return true;
+            const baseName = normalized
+                .split('/')
+                .pop()
+                .replace(/@2x(?=\.[^.]+$)/i, '')
+                .replace(/\.[^.]+$/, '')
+                .toLowerCase();
+            return /^(?:menu-|selection-|songselect-|mode-|ranking-)/.test(baseName);
+        }
+
         function processSkinImage(img, relativePath = '', preserveBlack = false) {
             if (!img.width || !img.height) return img;
             // osu!mania 长条尾部贴图 (NoteImage*T / mania-note*T / tail / keyT) 依赖其黑色底色作为遮罩 (mask)
@@ -51,7 +64,7 @@
             // preserveBlack 用于 skin.ini 把其它文件名别名到尾巴槽位的情况，例如 NoteImage0T: Arrows\noteH。
             // 舞台左右侧图同样必须保留完整不透明像素；它们的黑色服装、描边等不是透明蒙版。
             if (preserveBlack ||
-                isStageSideImagePath(relativePath) ||
+                isStageSideImagePath(relativePath) || isOpaqueUiAssetPath(relativePath) ||
                 (relativePath && /(tail|notet|keyt)/i.test(relativePath))) {
                 return img;
             }

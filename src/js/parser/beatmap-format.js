@@ -77,6 +77,9 @@ async function getBeatmapDecoder() {
                         const v = parseFloat(line.slice(idx + 1).trim());
                         if (k === 'circlesize' && !isNaN(v)) difficulty.circleSize = v;
                         if (k === 'slidertickrate' && !isNaN(v)) difficulty.sliderTickRate = v;
+                        if (k === 'overalldifficulty' && !isNaN(v)) difficulty.overallDifficulty = v;
+                        if (k === 'hpdrainrate' && !isNaN(v)) difficulty.hpDrainRate = v;
+                        if (k === 'approachrate' && !isNaN(v)) difficulty.approachRate = v;
                     }
                 } else if (section === 'Events') {
                     if (!bgPath) {

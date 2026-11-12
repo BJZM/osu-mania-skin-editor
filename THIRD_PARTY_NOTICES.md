@@ -240,7 +240,7 @@ SOFTWARE.
 版权素材，**不在本项目 MIT 许可范围内**。具体来说：
 
 - 与 `ppy/osu-resources` 仓库 `osu.Game.Resources/Skins/Legacy/` 对应的
-  贴图（175 个贴图清单中的 84 个），该仓库以
+  贴图（201 个贴图清单中的 91 个），该仓库以
   [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) 提供；
 - 其余 1x 分辨率和 mania 专用贴图来自 osu!stable 内置默认皮肤，未在任何
   公开仓库中提供明确的再分发许可。

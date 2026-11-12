@@ -32,6 +32,12 @@
 | skin-agent-session | 为 Agent 提供描述、贴图与参数事务、预览、校验和归档导出，并保证批次级撤回与 revision 并发保护 | implemented | history, texture-upload, texture-resolve, export-skin, global-skin-state |
 | agent-bridge | 通过鉴权本机 HTTP、Electron IPC 与 preload 将 MCP 请求转发给可信 Renderer | implemented | skin-agent-session, electron-ipc |
 | skin-workspace-revision | 给当前皮肤状态编号，并判断该状态是否已经成功导出 | implemented | 无 |
+| stage-view-tabs | 管理右侧纵向场景切换选项卡，统一调度游戏内、选歌页面与主页面的显隐与生命周期 | implemented | main-menu-preview, song-select-preview, frame |
+| main-menu-preview | 渲染 osu!stable 主界面预览，含节拍 Logo、环形频谱、侧边按钮展开与视差背景 | implemented | stage-view-tabs, skin-assets, transport |
+| song-select-layout | 计算 osu!stable 选歌面板尺寸与圆弧轮盘位置 | implemented | 无 |
+| song-select-catalog | 把谱面整理成 stable 选歌的分组、排序、搜索和信息行 | implemented | 无 |
+| song-select-paint | 绘制选歌背景、轮盘、信息区、分组条和底栏，并返回命中区域 | implemented | song-select-layout |
+| song-select-preview | 驱动选歌预览的帧循环、指针、键盘，并把选中难度交回谱面加载 | implemented | song-select-layout, song-select-catalog, song-select-paint, stage-view-tabs, beatmap-load |
 
 ## 依赖图
 
@@ -107,4 +113,12 @@ graph TD
   agentBridge[agent-bridge] --> agentSession
   agentBridge --> electronIpc[electron-ipc]
   skinRevision[skin-workspace-revision]
+  stageViewTabs[stage-view-tabs] --> mainMenuPreview[main-menu-preview]
+  stageViewTabs --> songSelectPreview[song-select-preview]
+  mainMenuPreview --> skinAssets
+  songSelectPreview --> songSelectLayout[song-select-layout]
+  songSelectPreview --> songSelectCatalog[song-select-catalog]
+  songSelectPreview --> songSelectPaint[song-select-paint]
+  songSelectPaint --> songSelectLayout
+  songSelectPreview --> beatmapLoad[beatmap-load]
 ```
