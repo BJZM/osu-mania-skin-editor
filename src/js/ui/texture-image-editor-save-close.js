@@ -658,6 +658,14 @@
             const modal = byId('textureImageEditorModal');
             if (!modal) return false;
             const skinEditingReady = syncSkinEditingAvailabilityUI();
+            if (typeof textureEditorCloseToken !== 'undefined') {
+                textureEditorCloseToken++;
+            }
+            if (typeof textureEditorCloseTimer !== 'undefined' && textureEditorCloseTimer) {
+                clearTimeout(textureEditorCloseTimer);
+                textureEditorCloseTimer = null;
+            }
+            modal.classList.remove('is-closing');
             if (modal.classList.contains('active')) {
                 if (typeof bringFloatingWindowToFront === 'function') {
                     bringFloatingWindowToFront('texture-editor');
@@ -715,6 +723,9 @@
         }
 
         function discardAndCloseEditor() {
+            if (typeof textureEditorCloseTimer !== 'undefined' && textureEditorCloseTimer) {
+                return true;
+            }
             for (const tab of tabs) {
                 if (tab.kind === 'texture') clearEditorStateTimers(tab.state);
             }
@@ -723,6 +734,9 @@
         }
 
         async function close(options = {}) {
+            if (typeof textureEditorCloseTimer !== 'undefined' && textureEditorCloseTimer) {
+                return true;
+            }
             commitActiveTabState();
             const dirtyTabs = tabs.filter(isTabDirty);
             if (dirtyTabs.length === 0) {

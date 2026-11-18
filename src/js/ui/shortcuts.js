@@ -37,13 +37,15 @@
                 imageEditorModal &&
                 imageEditorModal.style.display !== 'none' &&
                 imageEditorModal.classList.contains('active') &&
+                !imageEditorModal.classList.contains('is-closing') &&
                 typeof textureImageEditorUi !== 'undefined' &&
                 textureImageEditorUi
             );
             const skinEditorModal = document.getElementById('skinEditorModal');
             const isSkinEditorOpen = !!(
                 skinEditorModal &&
-                skinEditorModal.classList.contains('active')
+                skinEditorModal.classList.contains('active') &&
+                !skinEditorModal.classList.contains('is-closing')
             );
             const isTextureEditorFront = isTextureImageEditorOpen && (
                 !isSkinEditorOpen ||
@@ -175,7 +177,11 @@
                     if (isTextureEditorFront) {
                         if (textureImageEditorUi) textureImageEditorUi.close();
                     } else {
-                        skinEditorModal.classList.remove('active');
+                        if (typeof closeSkinEditorDialog === 'function') {
+                            closeSkinEditorDialog();
+                        } else {
+                            skinEditorModal.classList.remove('active');
+                        }
                         if (typeof bringFloatingWindowToFront === 'function') {
                             bringFloatingWindowToFront('texture-editor');
                         }
@@ -189,7 +195,11 @@
                 }
                 if (isSkinEditorOpen) {
                     e.preventDefault();
-                    skinEditorModal.classList.remove('active');
+                    if (typeof closeSkinEditorDialog === 'function') {
+                        closeSkinEditorDialog();
+                    } else {
+                        skinEditorModal.classList.remove('active');
+                    }
                     return;
                 }
                 if (selectedCanvasElement) {
@@ -252,8 +262,12 @@
                 e.preventDefault();
                 const modal = document.getElementById('skinEditorModal');
                 if (modal) {
-                    if (modal.classList.contains('active')) {
-                        modal.classList.remove('active');
+                    if (modal.classList.contains('active') && !modal.classList.contains('is-closing')) {
+                        if (typeof closeSkinEditorDialog === 'function') {
+                            closeSkinEditorDialog();
+                        } else {
+                            modal.classList.remove('active');
+                        }
                         if (typeof bringFloatingWindowToFront === 'function' && isTextureImageEditorOpen) {
                             bringFloatingWindowToFront('texture-editor');
                         }

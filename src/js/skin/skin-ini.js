@@ -33,7 +33,8 @@
 
         // 连击数字 (Combo) 字体贴图前缀解析 —— 唯一真源，renderer.js 与 ui.js 必须共用。
         //  1. [Mania] FontCombo  : 键位区块内单独指定连击数字使用的贴图组 (优先级最高)
-        //  2. [Fonts] Combo / ComboPrefix : 全局连击数字贴图前缀 (仅 ini 显式写了才算)
+        //  2. [Fonts] ComboPrefix : 全局连击数字贴图前缀 (仅 ini 显式写了才算)
+        //     单独的 Combo: 不是这个键。stable 不读取它，连击会退回 score。
         // 两者都没有时返回 null，语义 = 「连击数字与 score 共用同一套字体贴图」。
         // 注意：不要在这里做「名字必须含 score」的过滤，FontCombo 就是用来指定非 score 命名的贴图组的。
         function getExplicitComboFontPrefix(keyCount) {
@@ -227,8 +228,8 @@
                             }
                             break;
                         }
-                        case 'comboprefix':
-                        case 'combo': {
+                        case 'comboprefix': {
+                            // stable 只认 ComboPrefix。Combo: 会被游戏忽略，不能在这里升格成有效前缀。
                             skinFontsConfig.comboPrefix = V.trim() || 'combo';
                             skinFontsConfig.hasExplicitComboPrefix = true;
                             break;

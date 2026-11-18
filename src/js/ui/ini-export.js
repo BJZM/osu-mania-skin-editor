@@ -74,11 +74,11 @@
             return kind === 'colors' ? 'colours' : kind;
         }
 
-        // 编辑器会把同一参数写成稳定键名。比较「生成结果里有没有」时按这个身份，
-        // 避免 Combo / ComboPrefix 这类重写后再把原键附回去。
+        // 编辑器会把同一参数写成稳定键名。比较「生成结果里有没有」时按这个身份。
+        // [Fonts] Combo 与 ComboPrefix 不是同一个键：stable 只读取 ComboPrefix，
+        // Combo 保持原样，避免把一条被游戏忽略的行写成会生效的 ComboPrefix。
         function canonicalExportedIniKey(sectionKind, key) {
             const low = String(key || '').trim().toLowerCase();
-            if (sectionKind === 'fonts' && (low === 'combo' || low === 'comboprefix')) return 'comboprefix';
             if (sectionKind === 'mania') {
                 if (low === 'showjudgementline' || low === 'judgementline') return 'judgementline';
                 if (low === 'explosionwidth' || low === 'lightingnwidth') return 'lightingnwidth';
@@ -508,7 +508,7 @@
                     lines.push('// ------------------------------------------');
                     lines.push('// 6. 字体覆盖 (Font Overrides)');
                     lines.push('// ------------------------------------------');
-                    lines.push('// FontCombo: 连击数字使用的贴图文件名前缀 (优先于 [Fonts] Combo；不写则沿用 score 字体)');
+                    lines.push('// FontCombo: 连击数字使用的贴图文件名前缀 (优先于 [Fonts] ComboPrefix；不写则沿用 score 字体)');
                     lines.push('// ComboOverlap: 连击数字各字符的横向重叠像素');
                     lines.push('// FontScore: 分数 / 准度数字使用的贴图文件名前缀 (优先于 [Fonts] ScorePrefix)');
                     lines.push('// ScoreOverlap: 分数数字各字符的横向重叠像素');

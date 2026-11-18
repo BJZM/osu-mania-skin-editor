@@ -227,7 +227,7 @@
                     // 手动填写前缀 = ini 显式指定连击字体；清空则回到「沿用 score 字体贴图」
                     skinFontsConfig.hasExplicitComboPrefix = !!v;
                     // 若某些键位区块已用 [Mania] FontCombo 覆盖，则同步更新覆盖值，
-                    // 保证「面板改什么，画布就用什么」（FontCombo 优先级高于 [Fonts] Combo）
+                    // 保证「面板改什么，画布就用什么」（FontCombo 优先级高于 [Fonts] ComboPrefix）
                     for (const [, cfgItem] of maniaSkinConfigurations) {
                         if (cfgItem && cfgItem.FontCombo != null) cfgItem.FontCombo = v || null;
                     }

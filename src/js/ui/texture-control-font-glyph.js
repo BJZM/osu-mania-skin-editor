@@ -68,8 +68,12 @@
                     <span>定位</span>
                 `;
                 locateBtn.onclick = () => {
-                    const modal = document.getElementById('skinEditorModal');
-                    if (modal) modal.classList.remove('active');
+                    if (typeof closeSkinEditorDialog === 'function') {
+                        closeSkinEditorDialog();
+                    } else {
+                        const modal = document.getElementById('skinEditorModal');
+                        if (modal) modal.classList.remove('active');
+                    }
                     const target = locate ? locate(g) : null;
                     if (target) {
                         selectedCanvasElement = target;

@@ -448,6 +448,9 @@
             return activateTab(nextTab.id, { force: true });
         }
 
+        let textureEditorCloseTimer = null;
+        let textureEditorCloseToken = 0;
+
         function finalizeEditorClose(options = {}) {
             for (const tab of tabs) {
                 if (tab.kind === 'texture') clearEditorStateTimers(tab.state);
@@ -457,23 +460,12 @@
                 applySkinSnapshot(editorBaseSnapshot, { preserveNonTextureSettings: true });
             }
 
-            Object.assign(menuState, createEditorState());
-            menuState.previewSnapshot = null;
-            state = menuState;
-            tabs = [menuTab, libraryTab];
-            activeTabId = menuTab.id;
-            editorBaseSnapshot = null;
-            externalFrameUpdates.clear();
-            externalChangesPending = false;
-
             const modal = byId('textureImageEditorModal');
-            if (modal) {
-                modal.classList.remove('active');
-                modal.style.display = 'none';
-            }
+            const dialog = byId('textureImageEditorDialog');
+
             if (typeof activeFloatingWindow !== 'undefined' && activeFloatingWindow === 'texture-editor') {
                 const skinModal = document.getElementById('skinEditorModal');
-                if (skinModal && skinModal.classList.contains('active')) {
+                if (skinModal && skinModal.classList.contains('active') && !skinModal.classList.contains('is-closing')) {
                     if (typeof bringFloatingWindowToFront === 'function') {
                         bringFloatingWindowToFront('skin-editor');
                     }
@@ -481,9 +473,68 @@
                     activeFloatingWindow = null;
                 }
             }
-            renderTabs();
-            setViews(true);
-            updateSelectionSummary();
-            updateEditorHistoryButtons();
-            updateStretchFixUI();
+
+            const cleanupState = () => {
+                Object.assign(menuState, createEditorState());
+                menuState.previewSnapshot = null;
+                state = menuState;
+                tabs = [menuTab, libraryTab];
+                activeTabId = menuTab.id;
+                editorBaseSnapshot = null;
+                externalFrameUpdates.clear();
+                externalChangesPending = false;
+                renderTabs();
+                setViews(true);
+                updateSelectionSummary();
+                updateEditorHistoryButtons();
+                updateStretchFixUI();
+            };
+
+            if (!modal) {
+                cleanupState();
+                return;
+            }
+
+            if (options && options.immediate) {
+                textureEditorCloseToken++;
+                if (textureEditorCloseTimer) {
+                    clearTimeout(textureEditorCloseTimer);
+                    textureEditorCloseTimer = null;
+                }
+                modal.classList.remove('active');
+                modal.classList.remove('is-closing');
+                modal.style.display = 'none';
+                cleanupState();
+                return;
+            }
+
+            if (textureEditorCloseTimer) {
+                return;
+            }
+
+            const currentToken = ++textureEditorCloseToken;
+            modal.classList.add('is-closing');
+
+            const finishClose = () => {
+                if (textureEditorCloseToken !== currentToken) return;
+                if (textureEditorCloseTimer) {
+                    clearTimeout(textureEditorCloseTimer);
+                    textureEditorCloseTimer = null;
+                }
+                if (dialog) dialog.removeEventListener('animationend', onAnimEnd);
+                modal.classList.remove('active');
+                modal.classList.remove('is-closing');
+                modal.style.display = 'none';
+                cleanupState();
+            };
+
+            const onAnimEnd = (e) => {
+                if (e.target === dialog) finishClose();
+            };
+
+            if (dialog) {
+                dialog.addEventListener('animationend', onAnimEnd, { once: true });
+            }
+            const duration = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ? 0 : 180;
+            textureEditorCloseTimer = setTimeout(finishClose, duration);
         }

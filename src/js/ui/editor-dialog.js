@@ -4,6 +4,70 @@
 // ============================================================================
 
         let activeFloatingWindow = null;
+        let skinEditorCloseTimer = null;
+        let skinEditorCloseToken = 0;
+
+        function closeSkinEditorDialog(options = {}) {
+            const modal = document.getElementById('skinEditorModal');
+            const dialog = document.getElementById('skinEditorDialog');
+            if (!modal) return false;
+
+            if (typeof stopHitsoundPreview === 'function') stopHitsoundPreview();
+
+            if (activeFloatingWindow === 'skin-editor') {
+                const textureModal = document.getElementById('textureImageEditorModal');
+                if (textureModal && (textureModal.classList.contains('active') || textureModal.style.display !== 'none') && !textureModal.classList.contains('is-closing')) {
+                    bringFloatingWindowToFront('texture-editor');
+                } else {
+                    activeFloatingWindow = null;
+                }
+            }
+
+            if (!modal.classList.contains('active')) {
+                modal.classList.remove('is-closing');
+                return false;
+            }
+
+            if (options && options.immediate) {
+                skinEditorCloseToken++;
+                if (skinEditorCloseTimer) {
+                    clearTimeout(skinEditorCloseTimer);
+                    skinEditorCloseTimer = null;
+                }
+                modal.classList.remove('active');
+                modal.classList.remove('is-closing');
+                return true;
+            }
+
+            if (skinEditorCloseTimer) {
+                return true;
+            }
+
+            const currentToken = ++skinEditorCloseToken;
+            modal.classList.add('is-closing');
+
+            const finishClose = () => {
+                if (skinEditorCloseToken !== currentToken) return;
+                if (skinEditorCloseTimer) {
+                    clearTimeout(skinEditorCloseTimer);
+                    skinEditorCloseTimer = null;
+                }
+                if (dialog) dialog.removeEventListener('animationend', onAnimEnd);
+                modal.classList.remove('active');
+                modal.classList.remove('is-closing');
+            };
+
+            const onAnimEnd = (e) => {
+                if (e.target === dialog) finishClose();
+            };
+
+            if (dialog) {
+                dialog.addEventListener('animationend', onAnimEnd, { once: true });
+            }
+            const duration = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ? 0 : 180;
+            skinEditorCloseTimer = setTimeout(finishClose, duration);
+            return true;
+        }
 
         function bringFloatingWindowToFront(windowName) {
             const skinModal = document.getElementById('skinEditorModal');
@@ -23,6 +87,12 @@
         function openSkinEditorDialog() {
             const modal = document.getElementById('skinEditorModal');
             if (!modal) return false;
+            skinEditorCloseToken++;
+            if (skinEditorCloseTimer) {
+                clearTimeout(skinEditorCloseTimer);
+                skinEditorCloseTimer = null;
+            }
+            modal.classList.remove('is-closing');
             syncSkinEditingAvailabilityUI();
             modal.classList.add('active');
             bringFloatingWindowToFront('skin-editor');
@@ -43,19 +113,8 @@
             const backdrop = document.getElementById('skinEditorBackdrop');
             const modal = document.getElementById('skinEditorModal');
 
-            const closeSkinEditor = () => {
-                if (!modal) return;
-                if (typeof stopHitsoundPreview === 'function') stopHitsoundPreview();
-                modal.classList.remove('active');
-                if (activeFloatingWindow === 'skin-editor') {
-                    const textureModal = document.getElementById('textureImageEditorModal');
-                    if (textureModal && (textureModal.classList.contains('active') || textureModal.style.display !== 'none')) {
-                        bringFloatingWindowToFront('texture-editor');
-                    } else {
-                        activeFloatingWindow = null;
-                    }
-                }
-            };
+            const closeSkinEditor = () => closeSkinEditorDialog();
+            window.closeSkinEditorDialog = closeSkinEditorDialog;
 
             if (openBtn && modal) {
                 openBtn.onclick = openSkinEditorDialogFromToolbar;

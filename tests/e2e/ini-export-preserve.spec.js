@@ -111,10 +111,22 @@ test('导出 skin.ini 用生成值覆盖，并按原顺序保留生成结果里�
     expect(mania7).toMatch(/^SpecialStyle:\s*2\s*$/m);
     expect(mania7).not.toMatch(/LightingN0|SpecialStyle:\s*1/);
 
-    expect(fonts).toMatch(/^ComboPrefix:\s*legacy-combo\s*$/m);
+    expect(fonts).toMatch(/^Combo:\s*legacy-combo\s*$/m);
+    expect(fonts).not.toMatch(/^ComboPrefix\s*:/m);
     expect(fonts).toMatch(/^CustomFontFlag:\s*keep-font\s*$/m);
-    expect(ini).not.toMatch(/^Combo\s*:/m);
-    expect(fonts.indexOf('CustomFontFlag: keep-font')).toBeGreaterThan(fonts.indexOf('ComboPrefix: legacy-combo'));
+    expect(fonts.indexOf('CustomFontFlag: keep-font')).toBeGreaterThan(fonts.indexOf('Combo: legacy-combo'));
+    const importedFonts = await page.evaluate(() => ({
+      explicit: skinFontsConfig.hasExplicitComboPrefix,
+      prefix: getExplicitComboFontPrefix(4)
+    }));
+    expect(importedFonts.explicit).toBe(false);
+    expect(importedFonts.prefix).toBeNull();
+    const promoted = await page.evaluate(() => {
+      onParamChange('ComboPrefix', 'fonts/combo/combo');
+      return buildExportedSkinIniText();
+    });
+    expect(promoted).toMatch(/^ComboPrefix:\s*fonts\/combo\/combo\s*$/m);
+    expect(promoted).toMatch(/^Combo:\s*legacy-combo\s*$/m);
 
     expect(catchText.replace(/\r\n/g, '\n').trim()).toBe('[CatchTheBeat]\nHyperDash: fruit-dash\nHyperDashFruit: fruit');
     expect(ini.indexOf('[CatchTheBeat]')).toBeGreaterThan(ini.lastIndexOf('[Mania]'));

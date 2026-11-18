@@ -270,7 +270,7 @@
                         }
                         else if (p.key === 'ScoreOverlap') val = getSkinFontOverlap('score', keys);
                         else if (p.key === 'ComboPrefix') {
-                            // 显示「实际生效」的连击字体前缀：ini 显式指定了 [Mania] FontCombo / [Fonts] Combo 才有值，
+                            // 显示「实际生效」的连击字体前缀：ini 显式指定了 [Mania] FontCombo / [Fonts] ComboPrefix 才有值，
                             // 都没有时留空 (占位符会说明实际沿用 score 字体贴图)，避免面板与画布不一致
                             val = getExplicitComboFontPrefix(keys) || '';
                         }

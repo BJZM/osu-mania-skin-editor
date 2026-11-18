@@ -33,9 +33,9 @@
             {
                 key: 'ComboPrefix',
                 zhName: '连击数字前缀',
-                enName: 'Combo',
-                comment: '默认 combo (如 combo-0.png)',
-                desc: '屏幕中心大连击数使用的贴图文件名前缀 (如 combo-0.png 或 score-0.png)。优先级: [Mania] FontCombo > [Fonts] Combo (本项) > 沿用 score 字体贴图。留空表示 ini 未指定连击字体，此时连击数字与分数共用同一套贴图。',
+                enName: 'ComboPrefix',
+                comment: '默认沿用 score (如 combo-0.png)',
+                desc: '屏幕中心大连击数使用的贴图文件名前缀 (如 combo-0.png 或 score-0.png)。优先级: [Mania] FontCombo > [Fonts] ComboPrefix (本项) > 沿用 score 字体贴图。留空表示 ini 未写 ComboPrefix，此时连击数字与分数共用同一套贴图。单独的 Combo: 不会被 osu!stable 读取，导入导出都原样保留。',
                 category: '字体排版',
                 tab: 'fonts',
                 type: 'text',

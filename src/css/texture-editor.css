@@ -1615,8 +1615,13 @@
             pointer-events: none;
         }
 
-        .texture-image-modal.active {
+        .texture-image-modal.active,
+        .texture-image-modal.is-closing {
             display: block;
+        }
+
+        .texture-image-modal.is-closing {
+            pointer-events: none;
         }
 
         .texture-image-backdrop {
@@ -1645,6 +1650,11 @@
             resize: both;
             animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             transition: opacity 0.15s ease;
+        }
+
+        .texture-image-modal.is-closing .texture-image-dialog {
+            animation: modalScaleDown 0.16s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+            pointer-events: none !important;
         }
 
         .texture-image-dialog.is-dragging {

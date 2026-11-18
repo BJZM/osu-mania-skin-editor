@@ -48,7 +48,7 @@
             const prefixesToTry = [];
 
             // 连击数字 (combo) 字体贴图读取规则：
-            //   1. ini 显式指定了连击字体 (FontCombo / [Fonts] Combo) → 优先按「指定的那一组贴图」读取，
+            //   1. ini 显式指定了连击字体 (FontCombo / [Fonts] ComboPrefix) → 优先按「指定的那一组贴图」读取，
             //      此时不再要求名字必须含 score（作者可以指定 combo-0..9 / mania-combo-0..9 等任意前缀）。
             //   2. 未指定 → 与 score 共用同一套字体贴图（多级回退）。
             // 分数 / 准度 (score / accuracy) 仍严格要求名字包含 score 的贴图，其余名字一律不读取。
