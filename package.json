@@ -1,6 +1,6 @@
 {
   "name": "osu-mania-skin-editor",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "private": true,
   "description": "osu!mania 皮肤编辑器（Skin Editor）：可视化制作、修改、预览并导出 osu!stable mania 皮肤",
   "author": "BJZM",
@@ -10,17 +10,19 @@
     "build:icon": "electron tools/build-icon.cjs",
     "build:css": "node tools/build-css.mjs",
     "build:html": "node tools/build-html.mjs",
-    "build:site": "npm run build:css && npm run build:html && node tools/build-site.mjs",
+    "build:site": "npm run build:css && npm run build:js && npm run build:html && node tools/build-site.mjs",
     "check:css": "node tools/build-css.mjs --check",
     "audit:css": "node tools/audit-css.mjs",
     "check:html": "node tools/build-html.mjs --check",
-    "serve": "npm run build:css && npm run build:html && node tools/static-server.cjs",
-    "check": "node tools/check-js.mjs && npm run check:css && npm run audit:css && npm run check:html",
-    "test:e2e": "npm run build:css && npm run build:html && playwright test",
+    "serve": "npm run build:css && npm run build:js && npm run build:html && node tools/static-server.cjs",
+    "check": "node tools/check-js.mjs && npm run check:js && npm run check:css && npm run audit:css && npm run check:html",
+    "test:e2e": "npm run build:css && npm run build:js && npm run build:html && playwright test",
     "test": "npm run check && npm run test:e2e",
-    "desktop": "npm run build:css && npm run build:html && electron .",
+    "desktop": "npm run build:css && npm run build:js && npm run build:html && electron .",
     "dist:win": "node tools/build-exe.mjs",
-    "deploy:pages": "npm run build:site && node tools/deploy-pages.mjs"
+    "deploy:pages": "npm run build:site && node tools/deploy-pages.mjs",
+    "build:js": "node tools/build-js.mjs",
+    "check:js": "node tools/build-js.mjs --check"
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
@@ -47,11 +49,21 @@
       "THIRD_PARTY_NOTICES.md",
       "package.json"
     ],
+    "portable": {
+      "unpackDirName": "osu-mania-skin-editor",
+      "splashImage": "assets/splash.bmp"
+    },
     "win": {
       "icon": "assets/app-icon.ico",
       "target": [
         {
           "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
           "arch": [
             "x64"
           ]

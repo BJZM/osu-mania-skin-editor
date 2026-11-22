@@ -9,6 +9,7 @@ const files = [
   'LICENSE',
   'THIRD_PARTY_NOTICES.md',
   'src/css/style.css',
+  'src/js/bundle.js',
   'vendor/jszip.min.js',
   'vendor/utif.min.js',
   'vendor/README.md'

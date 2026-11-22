@@ -8,6 +8,40 @@ const {
   handleVideoTranscodeRequest
 } = require('./video-transcoder.cjs');
 
+// 便携版运行环境与数据目录自适应配置：
+// 1. 若运行于单文件 NSIS 便携版中，真实运行根目录位于 process.env.PORTABLE_EXECUTABLE_DIR；
+// 2. 若运行于免安装绿色解压版中，真实运行根目录位于 app.getPath('exe') 同级目录；
+// 当根目录中存在 .portable 标记或 data 目录时，将 userData 和缓存重定向至该 data 目录，实现数据完全便携化。
+function configurePortableEnvironment() {
+  if (process.env.PORTABLE_EXECUTABLE_DIR) {
+    const realDir = process.env.PORTABLE_EXECUTABLE_DIR;
+    const portableMarker = path.join(realDir, '.portable');
+    const dataDir = path.join(realDir, 'data');
+    if (fs.existsSync(portableMarker) || fs.existsSync(dataDir)) {
+      try {
+        fs.mkdirSync(dataDir, { recursive: true });
+        app.setPath('userData', dataDir);
+      } catch (err) {
+        console.warn('Failed to redirect portable userData for single-file exe:', err);
+      }
+    }
+  } else if (app.isPackaged) {
+    const exeDir = path.dirname(process.execPath);
+    const portableMarker = path.join(exeDir, '.portable');
+    const dataDir = path.join(exeDir, 'data');
+    if (fs.existsSync(portableMarker) || fs.existsSync(dataDir)) {
+      try {
+        fs.mkdirSync(dataDir, { recursive: true });
+        app.setPath('userData', dataDir);
+      } catch (err) {
+        console.warn('Failed to redirect portable userData for unpacked directory:', err);
+      }
+    }
+  }
+}
+
+configurePortableEnvironment();
+
 const MIME_TYPES = {
   '.css': 'text/css; charset=utf-8',
   '.gif': 'image/gif',
@@ -380,8 +414,12 @@ async function createMainWindow() {
     return { action: 'deny' };
   });
 
-  await mainWindow.loadURL(`http://127.0.0.1:${staticServer.port}/`);
-  await ensureAgentBridgeServer();
+  const loadPromise = mainWindow.loadURL(`http://127.0.0.1:${staticServer.port}/`);
+  const bridgePromise = ensureAgentBridgeServer().catch((err) => {
+    console.warn('Agent bridge server initialization failed/deferred:', err);
+  });
+  await loadPromise;
+  await bridgePromise;
 }
 
 const hasSingleInstanceLock = app.requestSingleInstanceLock();

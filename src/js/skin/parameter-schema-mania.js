@@ -311,7 +311,7 @@
             {
                 key: 'ComboBreakColour',
                 zhName: '断连遮罩颜色',
-                enName: 'ComboBreakColour',
+                enName: 'ColourBreak',
                 comment: 'RGB 颜色 (默认红闪)',
                 desc: '出现 Miss 断连击时屏幕短暂红闪及连击数爆破散开的警示颜色。支持一键实时预览断连击爆破效果。',
                 category: '颜色',

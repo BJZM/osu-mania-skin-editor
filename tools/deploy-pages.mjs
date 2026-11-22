@@ -1,9 +1,14 @@
 import { spawn } from 'node:child_process';
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const toolsDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(toolsDir, '..');
+const siteDir = path.join(root, 'site');
+const stageDir = path.join(os.tmpdir(), 'osu-skin-site');
+
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const args = [
   'exec',
@@ -13,7 +18,7 @@ const args = [
   'wrangler',
   'pages',
   'deploy',
-  'site',
+  '.',
   '--project-name',
   'osu-mania-skin-editor',
   '--branch',
@@ -21,13 +26,16 @@ const args = [
   '--commit-dirty=true'
 ];
 
+await fs.mkdir(stageDir, { recursive: true });
+await fs.cp(siteDir, stageDir, { recursive: true });
+
 const command = process.platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : npmCommand;
 const commandArgs = process.platform === 'win32'
   ? ['/d', '/s', '/c', [npmCommand, ...args].join(' ')]
   : args;
 
 const child = spawn(command, commandArgs, {
-  cwd: root,
+  cwd: stageDir,
   windowsHide: true,
   stdio: ['inherit', 'pipe', 'pipe']
 });

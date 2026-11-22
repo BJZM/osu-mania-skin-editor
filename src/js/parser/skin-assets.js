@@ -217,9 +217,11 @@
             return DEFAULT_SKIN_PRIORITY_PATTERNS.some((pattern) => pattern.test(filename));
         }
 
-        function loadDefaultSkinImages(assetList) {
-            return Promise.all(assetList.map((filename) => {
-                return new Promise((resolve) => {
+        async function loadDefaultSkinImages(assetList, concurrency = 8) {
+            if (!assetList || assetList.length === 0) return;
+            let index = 0;
+            const loadOne = async (filename) => {
+                await new Promise((resolve) => {
                     const img = new Image();
                     img.onload = () => {
                         img._is2x = filename.includes('@2x');
@@ -231,7 +233,19 @@
                     };
                     img.src = `assets/default_skin/${filename}`;
                 });
-            }));
+            };
+
+            const workers = Array.from(
+                { length: Math.min(concurrency, assetList.length) },
+                async () => {
+                    while (index < assetList.length) {
+                        const currentFilename = assetList[index++];
+                        await loadOne(currentFilename);
+                    }
+                }
+            );
+
+            await Promise.all(workers);
         }
 
         function finalizeDefaultSkinPrime() {
@@ -246,7 +260,7 @@
         function primeDefaultSkin() {
             if (defaultSkinPrimePromise) return defaultSkinPrimePromise;
             const priorityAssets = getDefaultSkinAssetList().filter(isDefaultSkinPriorityAsset);
-            defaultSkinPrimePromise = loadDefaultSkinImages(priorityAssets).then(finalizeDefaultSkinPrime);
+            defaultSkinPrimePromise = loadDefaultSkinImages(priorityAssets, 8).then(finalizeDefaultSkinPrime);
             return defaultSkinPrimePromise;
         }
 
@@ -261,12 +275,7 @@
             }
 
             const remainingAssets = assetList.filter((filename) => !isDefaultSkinPriorityAsset(filename));
-            await Promise.all([
-                loadDefaultSkinImages(remainingAssets),
-                typeof ensureDefaultSkinHitsoundsLoaded === 'function'
-                    ? ensureDefaultSkinHitsoundsLoaded()
-                    : Promise.resolve()
-            ]);
+            await loadDefaultSkinImages(remainingAssets, 8);
             isDefaultSkinLoaded = true;
             if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
             if (typeof refreshSkinCursor === 'function') refreshSkinCursor();

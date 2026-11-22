@@ -86,8 +86,8 @@ test('导出 skin.ini 用生成值覆盖，并按原顺序保留生成结果里�
     expect(mania4).toMatch(/^HitPosition:\s*333\s*$/m);
     expect(mania4).not.toMatch(/^HitPosition:\s*400\s*$/m);
     expect(mania4).toMatch(/^ColumnStart:\s*150\s*$/m);
-    expect(mania4).toMatch(/^ColourHold:\s*9,9,9,255\s*$/m);
-    expect(mania4).not.toMatch(/^ColorHold\s*:/m);
+    expect(mania4).toMatch(/^ColourHold:\s*255,191,51,255\s*$/m);
+    expect(mania4).toMatch(/^ColorHold:\s*9,9,9\s*$/m);
     expect(exportedIni.generated).not.toMatch(/^LightingN0\s*:/m);
     expect(mania4).toMatch(/^LightingN0:\s*lane-0\s*$/m);
     expect(mania4).toMatch(/^SpecialStyle:\s*1\s*$/m);
@@ -96,7 +96,7 @@ test('导出 skin.ini 用生成值覆盖，并按原顺序保留生成结果里�
     expect(mania4).toMatch(/^NoteFlipWhenUpsideDown1:\s*0\s*$/m);
 
     const preservedOrder = [
-      'SpecialStyle: 1',
+      'ColorHold: 9,9,9',
       'SeparateScore: 0',
       'KeyFlipWhenUpsideDown0: 1',
       'NoteFlipWhenUpsideDown1: 0',
@@ -104,7 +104,7 @@ test('导出 skin.ini 用生成值覆盖，并按原顺序保留生成结果里�
     ].map((line) => mania4.indexOf(line));
     expect(preservedOrder.every((index) => index >= 0)).toBe(true);
     expect(preservedOrder).toEqual([...preservedOrder].sort((a, b) => a - b));
-    expect(mania4.indexOf('SpecialStyle: 1')).toBeGreaterThan(mania4.indexOf('HitPosition: 333'));
+    expect(mania4).toMatch(/^SpecialStyle:\s*1\s*$/m);
     expect(mania4).not.toMatch(/保留的原始参数|未由编辑器重写/);
 
     expect(mania7).toMatch(/^HitPosition:\s*380\s*$/m);
@@ -131,6 +131,64 @@ test('导出 skin.ini 用生成值覆盖，并按原顺序保留生成结果里�
     expect(catchText.replace(/\r\n/g, '\n').trim()).toBe('[CatchTheBeat]\nHyperDash: fruit-dash\nHyperDashFruit: fruit');
     expect(ini.indexOf('[CatchTheBeat]')).toBeGreaterThan(ini.lastIndexOf('[Mania]'));
     expect(ini).toMatch(/^CustomGeneralFlag:\s*keep-me\s*$/m);
+
+    const strict = await page.evaluate(() => {
+      parseSkinIniLazer([
+        '[Mania]',
+        'Keys: 4',
+        'BarlineHeight: 4.5',
+        'JudgementLine: 0',
+        'ShowJudgementLine: 1',
+        'ColourBreak: 4,5,6',
+        'ComboBreakColour: 7,8,9',
+        'NoteImage0: note-a',
+        'noteimage0: lower-note',
+        'KeyImage0D: key-d',
+        'keyimage0: lower-key',
+        '[Mania]',
+        'Keys: 6',
+        'barlineheight: 9',
+        'ShowJudgementLine: 0',
+        'ColorHold: 1,2,3',
+        'ComboBreakColour: 7,8,9'
+      ].join('\n'));
+      const read = (keys) => {
+        const cfg = maniaSkinConfigurations.get(keys);
+        return {
+          bar: cfg.BarLineHeight,
+          line: cfg.ShowJudgementLine,
+          hold: cfg.ColourHold,
+          brk: cfg.ComboBreakColour,
+          note: cfg.ImageLookups.get('NoteImage0') || null,
+          noteLower: cfg.ImageLookups.get('noteimage0') || null,
+          key: cfg.ImageLookups.get('KeyImage0') || null,
+          keyLower: cfg.ImageLookups.get('keyimage0') || null,
+          keyD: cfg.ImageLookups.get('KeyImage0D') || null
+        };
+      };
+      return { four: read(4), six: read(6), exported: generateSkinIniText() };
+    });
+    expect(strict.four.bar).toBe(4.5);
+    expect(strict.four.line).toBe(false);
+    expect(strict.four.brk).toEqual({ r: 4, g: 5, b: 6 });
+    expect(strict.four.note).toBe('note-a');
+    expect(strict.four.noteLower).toBeNull();
+    expect(strict.four.key).toBeNull();
+    expect(strict.four.keyLower).toBeNull();
+    expect(strict.four.keyD).toBe('key-d');
+    expect(strict.six.bar).toBe(1.2);
+    expect(strict.six.line).toBe(true);
+    expect(strict.six.hold).toEqual({ r: 255, g: 191, b: 51, a: 255 });
+    expect(strict.six.brk).toEqual({ r: 255, g: 0, b: 0 });
+    expect(strict.exported).toMatch(/^BarlineHeight:\s*4\.5\s*$/m);
+    expect(strict.exported).toMatch(/^JudgementLine:\s*0\s*$/m);
+    expect(strict.exported).toMatch(/^ColourBreak:\s*4,5,6\s*$/m);
+    expect(strict.exported).toMatch(/^NoteImage0:\s*note-a\s*$/m);
+    expect(strict.exported).toMatch(/^KeyImage0D:\s*key-d\s*$/m);
+    expect(strict.exported).not.toMatch(/^ComboBreakColour\s*:/m);
+    expect(strict.exported).not.toMatch(/^noteimage0\s*:/m);
+    expect(strict.exported).not.toMatch(/^keyimage0\s*:/m);
+    expect(strict.exported).not.toMatch(/^ShowJudgementLine\s*:/m);
     expect(errors).toEqual([]);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });

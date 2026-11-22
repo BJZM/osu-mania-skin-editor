@@ -54,10 +54,68 @@ async function copyRuntimeFiles() {
   await fs.access(path.join(resourcesDir, 'ffmpeg-lgpl-win64', 'bin', 'ffmpeg.exe'));
 }
 
+async function stampExecutableResources(targetExe, iconPath, packageJson) {
+  const rceditExe = path.join(root, 'node_modules', 'electron-winstaller', 'vendor', 'rcedit.exe');
+  try {
+    await fs.access(rceditExe);
+  } catch {
+    console.warn('rcedit.exe not found, skipping exe resource stamping.');
+    return;
+  }
+
+  const args = [
+    path.relative(root, targetExe),
+    '--set-icon', path.relative(root, iconPath),
+    '--set-version-string', 'FileDescription', 'osu!mania 可视化皮肤编辑器',
+    '--set-version-string', 'ProductName', packageJson.build.productName,
+    '--set-version-string', 'CompanyName', packageJson.author || 'BJZM',
+    '--set-version-string', 'LegalCopyright', `Copyright (C) ${packageJson.author || 'BJZM'}`,
+    '--set-file-version', packageJson.version,
+    '--set-product-version', packageJson.version
+  ];
+
+  let lastError = null;
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    try {
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+      await run(rceditExe, args);
+      console.log(`Successfully stamped icon and resources on ${path.basename(targetExe)}.`);
+      return;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  console.warn(`Warning: Could not stamp executable resources on ${path.basename(targetExe)}: ${lastError.message}`);
+}
+
+async function preparePortableMetadata() {
+  await fs.writeFile(
+    path.join(unpackedDir, '.portable'),
+    '# osu!mania skin editor portable flag\r\n# All user settings, caches, and offline projects will be stored in ./data\r\n'
+  );
+  await fs.mkdir(path.join(unpackedDir, 'data'), { recursive: true });
+  await fs.writeFile(
+    path.join(unpackedDir, 'README_便携说明.txt'),
+    [
+      'osu!mania 可视化皮肤编辑器 - 绿色免安装便携版',
+      '================================================================',
+      '',
+      '【秒开运行（推荐）】',
+      '直接双击目录中的 osu-mania-skin-editor.exe 即可秒开启动。',
+      '免安装绿色版无需每次启动解压数百兆临时文件，彻底免除 CPU、磁盘 IO 与杀软扫描等待。',
+      '',
+      '【完全便携】',
+      '软件的所有设置、缓存及皮肤项目均自动保存在同级的 data/ 文件夹中。',
+      '将整个文件夹复制或移动至其他电脑或 U 盘，您的配置与数据均会完整随身保留，不会向系统写入残留。',
+      ''
+    ].join('\r\n'),
+    'utf8'
+  );
+}
+
 async function cleanBuildFiles() {
   await Promise.all([
     fs.rm(stageDir, { recursive: true, force: true }),
-    fs.rm(unpackedDir, { recursive: true, force: true }),
     fs.rm(path.join(distDir, 'builder-debug.yml'), { force: true }),
     fs.rm(path.join(distDir, 'builder-effective-config.yaml'), { force: true })
   ]);
@@ -75,6 +133,7 @@ async function main() {
   await fs.mkdir(stageDir, { recursive: true });
 
   await run(process.execPath, [path.join(root, 'tools', 'build-css.mjs')]);
+  await run(process.execPath, [path.join(root, 'tools', 'build-js.mjs')]);
   await run(process.execPath, [path.join(root, 'tools', 'build-html.mjs')]);
   await run(electronExecutable, [path.join(root, 'tools', 'build-icon.cjs')]);
 
@@ -102,18 +161,41 @@ async function main() {
   const productExe = path.join(unpackedDir, `${packageJson.build.productName}.exe`);
   await fs.rename(electronExe, productExe);
 
+  const iconPath = path.join(root, 'assets', 'app-icon.ico');
+  await stampExecutableResources(productExe, iconPath, packageJson);
+
+  await preparePortableMetadata();
+
   const builderCli = path.join(root, 'node_modules', 'electron-builder', 'cli.js');
   await run(process.execPath, [
     builderCli,
     '--win',
     'portable',
+    'zip',
     '--x64',
     '--prepackaged',
     unpackedDir
   ]);
 
   await cleanBuildFiles();
-  console.log(`Built ${path.join('dist', `${packageJson.build.productName}-${packageJson.version}-x64.exe`)}`);
+
+  const portableDirName = `${packageJson.build.productName}-${packageJson.version}-win64-portable`;
+  const finalPortableDir = path.join(distDir, portableDirName);
+  await fs.rm(finalPortableDir, { recursive: true, force: true });
+  await fs.rename(unpackedDir, finalPortableDir);
+
+  const finalExe = path.join(finalPortableDir, `${packageJson.build.productName}.exe`);
+  await stampExecutableResources(finalExe, iconPath, packageJson);
+
+  const zipArtifact = `${packageJson.build.productName}-${packageJson.version}-x64.zip`;
+  const exeArtifact = `${packageJson.build.productName}-${packageJson.version}-x64.exe`;
+
+  console.log('\n======================================================');
+  console.log('Build completed successfully! Generated distribution artifacts:');
+  console.log(`  1. 绿色免安装便携包 (秒开推荐): dist/${zipArtifact}`);
+  console.log(`  2. 单文件便携版 (带启动闪屏):   dist/${exeArtifact}`);
+  console.log(`  3. 免安装已解压目录 (直接运行): dist/${portableDirName}`);
+  console.log('======================================================\n');
 }
 
 main().catch((error) => {

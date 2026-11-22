@@ -157,6 +157,7 @@
 
             const lines = text.split(/\r?\n/);
             let section = '';
+            let sectionOriginal = '';
 
             for (const rawLine of lines) {
                 let line = rawLine;
@@ -165,8 +166,9 @@
                     if (currentConfig !== null) flushPendingLazer();
                     pendingLines.length = 0;
                     currentConfig = null;
-                    section = headerMatch[1].trim().toLowerCase();
-                    if (section === 'mania') {
+                    sectionOriginal = headerMatch[1].trim();
+                    section = officialSkinIniSection(sectionOriginal) || '';
+                    if (section === 'Mania') {
                         // 进入新的 [Mania] 区块，创建临时配置对象
                         currentConfig = createConfig(0);
                     }
@@ -176,22 +178,24 @@
                 const pair = splitKeyVal(line);
                 if (!pair) continue;
 
-                // 记录各区块的原始键值对以供可视化修改与导出
-                if (section === 'general') {
-                    currentSkinMetadata.general[pair.Key] = pair.Value;
-                } else if (section === 'colours' || section === 'colors') {
-                    currentSkinMetadata.colours[pair.Key] = pair.Value;
-                } else if (section === 'fonts') {
-                    currentSkinMetadata.fonts[pair.Key] = pair.Value;
-                } else if (section && section !== 'mania') {
+                // 正式键按 wiki 拼写保存；不认识的键保留原文，导出时原样接回。
+                const storedKey = officialSkinIniKeyName(section, pair.Key) || pair.Key;
+                if (section === 'General') {
+                    currentSkinMetadata.general[storedKey] = pair.Value;
+                } else if (section === 'Colours') {
+                    currentSkinMetadata.colours[storedKey] = pair.Value;
+                } else if (section === 'Fonts') {
+                    currentSkinMetadata.fonts[storedKey] = pair.Value;
+                } else if (!section && sectionOriginal) {
+                    if (!currentSkinMetadata.rawSections[sectionOriginal]) currentSkinMetadata.rawSections[sectionOriginal] = {};
+                    currentSkinMetadata.rawSections[sectionOriginal][pair.Key] = pair.Value;
+                } else if (section && section !== 'Mania') {
                     if (!currentSkinMetadata.rawSections[section]) currentSkinMetadata.rawSections[section] = {};
-                    currentSkinMetadata.rawSections[section][pair.Key] = pair.Value;
+                    currentSkinMetadata.rawSections[section][storedKey] = pair.Value;
                 }
 
-                // 记录全局贴图映射（包括 Hit0~Hit300g, Lighting, Stage, KeyImage, NoteImage 等）
                 const K = pair.Key, V = pair.Value;
-                const kLower = K.toLowerCase();
-                if (kLower === 'version') {
+                if (section === 'General' && K === 'Version') {
                     const rawVal = V.trim().toLowerCase();
                     if (rawVal === 'latest') {
                         globalSkinVersion = 2.7;
@@ -201,26 +205,17 @@
                     }
                     if (currentConfig) currentConfig.SkinVersion = globalSkinVersion;
                 }
-                if (kLower === 'keysundernotes') {
-                    const rawVal = V.trim().toLowerCase();
-                    const kun = (rawVal === '1' || rawVal === 'true') ? 1 : 0;
-                    if (section !== 'mania') {
-                        globalKeysUnderNotes = kun;
-                    }
-                }
-                if (kLower.startsWith('hit') || kLower.startsWith('lighting') || kLower.startsWith('stage') ||
-                    kLower.startsWith('keyimage') || kLower.startsWith('noteimage') || kLower === 'warningarrow') {
+                if (section === 'Mania' && isOfficialManiaImageKey(K)) {
                     globalSkinImageLookups.set(K, V);
-                    globalSkinImageLookups.set(kLower, V);
                 }
 
-                // osu! wiki 规范: 解析 [Fonts] 区块
-                if (section === 'fonts') {
-                    switch (kLower) {
-                        case 'scoreprefix':
+                // osu! wiki 规范: 解析 [Fonts] 区块。只认 ComboPrefix，不把 Combo 当成前缀。
+                if (section === 'Fonts') {
+                    switch (K) {
+                        case 'ScorePrefix':
                             skinFontsConfig.scorePrefix = V.trim();
                             break;
-                        case 'scoreoverlap': {
+                        case 'ScoreOverlap': {
                             const n = parseInt(V.trim(), 10);
                             if (!isNaN(n)) {
                                 skinFontsConfig.scoreOverlap = n;
@@ -228,13 +223,12 @@
                             }
                             break;
                         }
-                        case 'comboprefix': {
-                            // stable 只认 ComboPrefix。Combo: 会被游戏忽略，不能在这里升格成有效前缀。
+                        case 'ComboPrefix': {
                             skinFontsConfig.comboPrefix = V.trim() || 'combo';
                             skinFontsConfig.hasExplicitComboPrefix = true;
                             break;
                         }
-                        case 'combooverlap': {
+                        case 'ComboOverlap': {
                             const n = parseInt(V.trim(), 10);
                             if (!isNaN(n)) {
                                 skinFontsConfig.comboOverlap = n;
@@ -242,10 +236,10 @@
                             }
                             break;
                         }
-                        case 'hitcircleprefix':
+                        case 'HitCirclePrefix':
                             skinFontsConfig.hitCirclePrefix = V.trim();
                             break;
-                        case 'hitcircleoverlap': {
+                        case 'HitCircleOverlap': {
                             const n = parseInt(V.trim(), 10);
                             if (!isNaN(n)) skinFontsConfig.hitCircleOverlap = n;
                             break;
@@ -254,9 +248,9 @@
                     continue;
                 }
 
-                if (section !== 'mania') continue;
+                if (section !== 'Mania') continue;
 
-                if (pair.Key === 'Keys' || kLower === 'keys') {
+                if (pair.Key === 'Keys') {
                     const n = parseInt(pair.Value, 10);
                     if (!isNaN(n) && n > 0) {
                         if (!currentConfig) currentConfig = createConfig(n);
@@ -334,82 +328,76 @@
                     const p = splitKeyVal(l);
                     if (!p) continue;
                     const K = p.Key, V = p.Value;
-                    const imgKeyCi = K.toLowerCase();
+                    if (!isOfficialManiaKey(K)) continue;
 
-                    switch (imgKeyCi) {
-                        case 'columnwidth':
+                    switch (K) {
+                        case 'ColumnWidth':
                             parseArrayValue(V, currentConfig.ColumnWidth, false); break;
-                        case 'columnspacing':
+                        case 'ColumnSpacing':
                             parseArrayValue(V, currentConfig.ColumnSpacing, false); break;
-                        case 'columnlinewidth':
+                        case 'ColumnLineWidth':
                             parseArrayValue(V, currentConfig.ColumnLineWidth, false); break;
-                        case 'barlineheight': {
+                        case 'BarlineHeight': {
                             const v = parseFloat(V); if (!isNaN(v)) currentConfig.BarLineHeight = v;
                             break;
                         }
-                        case 'hitposition': {
+                        case 'HitPosition': {
                             let v = parseFloat(V);
                             if (isNaN(v)) break;
                             v = Math.max(0, Math.min(480, v));
                             currentConfig.HitPosition = v;
                             break;
                         }
-                        case 'lightposition': {
+                        case 'LightPosition': {
                             const v = parseFloat(V);
                             if (isNaN(v)) break;
                             currentConfig.LightPosition = v;
                             break;
                         }
-                        case 'comboposition': {
+                        case 'ComboPosition': {
                             const v = parseFloat(V);
                             if (isNaN(v)) break;
                             currentConfig.ComboPosition = v;
                             break;
                         }
-                        case 'scoreposition': {
+                        case 'ScorePosition': {
                             const v = parseFloat(V);
                             if (isNaN(v)) break;
                             currentConfig.ScorePosition = v;
                             break;
                         }
-                        case 'fontcombo':
+                        case 'FontCombo':
                             currentConfig.FontCombo = V.trim();
                             break;
-                        case 'combooverlap': {
+                        case 'ComboOverlap': {
                             const n = parseInt(V, 10);
                             if (!isNaN(n)) currentConfig.ComboOverlap = n;
                             break;
                         }
-                        case 'fontscore':
+                        case 'FontScore':
                             currentConfig.FontScore = V.trim();
                             break;
-                        case 'scoreoverlap': {
+                        case 'ScoreOverlap': {
                             const n = parseInt(V, 10);
                             if (!isNaN(n)) currentConfig.ScoreOverlap = n;
                             break;
                         }
-                        case 'judgementline':
-                        case 'showjudgementline':
-                            currentConfig.ShowJudgementLine = (V === '1' || V.trim().toLowerCase() === 'true');
+                        case 'JudgementLine':
+                            currentConfig.ShowJudgementLine = (V === '1');
                             break;
-                        case 'keysundernotes': {
-                            const raw = V.trim().toLowerCase();
-                            currentConfig.KeysUnderNotes = (raw === '1' || raw === 'true') ? 1 : 0;
+                        case 'KeysUnderNotes':
+                            currentConfig.KeysUnderNotes = (V === '1') ? 1 : 0;
                             break;
-                        }
-                        case 'lightingnwidth':
-                        case 'explosionwidth':
+                        case 'LightingNWidth':
                             parseArrayValue(V, currentConfig.ExplosionWidth, false); break;
-                        case 'combobreakcolour':
-                        case 'combobreakcolor': {
+                        case 'ColourBreak': {
                             const parts = V.split(',').map(s => parseInt(s.trim(), 10));
                             if (parts.length >= 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
                                 currentConfig.ComboBreakColour = { r: parts[0], g: parts[1], b: parts[2] };
                             }
                             break;
                         }
-                        case 'colourhold':
-                        case 'colorhold': {
+                        case 'ColourHold': {
                             const parts = V.split(',').map(s => parseInt(s.trim(), 10));
                             if (parts.length >= 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
                                 const a = (parts.length >= 4 && !isNaN(parts[3])) ? parts[3] : 255;
@@ -417,8 +405,7 @@
                             }
                             break;
                         }
-                        case 'colourbarline':
-                        case 'colorbarline': {
+                        case 'ColourBarline': {
                             const parts = V.split(',').map(s => parseInt(s.trim(), 10));
                             if (parts.length >= 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
                                 const a = (parts.length >= 4 && !isNaN(parts[3])) ? parts[3] : 255;
@@ -426,126 +413,96 @@
                             }
                             break;
                         }
-                        case 'lightinglwidth':
-                        case 'holdnotelightwidth':
+                        case 'LightingLWidth':
                             parseArrayValue(V, currentConfig.HoldNoteLightWidth, false); break;
-                        case 'notebodystyle': {
+                        case 'NoteBodyStyle': {
                             const style = normalizeNoteBodyStyleValue(V);
                             if (style != null) currentConfig.NoteBodyStyle = style;
                             break;
                         }
-                        case 'widthfornoteheightscale': {
+                        case 'WidthForNoteHeightScale': {
                             const v = parseFloat(V);
                             if (!isNaN(v)) currentConfig.WidthForNoteHeightScale = v;
                             break;
                         }
-                        case 'lightframepersecond': {
+                        case 'LightFramePerSecond': {
                             const n = parseInt(V, 10);
                             if (!isNaN(n)) currentConfig.LightFramePerSecond = (n > 0) ? n : 24;
                             break;
                         }
-                        case 'upsidedown':
+                        case 'UpsideDown':
                             currentConfig.UpsideDown = (V === '1'); break;
-                        case 'splitstages':
+                        case 'SplitStages':
                             currentConfig.SplitStages = (V === '1'); break;
-                        case 'separatescore': break;
-                        case 'stageseparation': {
+                        case 'SeparateScore':
+                            currentConfig.SeparateScore = (V === '1');
+                            break;
+                        case 'StageSeparation': {
                             const v = parseFloat(V); if (!isNaN(v)) currentConfig.StageSeparation = v; break;
                         }
-                        case 'columnstart': {
+                        case 'ColumnStart': {
                             const v = parseFloat(V);
                             if (!isNaN(v)) currentConfig.ColumnStart = v;
                             break;
                         }
-                        case 'columnright': {
+                        case 'ColumnRight': {
                             const v = parseFloat(V);
                             if (!isNaN(v)) currentConfig.ColumnRight = v;
                             break;
                         }
-                        case 'specialstyle':
+                        case 'SpecialStyle': {
+                            const style = parseInt(V, 10);
+                            if (style >= 0 && style <= 2) currentConfig.SpecialStyle = style;
                             break;
-                        case 'comboburststyle': {
-                            const normalizedStyle = String(V || '').trim().toLowerCase();
-                            const namedStyles = { left: 0, right: 1, both: 2, random: 2 };
-                            const style = namedStyles[normalizedStyle] != null
-                                ? namedStyles[normalizedStyle]
+                        }
+                        case 'ComboBurstStyle': {
+                            const namedStyles = { Left: 0, Right: 1, Both: 2 };
+                            const style = namedStyles[String(V || '').trim()] != null
+                                ? namedStyles[String(V || '').trim()]
                                 : parseInt(V, 10);
                             if (style >= 0 && style <= 2) currentConfig.ComboBurstStyle = style;
                             break;
                         }
-                        default:
-                            if (imgKeyCi.startsWith('colour') || imgKeyCi.startsWith('color')) {
-                                const clMatch = imgKeyCi.match(/^colou?rlight(\d+)?$/);
-                                const colMatch = imgKeyCi.match(/^colou?r(?:column)?(\d+)$/);
-                                if (clMatch) {
-                                    const parts = V.split(',').map(s => parseInt(s.trim(), 10));
-                                    if (parts.length >= 3 && !parts.slice(0, 3).some(isNaN)) {
-                                        const r = Math.min(255, Math.max(0, parts[0]));
-                                        const g = Math.min(255, Math.max(0, parts[1]));
-                                        const b = Math.min(255, Math.max(0, parts[2]));
-                                        const a = (parts.length >= 4 && !isNaN(parts[3])) ? Math.min(255, Math.max(0, parts[3])) : 255;
-                                        const colVal = { r, g, b, a };
-                                        if (clMatch[1] !== undefined) {
-                                            const rawIdx = parseInt(clMatch[1], 10);
-                                            // osu! 标准为 1-based (ColourLight1 为首轨)，兼容偶见 0-based
-                                            const colIdx = (rawIdx > 0) ? rawIdx - 1 : 0;
-                                            if (colIdx >= 0) {
-                                                if (!currentConfig.ColourLight) currentConfig.ColourLight = [];
-                                                currentConfig.ColourLight[colIdx] = colVal;
-                                            }
-                                        } else {
-                                            currentConfig.GlobalColourLight = colVal;
-                                            if (currentConfig.ColourLight) {
-                                                for (let i = 0; i < currentConfig.ColourLight.length; i++) {
-                                                    currentConfig.ColourLight[i] = colVal;
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if (colMatch) {
-                                    const rawIdx = parseInt(colMatch[1], 10);
-                                    const colIdx = (rawIdx > 0) ? rawIdx - 1 : 0;
-                                    const parts = V.split(',').map(s => parseInt(s.trim(), 10));
-                                    if (parts.length >= 3 && !parts.slice(0, 3).some(isNaN)) {
-                                        const r = Math.min(255, Math.max(0, parts[0]));
-                                        const g = Math.min(255, Math.max(0, parts[1]));
-                                        const b = Math.min(255, Math.max(0, parts[2]));
-                                        const a = (parts.length >= 4 && !isNaN(parts[3])) ? Math.min(255, Math.max(0, parts[3])) : 255;
-                                        if (!currentConfig.ColumnColour) currentConfig.ColumnColour = [];
-                                        currentConfig.ColumnColour[colIdx] = { r, g, b, a };
-                                    }
-                                } else {
-                                    const name = K.substring(6).trim();
-                                    const parts = V.split(',').map(s => parseInt(s.trim(), 10));
-                                    if (parts.length >= 3 && !parts.some(isNaN)) {
-                                        const r = parts[0], g = parts[1], b = parts[2], a = (parts.length >= 4) ? parts[3] : 255;
-                                        currentConfig.CustomColours[name.toLowerCase()] = `rgba(${r},${g},${b},${a / 255})`;
-                                    }
+                        default: {
+                            const lightMatch = K.match(/^ColourLight(\d+)$/);
+                            const columnMatch = K.match(/^Colour(\d+)$/);
+                            const bodyMatch = K.match(/^NoteBodyStyle(\d+)$/);
+                            if (lightMatch) {
+                                const colIdx = maniaColourColumnIndex(lightMatch[1]);
+                                const parts = V.split(',').map(s => parseInt(s.trim(), 10));
+                                if (colIdx != null && parts.length >= 3 && !parts.slice(0, 3).some(isNaN)) {
+                                    const r = Math.min(255, Math.max(0, parts[0]));
+                                    const g = Math.min(255, Math.max(0, parts[1]));
+                                    const b = Math.min(255, Math.max(0, parts[2]));
+                                    const a = (parts.length >= 4 && !isNaN(parts[3])) ? Math.min(255, Math.max(0, parts[3])) : 255;
+                                    if (!currentConfig.ColourLight) currentConfig.ColourLight = [];
+                                    currentConfig.ColourLight[colIdx] = { r, g, b, a };
                                 }
-                            } else if (imgKeyCi.startsWith('noteimage') ||
-                                imgKeyCi.startsWith('keyimage') ||
-                                imgKeyCi.startsWith('hit') ||
-                                imgKeyCi.startsWith('stage') ||
-                                imgKeyCi.startsWith('lighting') ||
-                                imgKeyCi === 'warningarrow') {
+                            } else if (columnMatch) {
+                                const colIdx = maniaColourColumnIndex(columnMatch[1]);
+                                const parts = V.split(',').map(s => parseInt(s.trim(), 10));
+                                if (colIdx != null && parts.length >= 3 && !parts.slice(0, 3).some(isNaN)) {
+                                    const r = Math.min(255, Math.max(0, parts[0]));
+                                    const g = Math.min(255, Math.max(0, parts[1]));
+                                    const b = Math.min(255, Math.max(0, parts[2]));
+                                    const a = (parts.length >= 4 && !isNaN(parts[3])) ? Math.min(255, Math.max(0, parts[3])) : 255;
+                                    if (!currentConfig.ColumnColour) currentConfig.ColumnColour = [];
+                                    currentConfig.ColumnColour[colIdx] = { r, g, b, a };
+                                }
+                            } else if (bodyMatch) {
+                                const colIdx = maniaColumnIndex(bodyMatch[1]);
+                                const sVal = normalizeNoteBodyStyleValue(V);
+                                if (sVal !== null && colIdx != null && colIdx < currentConfig.Keys) {
+                                    if (!Array.isArray(currentConfig.NoteBodyStyles)) currentConfig.NoteBodyStyles = new Array(currentConfig.Keys).fill(null);
+                                    currentConfig.NoteBodyStyles[colIdx] = sVal;
+                                }
+                            } else if (isOfficialManiaImageKey(K)) {
                                 currentConfig.ImageLookups.set(K, V);
-                                currentConfig.ImageLookups.set(imgKeyCi, V);
-                            } else if (imgKeyCi.startsWith('keyflipwhenupsidedown') ||
-                                imgKeyCi.startsWith('noteflipwhenupsidedown')) {
+                            } else if (K.startsWith('KeyFlipWhenUpsideDown') || K.startsWith('NoteFlipWhenUpsideDown')) {
                                 currentConfig.FlipSettings.set(K, V);
-                                currentConfig.FlipSettings.set(imgKeyCi, V);
-                            } else if (/^notebodystyle\d+$/i.test(imgKeyCi)) {
-                                const m = imgKeyCi.match(/^notebodystyle(\d+)$/i);
-                                if (m) {
-                                    const colIdx = parseInt(m[1], 10);
-                                    const sVal = normalizeNoteBodyStyleValue(V);
-                                    if (sVal !== null && colIdx >= 0 && colIdx < currentConfig.Keys) {
-                                        if (!Array.isArray(currentConfig.NoteBodyStyles)) currentConfig.NoteBodyStyles = new Array(currentConfig.Keys).fill(null);
-                                        currentConfig.NoteBodyStyles[colIdx] = sVal;
-                                    }
-                                }
                             }
                             break;
+                        }
                     }
                 }
                 pendingLines.length = 0;

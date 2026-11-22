@@ -4,56 +4,34 @@
 // ============================================================================
 
         function canonicalizeImageKey(key) {
-            const low = key.toLowerCase();
-            const mKey = low.match(/^keyimage(\d+)(d|down)?$/);
-            if (mKey) {
-                const num = mKey[1];
-                const isDown = mKey[2] ? (mKey[2] === 'd' ? 'D' : 'Down') : '';
-                return `KeyImage${num}${isDown}`;
+            const name = String(key || '');
+            if (isOfficialManiaImageKey(name)) return name;
+            const column = '(?:1[0-7]|[0-9])';
+            const patterns = [
+                [new RegExp('^keyimage(' + column + ')d$', 'i'), function (match) { return 'KeyImage' + match[1] + 'D'; }],
+                [new RegExp('^keyimage(' + column + ')$', 'i'), function (match) { return 'KeyImage' + match[1]; }],
+                [new RegExp('^noteimage(' + column + ')([hlt])$', 'i'), function (match) { return 'NoteImage' + match[1] + match[2].toUpperCase(); }],
+                [new RegExp('^noteimage(' + column + ')$', 'i'), function (match) { return 'NoteImage' + match[1]; }],
+                [/^stageleft$/i, function () { return 'StageLeft'; }],
+                [/^stageright$/i, function () { return 'StageRight'; }],
+                [/^stagebottom$/i, function () { return 'StageBottom'; }],
+                [/^stagehint$/i, function () { return 'StageHint'; }],
+                [/^stagelight$/i, function () { return 'StageLight'; }],
+                [/^lightingn$/i, function () { return 'LightingN'; }],
+                [/^lightingl$/i, function () { return 'LightingL'; }],
+                [/^warningarrow$/i, function () { return 'WarningArrow'; }],
+                [/^hit300g$/i, function () { return 'Hit300g'; }],
+                [/^hit300$/i, function () { return 'Hit300'; }],
+                [/^hit200$/i, function () { return 'Hit200'; }],
+                [/^hit100$/i, function () { return 'Hit100'; }],
+                [/^hit50$/i, function () { return 'Hit50'; }],
+                [/^hit0$/i, function () { return 'Hit0'; }]
+            ];
+            for (const entry of patterns) {
+                const match = name.match(entry[0]);
+                if (match) return entry[1](match);
             }
-            if (low === 'keyimage') return 'KeyImage';
-            if (low === 'keyimagedown') return 'KeyImageDown';
-
-            const mNote = low.match(/^noteimage(\d+)([hlt])?$/);
-            if (mNote) {
-                const num = mNote[1];
-                const suffix = mNote[2] ? mNote[2].toUpperCase() : '';
-                return `NoteImage${num}${suffix}`;
-            }
-            if (low === 'noteimage') return 'NoteImage';
-
-            const mHold = low.match(/^holdnote(head|tail|body)image(\d+)?$/);
-            if (mHold) {
-                const type = mHold[1].charAt(0).toUpperCase() + mHold[1].slice(1);
-                const num = mHold[2] !== undefined ? mHold[2] : '';
-                if (num !== '') {
-                    const s = (type === 'Head') ? 'H' : ((type === 'Body') ? 'L' : 'T');
-                    return `NoteImage${num}${s}`;
-                }
-                return `HoldNote${type}Image`;
-            }
-
-            const map = {
-                stageleft: 'StageLeft',
-                stageright: 'StageRight',
-                stagebottom: 'StageBottom',
-                stagehint: 'StageHint',
-                stagelight: 'StageLight',
-                leftstageimage: 'LeftStageImage',
-                rightstageimage: 'RightStageImage',
-                bottomstageimage: 'BottomStageImage',
-                hit300g: 'Hit300g',
-                hit300: 'Hit300',
-                hit200: 'Hit200',
-                hit100: 'Hit100',
-                hit50: 'Hit50',
-                hit0: 'Hit0',
-                lightingn: 'LightingN',
-                lightingl: 'LightingL',
-                warningarrow: 'WarningArrow'
-            };
-            if (map[low]) return map[low];
-            return key;
+            return null;
         }
 
         function splitIniExportKeyVal(line) {
@@ -70,21 +48,15 @@
         }
 
         function normalizeIniSectionKind(name) {
-            const kind = String(name || '').trim().toLowerCase();
-            return kind === 'colors' ? 'colours' : kind;
+            return String(name || '').trim();
         }
 
-        // 编辑器会把同一参数写成稳定键名。比较「生成结果里有没有」时按这个身份。
-        // [Fonts] Combo 与 ComboPrefix 不是同一个键：stable 只读取 ComboPrefix，
-        // Combo 保持原样，避免把一条被游戏忽略的行写成会生效的 ComboPrefix。
+        // 只有和 wiki 完全一致的键才视为同一个参数。
+        // Combo 不会并进 ComboPrefix，ColorHold 也不会并进 ColourHold。
         function canonicalExportedIniKey(sectionKind, key) {
-            const low = String(key || '').trim().toLowerCase();
-            if (sectionKind === 'mania') {
-                if (low === 'showjudgementline' || low === 'judgementline') return 'judgementline';
-                if (low === 'explosionwidth' || low === 'lightingnwidth') return 'lightingnwidth';
-                if (low === 'holdnotelightwidth' || low === 'lightinglwidth') return 'lightinglwidth';
-            }
-            return canonicalizeImageKey(key).toLowerCase().replace(/^color/, 'colour');
+            const imageKey = canonicalizeImageKey(key);
+            if (imageKey && officialSkinIniSection(sectionKind) === 'Mania') return 'official:' + imageKey;
+            return skinIniExportKeyIdentity(sectionKind, key);
         }
 
         function parseIniExportDocument(text) {
@@ -108,7 +80,7 @@
         function maniaKeysFromSectionLines(lines) {
             for (const line of lines) {
                 const pair = splitIniExportKeyVal(line);
-                if (!pair || pair.key.toLowerCase() !== 'keys') continue;
+                if (!pair || pair.key !== 'Keys') continue;
                 const keys = parseInt(pair.value, 10);
                 if (!isNaN(keys) && keys > 0) return keys;
             }
@@ -117,9 +89,9 @@
 
         function sectionSlotId(section) {
             const kind = normalizeIniSectionKind(section.name);
-            if (kind !== 'mania') return kind;
+            if (kind !== 'Mania') return kind;
             const keys = maniaKeysFromSectionLines(section.lines);
-            return keys == null ? null : `mania:${keys}`;
+            return keys == null ? null : `Mania:${keys}`;
         }
 
         function collectSectionKeyIds(section) {
@@ -396,7 +368,7 @@
                 const colourLines = [];
                 if (cfg.ColourBarline) colourLines.push(`ColourBarline: ${cfg.ColourBarline.r},${cfg.ColourBarline.g},${cfg.ColourBarline.b},${cfg.ColourBarline.a != null ? cfg.ColourBarline.a : 255}`);
                 if (cfg.ColourHold) colourLines.push(`ColourHold: ${cfg.ColourHold.r},${cfg.ColourHold.g},${cfg.ColourHold.b},${cfg.ColourHold.a != null ? cfg.ColourHold.a : 255}`);
-                if (cfg.ComboBreakColour) colourLines.push(`ComboBreakColour: ${cfg.ComboBreakColour.r},${cfg.ComboBreakColour.g},${cfg.ComboBreakColour.b}`);
+                if (cfg.ComboBreakColour) colourLines.push(`ColourBreak: ${cfg.ComboBreakColour.r},${cfg.ComboBreakColour.g},${cfg.ComboBreakColour.b}`);
 
                 if (cfg.ColumnColour && cfg.ColumnColour.length > 0) {
                     for (let c = 0; c < k; c++) {
@@ -420,7 +392,7 @@
                     lines.push('// ------------------------------------------');
                     lines.push('// ColourBarline: 小节线颜色及透明度 (RGBA)');
                     lines.push('// ColourHold: 按住长条时连击数变色滤镜色彩 (RGBA)');
-                    lines.push('// ComboBreakColour: 断连击时屏幕闪烁警示颜色 (RGB)');
+                    lines.push('// ColourBreak: 断连击时屏幕闪烁警示颜色 (RGB)');
                     lines.push('// Colour1..N: 各轨道背景底色与透明度 (RGBA)');
                     lines.push('// ColourLight1..N: 各轨道按键按压发光色彩 (RGB)');
                     for (const l of colourLines) lines.push(l);
@@ -438,13 +410,10 @@
 
                     for (const [kLookup, vLookup] of cfg.ImageLookups.entries()) {
                         if (!vLookup) continue;
-                        // stable 的打击特效贴图只有全局 LightingN / LightingL。
-                        // 旧版本编辑器曾写出的 LightingN0 / Lighting0N / LightingL0 / Lighting0L / Lighting0 等分轨键不再导出。
-                        if (/^lighting(?:\d+[nl]|[nl]\d+|\d+)$/i.test(kLookup)) continue;
                         const canonical = canonicalizeImageKey(kLookup);
-                        const lowerCanonical = canonical.toLowerCase();
-                        if (written.has(lowerCanonical)) continue;
-                        written.add(lowerCanonical);
+                        if (!canonical || !isOfficialManiaImageKey(canonical)) continue;
+                        if (written.has(canonical)) continue;
+                        written.add(canonical);
 
                         const category = getImageCategory(kLookup);
                         const entry = { key: canonical, val: vLookup, rawKey: kLookup };

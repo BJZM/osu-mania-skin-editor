@@ -1363,7 +1363,7 @@ test('F6 导出 .osk / .zip 触发下载', async ({ page }) => {
     }
   }
   expect(exportedIni).toMatch(/^ComboPrefix:\s*Fonts\/score\/score\s*$/m);
-  expect(exportedIni).not.toMatch(/^Combo\s*:/m);
+  expect(exportedIni).toMatch(/^Combo:\s*combo\s*$/m);
   expect(errors).toEqual([]);
 });
 

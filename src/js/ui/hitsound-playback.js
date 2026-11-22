@@ -15,8 +15,8 @@
         ]);
         const MANIA_HITSOUND_EXTENSIONS = Object.freeze(['wav', 'mp3', 'ogg']);
 
-        let maniaHitsoundAudioContext = null;
-        let maniaHitsoundMasterGain = null;
+        var maniaHitsoundAudioContext = null;
+        var maniaHitsoundMasterGain = null;
         let maniaHitsoundBufferCache = new Map();
         let maniaHitsoundActiveSources = new Set();
         let maniaHitsoundPrepareToken = 0;
