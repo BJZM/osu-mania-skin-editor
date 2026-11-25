@@ -159,6 +159,16 @@
         }
 
         function selectTarget(target) {
+            if (typeof textureEditorCloseToken !== 'undefined') {
+                textureEditorCloseToken++;
+            }
+            if (typeof textureEditorCloseTimer !== 'undefined' && textureEditorCloseTimer) {
+                clearTimeout(textureEditorCloseTimer);
+                textureEditorCloseTimer = null;
+            }
+            const modal = byId('textureImageEditorModal');
+            if (modal) modal.classList.remove('is-closing');
+
             const existing = tabs.find((tab) => tab.kind === 'texture' &&
                 tab.target && tab.target.p && tab.target.p.key === target.p.key);
             if (existing) {

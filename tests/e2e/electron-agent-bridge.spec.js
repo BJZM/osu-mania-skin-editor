@@ -123,7 +123,12 @@ test('Electron Agent Bridge exposes the live renderer session over loopback', as
     });
     expect(invalidTokenResponse.status).toBe(401);
   } finally {
-    if (app) await app.close();
+    if (app) {
+      await app.evaluate(({ BrowserWindow }) => {
+        for (const win of BrowserWindow.getAllWindows()) win.destroy();
+      }).catch(() => {});
+      await app.close().catch(() => {});
+    }
     await fs.rm(DISCOVERY_PATH, { force: true });
     await fs.rm(userDataDir, {
       recursive: true,

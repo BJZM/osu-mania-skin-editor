@@ -113,6 +113,19 @@
         let isPerformingUndoRedo = false;
         let continuousActionActive = false;
         let continuousActionTimer = null;
+        let activeHistoryTransaction = null;
+
+        function clearContinuousActionState() {
+            if (continuousActionTimer) {
+                clearTimeout(continuousActionTimer);
+                continuousActionTimer = null;
+            }
+            continuousActionActive = false;
+        }
+
+        function isHistoryTransactionActive() {
+            return activeHistoryTransaction !== null;
+        }
 
         function updateUndoButtonState() {
             const redoBtn = document.getElementById('canvasRedoBtn');
@@ -270,11 +283,12 @@
 
         function recordSkinUndoBeforeChange(desc = '修改参数', options = {}) {
             if (isPerformingUndoRedo) return;
-            // Agent 批次在开始前已经记录过一次完整快照。批次内部的贴图、
+            // 历史事务或 Agent 批次在开始前已经记录过一次完整快照。批次内部的贴图、
             // 参数和联动修改继续走原有写入路径，但不再拆成多条撤回记录。
-            if (window.skinAgentSession &&
-                typeof window.skinAgentSession.isApplying === 'function' &&
-                window.skinAgentSession.isApplying()) {
+            if (activeHistoryTransaction ||
+                (window.skinAgentSession &&
+                 typeof window.skinAgentSession.isApplying === 'function' &&
+                 window.skinAgentSession.isApplying())) {
                 return;
             }
             if (typeof invalidateKeyImageHeightPersistence === 'function') {
@@ -297,7 +311,76 @@
             if (continuousActionTimer) clearTimeout(continuousActionTimer);
             continuousActionTimer = setTimeout(() => {
                 continuousActionActive = false;
+                continuousActionTimer = null;
             }, 600);
+        }
+
+        /**
+         * 开启一个历史事务，在提交前抑制嵌套的 recordSkinUndoBeforeChange 调用。
+         */
+        function beginHistoryTransaction(desc = '修改参数') {
+            if (isPerformingUndoRedo) return null;
+            if (activeHistoryTransaction) {
+                throw new Error(`已有未完成的历史事务: ${activeHistoryTransaction.desc}`);
+            }
+            if (typeof invalidateKeyImageHeightPersistence === 'function') {
+                invalidateKeyImageHeightPersistence();
+            }
+            clearContinuousActionState();
+            const snapshot = createSkinSnapshot(desc);
+            const redoBefore = redoStack.slice();
+            if (window.skinWorkspaceRevision) {
+                window.skinWorkspaceRevision.advance();
+            }
+            activeHistoryTransaction = {
+                desc,
+                snapshot,
+                redoBefore
+            };
+            return activeHistoryTransaction;
+        }
+
+        /**
+         * 提交当前历史事务：入栈单条撤回快照、复位连续合并窗口并推进单次 revision。
+         */
+        function commitHistoryTransaction(options = {}) {
+            if (!activeHistoryTransaction) return null;
+            const tx = activeHistoryTransaction;
+            activeHistoryTransaction = null;
+            clearContinuousActionState();
+            undoStack.push(tx.snapshot);
+            if (undoStack.length > MAX_UNDO_STACK) undoStack.shift();
+            redoStack.length = 0;
+            syncTextureEditorNonTextureSettings();
+            updateUndoButtonState();
+            if (options.notifyExternal !== false &&
+                window.skinAgentSession &&
+                typeof window.skinAgentSession.notifyExternalMutation === 'function') {
+                window.skinAgentSession.notifyExternalMutation(tx.desc);
+            }
+            return tx;
+        }
+
+        /**
+         * 回滚当前历史事务；纯无操作中止时可传入 restoreSnapshot=false 仅恢复版本基线。
+         */
+        function rollbackHistoryTransaction(options = {}) {
+            if (!activeHistoryTransaction) return false;
+            const tx = activeHistoryTransaction;
+            activeHistoryTransaction = null;
+            clearContinuousActionState();
+            if (options.restoreSnapshot !== false) {
+                applySkinSnapshot(tx.snapshot);
+                redoStack.length = 0;
+                redoStack.push(...tx.redoBefore);
+                if (typeof syncTextureEditorBaseAfterSkinHistory === 'function') {
+                    syncTextureEditorBaseAfterSkinHistory();
+                }
+            } else if (window.skinWorkspaceRevision) {
+                window.skinWorkspaceRevision.adopt(tx.snapshot);
+            }
+            updateUndoButtonState();
+            return true;
         }
 
         function rollbackLastRecordedSkinUndo(expectedSnapshot, previousRedoStack = null) {
@@ -308,11 +391,7 @@
                 redoStack.length = 0;
                 redoStack.push(...previousRedoStack);
             }
-            if (continuousActionTimer) {
-                clearTimeout(continuousActionTimer);
-                continuousActionTimer = null;
-            }
-            continuousActionActive = false;
+            clearContinuousActionState();
             applySkinSnapshot(expectedSnapshot);
             updateUndoButtonState();
             return true;
@@ -512,10 +591,7 @@
         }
 
         function performSkinUndo() {
-            if (continuousActionTimer) {
-                clearTimeout(continuousActionTimer);
-                continuousActionActive = false;
-            }
+            clearContinuousActionState();
             if (undoStack.length === 0) {
                 showToast('提示', '没有可撤回的操作');
                 return;
@@ -540,10 +616,7 @@
         }
 
         function performSkinRedo() {
-            if (continuousActionTimer) {
-                clearTimeout(continuousActionTimer);
-                continuousActionActive = false;
-            }
+            clearContinuousActionState();
             if (redoStack.length === 0) {
                 showToast('提示', '没有可重做的操作');
                 return;
@@ -576,7 +649,8 @@
                 };
                 undoStack.length = 0;
                 redoStack.length = 0;
-                continuousActionActive = false;
+                activeHistoryTransaction = null;
+                clearContinuousActionState();
                 updateUndoButtonState();
                 if (window.skinAgentSession &&
                     typeof window.skinAgentSession.notifyExternalMutation === 'function') {
@@ -598,7 +672,7 @@
             }
 
             recordSkinUndoBeforeChange('复原初始皮肤');
-            continuousActionActive = false;
+            clearContinuousActionState();
 
             // 清理画布选中与交互状态
             selectedCanvasElement = null;

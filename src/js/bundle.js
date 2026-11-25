@@ -24507,6 +24507,19 @@ void primeDefaultSkin();
         let isPerformingUndoRedo = false;
         let continuousActionActive = false;
         let continuousActionTimer = null;
+        let activeHistoryTransaction = null;
+
+        function clearContinuousActionState() {
+            if (continuousActionTimer) {
+                clearTimeout(continuousActionTimer);
+                continuousActionTimer = null;
+            }
+            continuousActionActive = false;
+        }
+
+        function isHistoryTransactionActive() {
+            return activeHistoryTransaction !== null;
+        }
 
         function updateUndoButtonState() {
             const redoBtn = document.getElementById('canvasRedoBtn');
@@ -24664,11 +24677,12 @@ void primeDefaultSkin();
 
         function recordSkinUndoBeforeChange(desc = '修改参数', options = {}) {
             if (isPerformingUndoRedo) return;
-            // Agent 批次在开始前已经记录过一次完整快照。批次内部的贴图、
+            // 历史事务或 Agent 批次在开始前已经记录过一次完整快照。批次内部的贴图、
             // 参数和联动修改继续走原有写入路径，但不再拆成多条撤回记录。
-            if (window.skinAgentSession &&
-                typeof window.skinAgentSession.isApplying === 'function' &&
-                window.skinAgentSession.isApplying()) {
+            if (activeHistoryTransaction ||
+                (window.skinAgentSession &&
+                 typeof window.skinAgentSession.isApplying === 'function' &&
+                 window.skinAgentSession.isApplying())) {
                 return;
             }
             if (typeof invalidateKeyImageHeightPersistence === 'function') {
@@ -24691,7 +24705,76 @@ void primeDefaultSkin();
             if (continuousActionTimer) clearTimeout(continuousActionTimer);
             continuousActionTimer = setTimeout(() => {
                 continuousActionActive = false;
+                continuousActionTimer = null;
             }, 600);
+        }
+
+        /**
+         * 开启一个历史事务，在提交前抑制嵌套的 recordSkinUndoBeforeChange 调用。
+         */
+        function beginHistoryTransaction(desc = '修改参数') {
+            if (isPerformingUndoRedo) return null;
+            if (activeHistoryTransaction) {
+                throw new Error(`已有未完成的历史事务: ${activeHistoryTransaction.desc}`);
+            }
+            if (typeof invalidateKeyImageHeightPersistence === 'function') {
+                invalidateKeyImageHeightPersistence();
+            }
+            clearContinuousActionState();
+            const snapshot = createSkinSnapshot(desc);
+            const redoBefore = redoStack.slice();
+            if (window.skinWorkspaceRevision) {
+                window.skinWorkspaceRevision.advance();
+            }
+            activeHistoryTransaction = {
+                desc,
+                snapshot,
+                redoBefore
+            };
+            return activeHistoryTransaction;
+        }
+
+        /**
+         * 提交当前历史事务：入栈单条撤回快照、复位连续合并窗口并推进单次 revision。
+         */
+        function commitHistoryTransaction(options = {}) {
+            if (!activeHistoryTransaction) return null;
+            const tx = activeHistoryTransaction;
+            activeHistoryTransaction = null;
+            clearContinuousActionState();
+            undoStack.push(tx.snapshot);
+            if (undoStack.length > MAX_UNDO_STACK) undoStack.shift();
+            redoStack.length = 0;
+            syncTextureEditorNonTextureSettings();
+            updateUndoButtonState();
+            if (options.notifyExternal !== false &&
+                window.skinAgentSession &&
+                typeof window.skinAgentSession.notifyExternalMutation === 'function') {
+                window.skinAgentSession.notifyExternalMutation(tx.desc);
+            }
+            return tx;
+        }
+
+        /**
+         * 回滚当前历史事务；纯无操作中止时可传入 restoreSnapshot=false 仅恢复版本基线。
+         */
+        function rollbackHistoryTransaction(options = {}) {
+            if (!activeHistoryTransaction) return false;
+            const tx = activeHistoryTransaction;
+            activeHistoryTransaction = null;
+            clearContinuousActionState();
+            if (options.restoreSnapshot !== false) {
+                applySkinSnapshot(tx.snapshot);
+                redoStack.length = 0;
+                redoStack.push(...tx.redoBefore);
+                if (typeof syncTextureEditorBaseAfterSkinHistory === 'function') {
+                    syncTextureEditorBaseAfterSkinHistory();
+                }
+            } else if (window.skinWorkspaceRevision) {
+                window.skinWorkspaceRevision.adopt(tx.snapshot);
+            }
+            updateUndoButtonState();
+            return true;
         }
 
         function rollbackLastRecordedSkinUndo(expectedSnapshot, previousRedoStack = null) {
@@ -24702,11 +24785,7 @@ void primeDefaultSkin();
                 redoStack.length = 0;
                 redoStack.push(...previousRedoStack);
             }
-            if (continuousActionTimer) {
-                clearTimeout(continuousActionTimer);
-                continuousActionTimer = null;
-            }
-            continuousActionActive = false;
+            clearContinuousActionState();
             applySkinSnapshot(expectedSnapshot);
             updateUndoButtonState();
             return true;
@@ -24906,10 +24985,7 @@ void primeDefaultSkin();
         }
 
         function performSkinUndo() {
-            if (continuousActionTimer) {
-                clearTimeout(continuousActionTimer);
-                continuousActionActive = false;
-            }
+            clearContinuousActionState();
             if (undoStack.length === 0) {
                 showToast('提示', '没有可撤回的操作');
                 return;
@@ -24934,10 +25010,7 @@ void primeDefaultSkin();
         }
 
         function performSkinRedo() {
-            if (continuousActionTimer) {
-                clearTimeout(continuousActionTimer);
-                continuousActionActive = false;
-            }
+            clearContinuousActionState();
             if (redoStack.length === 0) {
                 showToast('提示', '没有可重做的操作');
                 return;
@@ -24970,7 +25043,8 @@ void primeDefaultSkin();
                 };
                 undoStack.length = 0;
                 redoStack.length = 0;
-                continuousActionActive = false;
+                activeHistoryTransaction = null;
+                clearContinuousActionState();
                 updateUndoButtonState();
                 if (window.skinAgentSession &&
                     typeof window.skinAgentSession.notifyExternalMutation === 'function') {
@@ -24992,7 +25066,7 @@ void primeDefaultSkin();
             }
 
             recordSkinUndoBeforeChange('复原初始皮肤');
-            continuousActionActive = false;
+            clearContinuousActionState();
 
             // 清理画布选中与交互状态
             selectedCanvasElement = null;
@@ -29733,7 +29807,7 @@ void primeDefaultSkin();
                 return;
             }
 
-            if (options && options.immediate) {
+            if ((options && options.immediate) || !modal.classList.contains('active')) {
                 textureEditorCloseToken++;
                 if (textureEditorCloseTimer) {
                     clearTimeout(textureEditorCloseTimer);
@@ -32681,6 +32755,16 @@ void primeDefaultSkin();
         }
 
         function selectTarget(target) {
+            if (typeof textureEditorCloseToken !== 'undefined') {
+                textureEditorCloseToken++;
+            }
+            if (typeof textureEditorCloseTimer !== 'undefined' && textureEditorCloseTimer) {
+                clearTimeout(textureEditorCloseTimer);
+                textureEditorCloseTimer = null;
+            }
+            const modal = byId('textureImageEditorModal');
+            if (modal) modal.classList.remove('is-closing');
+
             const existing = tabs.find((tab) => tab.kind === 'texture' &&
                 tab.target && tab.target.p && tab.target.p.key === target.p.key);
             if (existing) {
@@ -38580,6 +38664,63 @@ void primeDefaultSkin();
                 window.removeEventListener('keyup', blockEditorKeyboard, true);
             }
 
+            async function runInHistoryTransaction(label, fn) {
+                if (transactionActive ||
+                    (typeof isHistoryTransactionActive === 'function' && isHistoryTransactionActive())) {
+                    throw createSessionError(
+                        'TRANSACTION_IN_PROGRESS',
+                        '已有正在执行的 Agent 写事务，请稍后再试。'
+                    );
+                }
+                const txLabel = String(label || 'Agent 修改皮肤').trim() || 'Agent 修改皮肤';
+                const revisionBefore = revision;
+                const hasTxApi = typeof beginHistoryTransaction === 'function' &&
+                    typeof commitHistoryTransaction === 'function' &&
+                    typeof rollbackHistoryTransaction === 'function';
+                let aborted = false;
+                if (hasTxApi) {
+                    beginHistoryTransaction(txLabel);
+                }
+                transactionActive = true;
+                lockEditorInput();
+                try {
+                    const result = await fn({
+                        abortNoOp: () => {
+                            if (aborted) return;
+                            aborted = true;
+                            transactionActive = false;
+                            if (hasTxApi) {
+                                rollbackHistoryTransaction({ restoreSnapshot: false });
+                            }
+                        }
+                    });
+                    transactionActive = false;
+                    if (!aborted) {
+                        if (hasTxApi) {
+                            commitHistoryTransaction();
+                        } else {
+                            notifyExternalMutation(txLabel);
+                        }
+                    }
+                    if (result && typeof result === 'object' && 'revision' in result) {
+                        result.revision = revision;
+                    }
+                    return result;
+                } catch (error) {
+                    transactionActive = false;
+                    if (!aborted && hasTxApi) {
+                        aborted = true;
+                        rollbackHistoryTransaction({ restoreSnapshot: true });
+                    }
+                    revision = revisionBefore;
+                    refreshEditorUi();
+                    throw error;
+                } finally {
+                    transactionActive = false;
+                    unlockEditorInput();
+                }
+            }
+
             async function applyOperations(operations, label, expectedRevision) {
                 await ensureEditingWorkspaceReady();
                 assertExpectedRevision(expectedRevision);
@@ -38594,15 +38735,8 @@ void primeDefaultSkin();
                 }
 
                 const transactionLabel = String(label || 'Agent 修改皮肤').trim() || 'Agent 修改皮肤';
-                const revisionBefore = revision;
-                const redoBefore = redoStack.slice();
-                recordSkinUndoBeforeChange(transactionLabel, { force: true });
-                const undoSnapshot = undoStack[undoStack.length - 1];
-                const applied = [];
-                transactionActive = true;
-                lockEditorInput();
-
-                try {
+                return runInHistoryTransaction(transactionLabel, async () => {
+                    const applied = [];
                     for (const operation of operations) {
                         if (!operation || typeof operation.type !== 'string') {
                             throw createSessionError(
@@ -38622,33 +38756,13 @@ void primeDefaultSkin();
                             );
                         }
                     }
-                    continuousActionActive = false;
                     refreshEditorUi();
-                    lastMutation = transactionLabel;
                     return {
                         revision,
                         label: transactionLabel,
                         applied
                     };
-                } catch (error) {
-                    if (undoSnapshot) {
-                        applySkinSnapshot(undoSnapshot);
-                        if (undoStack[undoStack.length - 1] === undoSnapshot) {
-                            undoStack.pop();
-                        }
-                    }
-                    redoStack.splice(0, redoStack.length, ...redoBefore);
-                    revision = revisionBefore;
-                    continuousActionActive = false;
-                    if (typeof syncTextureEditorBaseAfterSkinHistory === 'function') {
-                        syncTextureEditorBaseAfterSkinHistory();
-                    }
-                    refreshEditorUi();
-                    throw error;
-                } finally {
-                    transactionActive = false;
-                    unlockEditorInput();
-                }
+                });
             }
 
             async function openSkin(params = {}) {
@@ -38821,6 +38935,9 @@ void primeDefaultSkin();
                 return {
                     revision,
                     transactionActive,
+                    continuousActionActive: typeof continuousActionActive !== 'undefined'
+                        ? !!continuousActionActive
+                        : false,
                     lastMutation,
                     ready: isEditingWorkspaceReady(),
                     undoDepth: typeof undoStack !== 'undefined' ? undoStack.length : 0,
@@ -38828,8 +38945,8 @@ void primeDefaultSkin();
                 };
             }
 
-            function undoSkin() {
-                ensureEditingWorkspaceReady();
+            async function undoSkin() {
+                await ensureEditingWorkspaceReady();
                 if (typeof performSkinUndo !== 'function') {
                     throw createSessionError('FEATURE_UNAVAILABLE', '撤回功能不可用。');
                 }
@@ -38853,8 +38970,8 @@ void primeDefaultSkin();
                 };
             }
 
-            function redoSkin() {
-                ensureEditingWorkspaceReady();
+            async function redoSkin() {
+                await ensureEditingWorkspaceReady();
                 if (typeof performSkinRedo !== 'function') {
                     throw createSessionError('FEATURE_UNAVAILABLE', '重做功能不可用。');
                 }
@@ -38878,37 +38995,87 @@ void primeDefaultSkin();
                 };
             }
 
-            function revertSkin(params = {}) {
-                ensureEditingWorkspaceReady();
+            async function revertSkin(params = {}) {
+                await ensureEditingWorkspaceReady();
                 if (typeof initialSkinSnapshot === 'undefined' || !initialSkinSnapshot) {
                     throw createSessionError('NO_INITIAL_SNAPSHOT', '暂无已保存的初始皮肤快照。');
                 }
                 if (params.expectedRevision != null) {
                     assertExpectedRevision(params.expectedRevision);
                 }
-                if (typeof recordSkinUndoBeforeChange === 'function') {
-                    recordSkinUndoBeforeChange('Agent 复原初始皮肤', { force: true });
-                }
-                continuousActionActive = false;
-                selectedCanvasElement = null;
-                const card = document.getElementById('canvasSelectedCard');
-                if (card) card.style.display = 'none';
+                return runInHistoryTransaction('Agent 复原初始皮肤', async () => {
+                    selectedCanvasElement = null;
+                    const card = document.getElementById('canvasSelectedCard');
+                    if (card) card.style.display = 'none';
 
-                applySkinSnapshot(initialSkinSnapshot);
-                if (typeof syncTextureEditorBaseAfterSkinHistory === 'function') {
-                    syncTextureEditorBaseAfterSkinHistory();
-                }
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    message: '所有参数与贴图已复原为导入时的初始状态'
-                };
+                    applySkinSnapshot(initialSkinSnapshot);
+                    if (typeof syncTextureEditorBaseAfterSkinHistory === 'function') {
+                        syncTextureEditorBaseAfterSkinHistory();
+                    }
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision,
+                        message: '所有参数与贴图已复原为导入时的初始状态'
+                    };
+                });
             }
 
-            function resetConfigCategory(params = {}) {
-                ensureEditingWorkspaceReady();
+            function parseSchemaDefaultColor(rawDefault, fallback) {
+                if (rawDefault && typeof rawDefault === 'object') {
+                    return {
+                        r: Number(rawDefault.r) || 0,
+                        g: Number(rawDefault.g) || 0,
+                        b: Number(rawDefault.b) || 0,
+                        a: rawDefault.a !== undefined ? Number(rawDefault.a) : 255
+                    };
+                }
+                const parts = String(rawDefault || '').split(',').map((s) => parseInt(s.trim(), 10));
+                if (parts.length >= 3 && !parts.slice(0, 3).some(Number.isNaN)) {
+                    return {
+                        r: parts[0],
+                        g: parts[1],
+                        b: parts[2],
+                        a: parts[3] !== undefined && !Number.isNaN(parts[3]) ? parts[3] : 255
+                    };
+                }
+                return { ...fallback };
+            }
+
+            function buildResetParamValue(p, keys) {
+                if (!p) return undefined;
+                if (p.type === 'array_number') {
+                    const count = p.key === 'ColumnLineWidth'
+                        ? keys + 1
+                        : (p.key === 'ColumnSpacing' ? Math.max(0, keys - 1) : keys);
+                    if (Array.isArray(p.default)) {
+                        const out = [];
+                        for (let i = 0; i < count; i++) {
+                            const item = p.default[i] !== undefined ? Number(p.default[i]) : Number(p.default[0] || 0);
+                            out.push(Number.isFinite(item) ? item : 0);
+                        }
+                        return out;
+                    }
+                    const fillVal = Number.isFinite(Number(p.default)) ? Number(p.default) : 0;
+                    return new Array(count).fill(fillVal);
+                }
+                if (p.type === 'column_colour' || p.type === 'light_colour') {
+                    const fallback = p.type === 'light_colour'
+                        ? { r: 255, g: 255, b: 255, a: 255 }
+                        : { r: 0, g: 0, b: 0, a: 255 };
+                    return {
+                        all: true,
+                        color: parseSchemaDefaultColor(p.default, fallback)
+                    };
+                }
+                if (p.type === 'color' || p.type === 'colour_hold' || p.type === 'colour_barline') {
+                    return parseSchemaDefaultColor(p.default, { r: 255, g: 255, b: 255, a: 255 });
+                }
+                return cloneSerializable(p.default);
+            }
+
+            async function resetConfigCategory(params = {}) {
+                await ensureEditingWorkspaceReady();
                 const tab = params.tab;
                 if (!['mania', 'fonts', 'general'].includes(tab)) {
                     throw createSessionError('INVALID_CATEGORY', '无效的分类标签，必须为 mania、fonts 或 general。', { tab });
@@ -38916,28 +39083,35 @@ void primeDefaultSkin();
                 if (params.expectedRevision != null) {
                     assertExpectedRevision(params.expectedRevision);
                 }
-                if (typeof recordSkinUndoBeforeChange === 'function') {
-                    recordSkinUndoBeforeChange(`Agent 恢复${tab}分类默认值`, { force: true });
-                }
                 const items = SKIN_INI_PARAM_SCHEMA.filter((p) => p.tab === tab && !p.virtual);
-                for (const p of items) {
-                    if (typeof onParamChange === 'function') {
-                        onParamChange(p.key, p.default);
+                // ColumnRight 会反推覆盖 ColumnStart；在恢复 mania 分类时先复位 ColumnRight，
+                // 再由 ColumnStart=136 与列宽/间距统一重算一致的 ColumnRight。
+                const orderedItems = tab === 'mania'
+                    ? [...items].sort((a, b) => {
+                        if (a.key === 'ColumnRight' && b.key !== 'ColumnRight') return -1;
+                        if (b.key === 'ColumnRight' && a.key !== 'ColumnRight') return 1;
+                        return 0;
+                    })
+                    : items;
+                return runInHistoryTransaction(`Agent 恢复${tab}分类默认值`, async () => {
+                    const keys = getActiveKeyCount();
+                    for (const p of orderedItems) {
+                        if (typeof onParamChange === 'function') {
+                            onParamChange(p.key, buildResetParamValue(p, keys));
+                        }
                     }
-                }
-                continuousActionActive = false;
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    tab,
-                    resetCount: items.length
-                };
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision,
+                        tab,
+                        resetCount: items.length
+                    };
+                });
             }
 
-            function getSkinIniText() {
-                ensureEditingWorkspaceReady();
+            async function getSkinIniText() {
+                await ensureEditingWorkspaceReady();
                 if (typeof generateSkinIniText !== 'function') {
                     throw createSessionError('FEATURE_UNAVAILABLE', 'skin.ini 生成模块不可用。');
                 }
@@ -38949,8 +39123,8 @@ void primeDefaultSkin();
                 };
             }
 
-            function listHitsounds() {
-                ensureEditingWorkspaceReady();
+            async function listHitsounds() {
+                await ensureEditingWorkspaceReady();
                 const catalog = typeof getEffectiveSkinHitsoundCatalog === 'function'
                     ? getEffectiveSkinHitsoundCatalog()
                     : (typeof skinHitsoundCatalog !== 'undefined' ? skinHitsoundCatalog : new Map());
@@ -38980,7 +39154,7 @@ void primeDefaultSkin();
             }
 
             async function applyHitsound(params = {}) {
-                ensureEditingWorkspaceReady();
+                await ensureEditingWorkspaceReady();
                 const groupKey = String(params.groupKey || '').trim().toLowerCase();
                 const rawAudio = String(params.audioBase64 || '').trim();
                 const fileName = String(params.fileName || `${groupKey}.wav`).trim();
@@ -39028,91 +39202,105 @@ void primeDefaultSkin();
                     throw createSessionError('HITSOUND_NOT_FOUND', `未找到音效组：${groupKey}`, { groupKey });
                 }
 
-                if (typeof recordSkinUndoBeforeChange === 'function') {
-                    recordSkinUndoBeforeChange(`Agent 替换音效: ${groupKey}`, { force: true });
-                }
-                continuousActionActive = false;
+                return runInHistoryTransaction(`Agent 替换音效: ${groupKey}`, async () => {
+                    const previous = typeof skinHitsoundReplacements !== 'undefined' ? skinHitsoundReplacements.get(groupKey) : null;
+                    const replacementPath = `${group.key}.${extension}`;
+                    const mimeType = extension === 'wav' ? 'audio/wav' : (extension === 'mp3' ? 'audio/mpeg' : 'audio/ogg');
 
-                const previous = typeof skinHitsoundReplacements !== 'undefined' ? skinHitsoundReplacements.get(groupKey) : null;
-                const replacementPath = `${group.key}.${extension}`;
-                const mimeType = extension === 'wav' ? 'audio/wav' : (extension === 'mp3' ? 'audio/mpeg' : 'audio/ogg');
-
-                if (typeof skinHitsoundReplacements !== 'undefined') {
-                    skinHitsoundReplacements.set(groupKey, {
-                        key: groupKey,
-                        sampleSet: group.sampleSet,
-                        sound: group.sound,
-                        customIndex: Number(group.customIndex) || 0,
-                        originalPaths: previous?.originalPaths?.length
-                            ? [...previous.originalPaths]
-                            : (group.variants || []).map((v) => v.path),
-                        path: replacementPath,
-                        extension,
-                        mimeType,
-                        sourceFileName: fileName,
-                        bytes
-                    });
-                }
-
-                if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
-                    refreshSkinHitsoundCatalogWithReplacements();
-                }
-                if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
-                refreshEditorUi();
-                try {
-                    if (typeof refreshManiaHitsoundPlaybackAfterEdit === 'function') {
-                        await refreshManiaHitsoundPlaybackAfterEdit();
+                    if (typeof skinHitsoundReplacements !== 'undefined') {
+                        skinHitsoundReplacements.set(groupKey, {
+                            key: groupKey,
+                            sampleSet: group.sampleSet,
+                            sound: group.sound,
+                            customIndex: Number(group.customIndex) || 0,
+                            originalPaths: previous?.originalPaths?.length
+                                ? [...previous.originalPaths]
+                                : (group.variants || []).map((v) => v.path),
+                            path: replacementPath,
+                            extension,
+                            mimeType,
+                            sourceFileName: fileName,
+                            bytes
+                        });
                     }
-                } catch (playbackError) {
-                    console.warn('音效已替换，但重建播放缓存失败:', playbackError);
-                }
 
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    groupKey,
-                    path: replacementPath,
-                    byteLength: bytes.length
-                };
+                    if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
+                        refreshSkinHitsoundCatalogWithReplacements();
+                    }
+                    if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
+                    refreshEditorUi();
+                    try {
+                        if (typeof refreshManiaHitsoundPlaybackAfterEdit === 'function') {
+                            await refreshManiaHitsoundPlaybackAfterEdit();
+                        }
+                    } catch (playbackError) {
+                        console.warn('音效已替换，但重建播放缓存失败:', playbackError);
+                    }
+
+                    return {
+                        ok: true,
+                        revision,
+                        groupKey,
+                        path: replacementPath,
+                        byteLength: bytes.length
+                    };
+                });
             }
 
-            function resetHitsound(params = {}) {
-                ensureEditingWorkspaceReady();
+            async function resetHitsound(params = {}) {
+                await ensureEditingWorkspaceReady();
                 const groupKey = params.groupKey ? String(params.groupKey).trim().toLowerCase() : null;
                 if (params.expectedRevision != null) {
                     assertExpectedRevision(params.expectedRevision);
                 }
 
-                if (groupKey) {
-                    if (typeof resetSkinHitsoundReplacement === 'function') {
-                        resetSkinHitsoundReplacement(groupKey);
-                    } else if (typeof skinHitsoundReplacements !== 'undefined') {
+                const label = groupKey ? `Agent 恢复音效: ${groupKey}` : 'Agent 恢复所有音效';
+                return runInHistoryTransaction(label, async (tx) => {
+                    const replacementsAvailable = typeof skinHitsoundReplacements !== 'undefined' &&
+                        skinHitsoundReplacements instanceof Map;
+                    const hasChanges = groupKey
+                        ? (replacementsAvailable && skinHitsoundReplacements.has(groupKey))
+                        : (replacementsAvailable && skinHitsoundReplacements.size > 0);
+                    if (!hasChanges) {
+                        tx.abortNoOp();
+                        return {
+                            ok: true,
+                            revision,
+                            resetAll: !groupKey,
+                            groupKey: groupKey || null,
+                            changed: false
+                        };
+                    }
+
+                    if (groupKey) {
                         skinHitsoundReplacements.delete(groupKey);
-                    }
-                } else {
-                    if (typeof recordSkinUndoBeforeChange === 'function') {
-                        recordSkinUndoBeforeChange('Agent 恢复所有音效', { force: true });
-                    }
-                    if (typeof clearSkinHitsoundReplacements === 'function') {
+                    } else if (typeof clearSkinHitsoundReplacements === 'function') {
                         clearSkinHitsoundReplacements();
-                    } else if (typeof skinHitsoundReplacements !== 'undefined') {
+                    } else {
                         skinHitsoundReplacements.clear();
                     }
-                }
 
-                if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
-                    refreshSkinHitsoundCatalogWithReplacements();
-                }
-                if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    resetAll: !groupKey,
-                    groupKey: groupKey || null
-                };
+                    if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
+                        refreshSkinHitsoundCatalogWithReplacements();
+                    }
+                    if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
+                    refreshEditorUi();
+                    try {
+                        if (typeof refreshManiaHitsoundPlaybackAfterEdit === 'function') {
+                            await refreshManiaHitsoundPlaybackAfterEdit();
+                        }
+                    } catch (playbackError) {
+                        console.warn('音效已恢复，但重建播放缓存失败:', playbackError);
+                    }
+
+                    return {
+                        ok: true,
+                        revision,
+                        resetAll: !groupKey,
+                        groupKey: groupKey || null,
+                        changed: true
+                    };
+                });
             }
 
             async function inspectTexture(params = {}) {
@@ -39171,6 +39359,43 @@ void primeDefaultSkin();
                 };
             }
 
+            async function withTextureEditorTarget(paramKey, column, fn) {
+                const canonicalKey = canonicalizeTextureParamKey(paramKey, column);
+                if (!canonicalKey) {
+                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
+                }
+                if (!textureImageEditorUi || typeof textureImageEditorUi.selectByParamKey !== 'function') {
+                    throw createSessionError('FEATURE_UNAVAILABLE', '贴图编辑器未就绪。');
+                }
+                const prevTabIds = (typeof tabs !== 'undefined' && Array.isArray(tabs))
+                    ? new Set(tabs.map((tab) => tab.id))
+                    : null;
+                const selected = textureImageEditorUi.selectByParamKey(canonicalKey);
+                if (!selected) {
+                    throw createSessionError(
+                        'UNKNOWN_TEXTURE_TARGET',
+                        `未找到或无法选择贴图目标：${canonicalKey}`,
+                        { paramKey: canonicalKey }
+                    );
+                }
+                const openedTabId = (typeof activeTabId !== 'undefined' &&
+                    prevTabIds &&
+                    !prevTabIds.has(activeTabId))
+                    ? activeTabId
+                    : null;
+                const closeOpenedTab = () => {
+                    if (openedTabId && typeof removeTab === 'function') {
+                        removeTab(openedTabId, { restorePreview: false });
+                    }
+                };
+                try {
+                    return await fn({ canonicalKey, closeOpenedTab });
+                } catch (error) {
+                    closeOpenedTab();
+                    throw error;
+                }
+            }
+
             async function editTexture(params = {}) {
                 await ensureEditingWorkspaceReady();
                 if (params.expectedRevision != null) {
@@ -39183,83 +39408,78 @@ void primeDefaultSkin();
                 if (!canonicalKey) {
                     throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
                 }
-                if (!textureImageEditorUi || typeof textureImageEditorUi.selectByParamKey !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '贴图编辑器未就绪。');
-                }
-                const selected = textureImageEditorUi.selectByParamKey(canonicalKey);
-                if (!selected) {
-                    throw createSessionError('UNKNOWN_TEXTURE_TARGET', `未找到或无法选择贴图目标：${canonicalKey}`, { paramKey: canonicalKey });
-                }
-
-                if (params.crop) {
-                    const cl = byId('textureImageCropLeft');
-                    const cr = byId('textureImageCropRight');
-                    const ct = byId('textureImageCropTop');
-                    const cb = byId('textureImageCropBottom');
-                    if (cl) cl.value = String(Number(params.crop.left) || 0);
-                    if (cr) cr.value = String(Number(params.crop.right) || 0);
-                    if (ct) ct.value = String(Number(params.crop.top) || 0);
-                    if (cb) cb.value = String(Number(params.crop.bottom) || 0);
-                }
-
-                if (params.transform && state && state.imageTransform) {
-                    const scale = Number(params.transform.scalePercent);
-                    if (Number.isFinite(scale) && scale >= 1 && scale <= 5000) {
-                        state.imageTransform.scalePercent = scale;
-                        const el = byId('textureImageScalePercent');
-                        if (el) el.value = String(scale);
-                    }
-                    const sx = Number(params.transform.stretchX);
-                    if (Number.isFinite(sx)) {
-                        state.imageTransform.stretchX = Math.round(sx);
-                        const el = byId('textureImageStretchX');
-                        if (el) el.value = String(Math.round(sx));
-                    }
-                    const sy = Number(params.transform.stretchY);
-                    if (Number.isFinite(sy)) {
-                        state.imageTransform.stretchY = Math.round(sy);
-                        const el = byId('textureImageStretchY');
-                        if (el) el.value = String(Math.round(sy));
-                    }
-                }
-
-                if (params.rgb && state && state.rgbAdjustment) {
-                    for (const channel of ['r', 'g', 'b']) {
-                        const val = Number(params.rgb[channel]);
-                        if (Number.isFinite(val)) {
-                            const normalized = Math.max(0, Math.min(200, Math.round(val)));
-                            state.rgbAdjustment[channel] = normalized;
-                            const range = byId(`textureImageRgb${channel.toUpperCase()}`);
-                            const num = byId(`textureImageRgb${channel.toUpperCase()}Value`);
-                            if (range) range.value = String(normalized);
-                            if (num) num.value = String(normalized);
+                return runInHistoryTransaction(`Agent 编辑贴图: ${canonicalKey}`, () =>
+                    withTextureEditorTarget(canonicalKey, null, async () => {
+                        if (params.crop) {
+                            const cl = byId('textureImageCropLeft');
+                            const cr = byId('textureImageCropRight');
+                            const ct = byId('textureImageCropTop');
+                            const cb = byId('textureImageCropBottom');
+                            if (cl) cl.value = String(Number(params.crop.left) || 0);
+                            if (cr) cr.value = String(Number(params.crop.right) || 0);
+                            if (ct) ct.value = String(Number(params.crop.top) || 0);
+                            if (cb) cb.value = String(Number(params.crop.bottom) || 0);
                         }
-                    }
-                }
 
-                if (typeof refreshLivePreview === 'function') {
-                    refreshLivePreview();
-                }
+                        if (params.transform && state && state.imageTransform) {
+                            const scale = Number(params.transform.scalePercent);
+                            if (Number.isFinite(scale) && scale >= 1 && scale <= 5000) {
+                                state.imageTransform.scalePercent = scale;
+                                const el = byId('textureImageScalePercent');
+                                if (el) el.value = String(scale);
+                            }
+                            const sx = Number(params.transform.stretchX);
+                            if (Number.isFinite(sx)) {
+                                state.imageTransform.stretchX = Math.round(sx);
+                                const el = byId('textureImageStretchX');
+                                if (el) el.value = String(Math.round(sx));
+                            }
+                            const sy = Number(params.transform.stretchY);
+                            if (Number.isFinite(sy)) {
+                                state.imageTransform.stretchY = Math.round(sy);
+                                const el = byId('textureImageStretchY');
+                                if (el) el.value = String(Math.round(sy));
+                            }
+                        }
 
-                const saved = await applySelectedTexture({
-                    mode: params.mode || 'overwrite',
-                    keyImageScope: params.keyImageScope || 'current',
-                    syncKeyImagePair: params.syncKeyImagePair !== false,
-                    closeTabAfterSave: true,
-                    closeEditorWhenLast: true
-                });
-                if (!saved) {
-                    throw createSessionError('TEXTURE_SAVE_FAILED', `贴图编辑保存失败：${canonicalKey}`, { paramKey: canonicalKey });
-                }
+                        if (params.rgb && state && state.rgbAdjustment) {
+                            for (const channel of ['r', 'g', 'b']) {
+                                const val = Number(params.rgb[channel]);
+                                if (Number.isFinite(val)) {
+                                    const normalized = Math.max(0, Math.min(200, Math.round(val)));
+                                    state.rgbAdjustment[channel] = normalized;
+                                    const range = byId(`textureImageRgb${channel.toUpperCase()}`);
+                                    const num = byId(`textureImageRgb${channel.toUpperCase()}Value`);
+                                    if (range) range.value = String(normalized);
+                                    if (num) num.value = String(normalized);
+                                }
+                            }
+                        }
 
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    paramKey: canonicalKey,
-                    mode: params.mode || 'overwrite'
-                };
+                        if (typeof refreshLivePreview === 'function') {
+                            refreshLivePreview();
+                        }
+
+                        const saved = await applySelectedTexture({
+                            mode: params.mode || 'overwrite',
+                            keyImageScope: params.keyImageScope || 'current',
+                            syncKeyImagePair: params.syncKeyImagePair !== false,
+                            closeTabAfterSave: true,
+                            closeEditorWhenLast: true
+                        });
+                        if (!saved) {
+                            throw createSessionError('TEXTURE_SAVE_FAILED', `贴图编辑保存失败：${canonicalKey}`, { paramKey: canonicalKey });
+                        }
+
+                        refreshEditorUi();
+                        return {
+                            ok: true,
+                            revision,
+                            paramKey: canonicalKey,
+                            mode: params.mode || 'overwrite'
+                        };
+                    })
+                );
             }
 
             async function stretchFixTexture(params = {}) {
@@ -39274,56 +39494,52 @@ void primeDefaultSkin();
                 if (!canonicalKey) {
                     throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
                 }
-                if (!textureImageEditorUi || typeof textureImageEditorUi.selectByParamKey !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '贴图编辑器未就绪。');
-                }
-                const selected = textureImageEditorUi.selectByParamKey(canonicalKey);
-                if (!selected) {
-                    throw createSessionError('UNKNOWN_TEXTURE_TARGET', `未找到或无法选择贴图目标：${canonicalKey}`, { paramKey: canonicalKey });
-                }
+                return runInHistoryTransaction(`Agent 修复贴图拉伸: ${canonicalKey}`, (tx) =>
+                    withTextureEditorTarget(canonicalKey, null, async ({ closeOpenedTab }) => {
+                        const currentPreview = (state && state.previewFrames && state.previewFrames[0]) ||
+                            (typeof buildPreviewFrames === 'function' ? buildPreviewFrames()[0] : null) ||
+                            (state && state.workingFrames && state.workingFrames[0]);
+                        const target = (currentPreview && typeof getStretchFixTarget === 'function')
+                            ? getStretchFixTarget(state.selected, currentPreview)
+                            : null;
 
-                const currentPreview = (state && state.previewFrames && state.previewFrames[0]) ||
-                    (typeof buildPreviewFrames === 'function' ? buildPreviewFrames()[0] : null) ||
-                    (state && state.workingFrames && state.workingFrames[0]);
-                const target = (currentPreview && typeof getStretchFixTarget === 'function')
-                    ? getStretchFixTarget(state.selected, currentPreview)
-                    : null;
+                        if (!target || !target.axis) {
+                            closeOpenedTab();
+                            tx.abortNoOp();
+                            return {
+                                ok: true,
+                                revision,
+                                fixed: false,
+                                message: target && target.reason ? target.reason : '当前贴图无需修复拉伸',
+                                paramKey: canonicalKey
+                            };
+                        }
 
-                if (!target || !target.axis) {
-                    if (typeof closeTab === 'function' && activeTabId) closeTab(activeTabId);
-                    return {
-                        ok: true,
-                        revision,
-                        fixed: false,
-                        message: target && target.reason ? target.reason : '当前贴图无需修复拉伸',
-                        paramKey: canonicalKey
-                    };
-                }
+                        if (typeof applyStretchFix !== 'function') {
+                            throw createSessionError('FEATURE_UNAVAILABLE', '拉伸修复功能未就绪。');
+                        }
+                        applyStretchFix();
 
-                if (typeof applyStretchFix !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '拉伸修复功能未就绪。');
-                }
-                applyStretchFix();
+                        const saved = await applySelectedTexture({
+                            mode: params.mode || 'overwrite',
+                            closeTabAfterSave: true,
+                            closeEditorWhenLast: true
+                        });
+                        if (!saved) {
+                            throw createSessionError('TEXTURE_SAVE_FAILED', `贴图拉伸修复保存失败：${canonicalKey}`, { paramKey: canonicalKey });
+                        }
 
-                const saved = await applySelectedTexture({
-                    mode: params.mode || 'overwrite',
-                    closeTabAfterSave: true,
-                    closeEditorWhenLast: true
-                });
-                if (!saved) {
-                    throw createSessionError('TEXTURE_SAVE_FAILED', `贴图拉伸修复保存失败：${canonicalKey}`, { paramKey: canonicalKey });
-                }
-
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    fixed: true,
-                    paramKey: canonicalKey,
-                    axis: target.axis,
-                    targetSize: target.size
-                };
+                        refreshEditorUi();
+                        return {
+                            ok: true,
+                            revision,
+                            fixed: true,
+                            paramKey: canonicalKey,
+                            axis: target.axis,
+                            targetSize: target.size
+                        };
+                    })
+                );
             }
 
             async function setBlankTexture(params = {}) {
@@ -39338,40 +39554,35 @@ void primeDefaultSkin();
                 if (!canonicalKey) {
                     throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
                 }
-                if (!textureImageEditorUi || typeof textureImageEditorUi.selectByParamKey !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '贴图编辑器未就绪。');
-                }
-                const selected = textureImageEditorUi.selectByParamKey(canonicalKey);
-                if (!selected) {
-                    throw createSessionError('UNKNOWN_TEXTURE_TARGET', `未找到或无法选择贴图目标：${canonicalKey}`, { paramKey: canonicalKey });
-                }
+                return runInHistoryTransaction(`Agent 设为空白贴图: ${canonicalKey}`, () =>
+                    withTextureEditorTarget(canonicalKey, null, async () => {
+                        if (typeof setCurrentTextureBlank !== 'function') {
+                            throw createSessionError('FEATURE_UNAVAILABLE', '设为空白功能未就绪。');
+                        }
+                        const blanked = setCurrentTextureBlank();
+                        if (!blanked) {
+                            throw createSessionError('TEXTURE_SET_BLANK_FAILED', `设为空白操作失败：${canonicalKey}`);
+                        }
 
-                if (typeof setCurrentTextureBlank !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '设为空白功能未就绪。');
-                }
-                const blanked = setCurrentTextureBlank();
-                if (!blanked) {
-                    throw createSessionError('TEXTURE_SET_BLANK_FAILED', `设为空白操作失败：${canonicalKey}`);
-                }
+                        const saved = await applySelectedTexture({
+                            mode: params.mode || 'overwrite',
+                            keyImageScope: params.scope || 'current',
+                            closeTabAfterSave: true,
+                            closeEditorWhenLast: true
+                        });
+                        if (!saved) {
+                            throw createSessionError('TEXTURE_SAVE_FAILED', `设为空白保存失败：${canonicalKey}`);
+                        }
 
-                const saved = await applySelectedTexture({
-                    mode: params.mode || 'overwrite',
-                    keyImageScope: params.scope || 'current',
-                    closeTabAfterSave: true,
-                    closeEditorWhenLast: true
-                });
-                if (!saved) {
-                    throw createSessionError('TEXTURE_SAVE_FAILED', `设为空白保存失败：${canonicalKey}`);
-                }
-
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    paramKey: canonicalKey,
-                    isBlank: true
-                };
+                        refreshEditorUi();
+                        return {
+                            ok: true,
+                            revision,
+                            paramKey: canonicalKey,
+                            isBlank: true
+                        };
+                    })
+                );
             }
 
             async function resetTexture(params = {}) {
@@ -39386,36 +39597,31 @@ void primeDefaultSkin();
                 if (!canonicalKey) {
                     throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
                 }
-                if (!textureImageEditorUi || typeof textureImageEditorUi.selectByParamKey !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '贴图编辑器未就绪。');
-                }
-                const selected = textureImageEditorUi.selectByParamKey(canonicalKey);
-                if (!selected) {
-                    throw createSessionError('UNKNOWN_TEXTURE_TARGET', `未找到或无法选择贴图目标：${canonicalKey}`, { paramKey: canonicalKey });
-                }
+                return runInHistoryTransaction(`Agent 重置贴图: ${canonicalKey}`, () =>
+                    withTextureEditorTarget(canonicalKey, null, async () => {
+                        if (typeof resetCurrentTexture !== 'function') {
+                            throw createSessionError('FEATURE_UNAVAILABLE', '重置贴图功能未就绪。');
+                        }
+                        resetCurrentTexture();
 
-                if (typeof resetCurrentTexture !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '重置贴图功能未就绪。');
-                }
-                resetCurrentTexture();
+                        const saved = await applySelectedTexture({
+                            mode: 'overwrite',
+                            closeTabAfterSave: true,
+                            closeEditorWhenLast: true
+                        });
+                        if (!saved) {
+                            throw createSessionError('TEXTURE_SAVE_FAILED', `重置贴图保存失败：${canonicalKey}`);
+                        }
 
-                const saved = await applySelectedTexture({
-                    mode: 'overwrite',
-                    closeTabAfterSave: true,
-                    closeEditorWhenLast: true
-                });
-                if (!saved) {
-                    throw createSessionError('TEXTURE_SAVE_FAILED', `重置贴图保存失败：${canonicalKey}`);
-                }
-
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    paramKey: canonicalKey,
-                    reset: true
-                };
+                        refreshEditorUi();
+                        return {
+                            ok: true,
+                            revision,
+                            paramKey: canonicalKey,
+                            reset: true
+                        };
+                    })
+                );
             }
 
             async function createTexture(params = {}) {
@@ -39460,26 +39666,27 @@ void primeDefaultSkin();
                     fillTransparentAlpha: Math.max(0, Math.min(100, Number(params.fillTransparentAlpha || 0)))
                 };
 
-                const result = await saveSolidTextureToLibrary(payload, { oldPath: null });
-                if (canonicalKey && typeof pointTextureEditParamToPath === 'function') {
-                    pointTextureEditParamToPath(canonicalKey, result.path);
-                }
+                return runInHistoryTransaction(`Agent 创建贴图: ${cleanName}`, async () => {
+                    const result = await saveSolidTextureToLibrary(payload, { oldPath: null });
+                    if (canonicalKey && typeof pointTextureEditParamToPath === 'function') {
+                        pointTextureEditParamToPath(canonicalKey, result.path);
+                    }
 
-                if (typeof updateEditorBaseAfterSave === 'function') {
-                    updateEditorBaseAfterSave();
-                }
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    path: result.path,
-                    paramKey: canonicalKey || null,
-                    spec: payload.spec,
-                    width: payload.width,
-                    height: payload.height,
-                    shape: payload.shape
-                };
+                    if (typeof updateEditorBaseAfterSave === 'function') {
+                        updateEditorBaseAfterSave();
+                    }
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision,
+                        path: result.path,
+                        paramKey: canonicalKey || null,
+                        spec: payload.spec,
+                        width: payload.width,
+                        height: payload.height,
+                        shape: payload.shape
+                    };
+                });
             }
 
             async function applyLongbody(params = {}) {
@@ -39487,63 +39694,74 @@ void primeDefaultSkin();
                 if (params.expectedRevision != null) {
                     assertExpectedRevision(params.expectedRevision);
                 }
-                const col = params.column != null ? Math.max(0, Math.min(17, Number(params.column))) : 0;
+                const parsedCol = Number(params.column);
+                const col = (params.column != null && Number.isFinite(parsedCol))
+                    ? Math.max(0, Math.min(17, Math.round(parsedCol)))
+                    : 0;
                 const bodyParamKey = canonicalizeTextureParamKey('HoldNoteBodyImage', col);
-
-                if (!textureImageEditorUi || typeof textureImageEditorUi.selectByParamKey !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '贴图编辑器未就绪。');
-                }
-                const selected = textureImageEditorUi.selectByParamKey(bodyParamKey);
-                if (!selected) {
-                    throw createSessionError('UNKNOWN_TEXTURE_TARGET', `未找到长条身体目标：${bodyParamKey}`, { paramKey: bodyParamKey });
-                }
 
                 if (typeof enableLongBodyComposer !== 'function') {
                     throw createSessionError('FEATURE_UNAVAILABLE', '一键投皮功能未就绪。');
                 }
-                enableLongBodyComposer();
 
-                if (state && state.longBodyComposer) {
-                    if (params.targetHeight != null) {
-                        state.longBodyComposer.targetHeight = Math.max(1, Math.min(50000, Number(params.targetHeight) || 40000));
-                    }
-                    if (params.coverage != null) {
-                        state.longBodyComposer.coverage = Math.max(0, Number(params.coverage) || 0);
-                    }
-                    if (params.fade != null) {
-                        state.longBodyComposer.fade = Math.max(0, Math.min(100, Number(params.fade) || 0));
-                    }
-                    if (params.tailPreset != null) {
-                        state.longBodyComposer.tailPreset = ['sharp', 'round'].includes(params.tailPreset)
-                            ? params.tailPreset
-                            : 'none';
-                    }
-                    if (params.presetHeight != null) {
-                        state.longBodyComposer.presetHeight = Math.max(0, Number(params.presetHeight) || 0);
-                    }
-                }
+                return runInHistoryTransaction(`Agent 应用一键投皮: ${bodyParamKey}`, () =>
+                    withTextureEditorTarget(bodyParamKey, col, async () => {
+                        const enabled = (state && state.longBodyComposer && state.longBodyComposer.active)
+                            ? true
+                            : enableLongBodyComposer();
+                        if (!enabled) {
+                            throw createSessionError(
+                                'LONGBODY_NOT_ELIGIBLE',
+                                `当前轨道长条身体不满足一键投皮启用条件：${bodyParamKey}`,
+                                { paramKey: bodyParamKey, column: col }
+                            );
+                        }
 
-                const saved = await applySelectedTexture({
-                    scope: params.scope || 'current',
-                    longBodyScope: params.scope || 'current',
-                    closeTabAfterSave: true,
-                    closeEditorWhenLast: true
-                });
-                if (!saved) {
-                    throw createSessionError('TEXTURE_SAVE_FAILED', `一键投皮应用失败：${bodyParamKey}`);
-                }
+                        if (state && state.longBodyComposer) {
+                            if (params.targetHeight != null) {
+                                state.longBodyComposer.targetHeight = Math.max(1, Math.min(50000, Number(params.targetHeight) || 40000));
+                            }
+                            if (params.coverage != null) {
+                                state.longBodyComposer.coverage = Math.max(0, Number(params.coverage) || 0);
+                            }
+                            if (params.fade != null) {
+                                state.longBodyComposer.fade = Math.max(0, Math.min(100, Number(params.fade) || 0));
+                            }
+                            if (params.tailPreset != null) {
+                                state.longBodyComposer.tailPreset = ['sharp', 'round'].includes(params.tailPreset)
+                                    ? params.tailPreset
+                                    : 'none';
+                            }
+                            if (params.presetHeight != null) {
+                                state.longBodyComposer.presetHeight = Math.max(0, Number(params.presetHeight) || 0);
+                            }
+                        }
 
-                refreshEditorUi();
-                revision += 1;
-                return {
-                    ok: true,
-                    revision,
-                    column: col,
-                    paramKey: bodyParamKey,
-                    targetHeight: (state && state.longBodyComposer && state.longBodyComposer.targetHeight) || 40000,
-                    tailPreset: (state && state.longBodyComposer && state.longBodyComposer.tailPreset) || 'none',
-                    scope: params.scope || 'current'
-                };
+                        const appliedTargetHeight = (state && state.longBodyComposer && state.longBodyComposer.targetHeight) || 40000;
+                        const appliedTailPreset = (state && state.longBodyComposer && state.longBodyComposer.tailPreset) || 'none';
+
+                        const saved = await applySelectedTexture({
+                            scope: params.scope || 'current',
+                            longBodyScope: params.scope || 'current',
+                            closeTabAfterSave: true,
+                            closeEditorWhenLast: true
+                        });
+                        if (!saved) {
+                            throw createSessionError('TEXTURE_SAVE_FAILED', `一键投皮应用失败：${bodyParamKey}`);
+                        }
+
+                        refreshEditorUi();
+                        return {
+                            ok: true,
+                            revision,
+                            column: col,
+                            paramKey: bodyParamKey,
+                            targetHeight: appliedTargetHeight,
+                            tailPreset: appliedTailPreset,
+                            scope: params.scope || 'current'
+                        };
+                    })
+                );
             }
 
             async function dispatch(method, params = {}) {
@@ -39640,7 +39858,11 @@ void primeDefaultSkin();
                 });
             }
 
-            window.addEventListener('DOMContentLoaded', installBridge);
+            if (document.readyState === 'loading') {
+                window.addEventListener('DOMContentLoaded', installBridge, { once: true });
+            } else {
+                installBridge();
+            }
 
             return {
                 openSkin,

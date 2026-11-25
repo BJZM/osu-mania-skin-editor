@@ -498,7 +498,7 @@
                 return;
             }
 
-            if (options && options.immediate) {
+            if ((options && options.immediate) || !modal.classList.contains('active')) {
                 textureEditorCloseToken++;
                 if (textureEditorCloseTimer) {
                     clearTimeout(textureEditorCloseTimer);
