@@ -109,6 +109,14 @@
             }
             state = (activeTab && activeTab.kind === 'texture') ? activeTab.state : menuState;
             syncActiveTabView({ installPreview: false });
+            if (activeTab && activeTab.kind === 'texture' && activeTab.target && activeTab.target.p &&
+                typeof isEditingKeyImageParam === 'function' &&
+                isEditingKeyImageParam(activeTab.target.p)) {
+                const recipe = getStoredTextureEditRecipe(activeTab.target);
+                if (recipe && typeof applyKeyImageHeightCropInputOverride === 'function') {
+                    applyKeyImageHeightCropInputOverride(activeTab, { currentParams: recipe.params });
+                }
+            }
             if (typeof renderPicker === 'function') renderPicker();
             return refreshedAny;
         }

@@ -938,7 +938,8 @@
                 '确定要将当前分类下的所有参数恢复为推荐默认值吗？': 'Restore all parameters in this category to their recommended defaults?',
                 '输入 score-percent 透明垫片的 1x 逻辑宽度 (1 - 2000，1 = 仅隐藏百分号):': 'Enter the 1x logical width of the transparent score-percent spacer (1–2000; 1 hides only the percent sign):',
                 '输入新的打击特效宽度 (0 - 300，480p 虚拟像素；0 = 跟随列宽):': 'Enter a new hit-lighting width (0–300, 480p virtual pixels; 0 follows column width):',
-                '输入新的数值 (0 - 1000):': 'Enter a new value (0–1000):'
+                '输入新的数值 (0 - 1000):': 'Enter a new value (0–1000):',
+                'ini 未指定 (实际使用: score 字体贴图)': 'Not set in skin.ini (using: score font textures)'
             },
             html: {
                 '无视图片自身宽度，强制拉伸或压缩到该轨的 ColumnWidth。每轨各自拉满，所以同一张贴图在不同列宽下显示宽度也不同。': 'Ignore the texture’s native width and <strong>stretch or compress it to the column’s <code>ColumnWidth</code></strong>. Every column fills its own width, so the same texture appears wider or narrower in different columns.',

@@ -3,6 +3,52 @@
 // 依赖：render/fonts.js、render/textures.js
 // ============================================================================
 
+        const songProgressPieOverlayCache = {
+            scaleKey: '',
+            canvas: null,
+            halfSize: 0
+        };
+
+        function getSongProgressPieOverlay(scale768) {
+            const scaleKey = scale768.toFixed(4);
+            if (songProgressPieOverlayCache.canvas && songProgressPieOverlayCache.scaleKey === scaleKey) {
+                return songProgressPieOverlayCache;
+            }
+            const pieDiameter = 33 * scale768;
+            const borderWidth = 2 * scale768;
+            const dotRadius = 2 * scale768;
+            const glowBlur = 3 * scale768;
+            const pad = Math.ceil(glowBlur * 2 + borderWidth) + 4;
+            const size = Math.max(8, Math.ceil(pieDiameter + pad * 2));
+            const halfSize = size / 2;
+
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = size;
+            offCanvas.height = size;
+            const offCtx = offCanvas.getContext('2d');
+            if (offCtx) {
+                offCtx.save();
+                offCtx.shadowColor = 'rgba(255, 255, 255, 0.4)';
+                offCtx.shadowBlur = glowBlur;
+                offCtx.strokeStyle = '#ffffff';
+                offCtx.lineWidth = borderWidth;
+                offCtx.beginPath();
+                offCtx.arc(halfSize, halfSize, (pieDiameter - borderWidth) / 2, 0, Math.PI * 2);
+                offCtx.stroke();
+                offCtx.restore();
+
+                offCtx.fillStyle = '#ffffff';
+                offCtx.beginPath();
+                offCtx.arc(halfSize, halfSize, dotRadius, 0, Math.PI * 2);
+                offCtx.fill();
+            }
+
+            songProgressPieOverlayCache.scaleKey = scaleKey;
+            songProgressPieOverlayCache.canvas = offCanvas;
+            songProgressPieOverlayCache.halfSize = halfSize;
+            return songProgressPieOverlayCache;
+        }
+
 
         function drawTopRightHUD(keys, scale768) {
             const hudInteractiveElements = [];
@@ -206,24 +252,11 @@
                 ctx.fill();
             }
 
-            // 2. 外部白色圆环边框 (直径 33px，线宽 2px，带抗锯齿辉光)
-            ctx.save();
-            ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
-            ctx.shadowBlur = 3 * scale768;
-            const borderWidth = 2 * scale768;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = borderWidth;
-            ctx.beginPath();
-            ctx.arc(pieCenterX, pieCenterY, (pieDiameter - borderWidth) / 2, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-
-            // 3. 中心小白圆点 (直径 4px，半径 2px)
-            const dotRadius = 2 * scale768;
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(pieCenterX, pieCenterY, dotRadius, 0, Math.PI * 2);
-            ctx.fill();
+            // 2 & 3. 外部白色圆环边框 + 中心小白圆点（使用按 scale768 缓存的离屏图形，避免逐帧 shadowBlur）
+            const pieOverlay = getSongProgressPieOverlay(scale768);
+            if (pieOverlay.canvas) {
+                ctx.drawImage(pieOverlay.canvas, pieCenterX - pieOverlay.halfSize, pieCenterY - pieOverlay.halfSize);
+            }
 
             ctx.restore();
 

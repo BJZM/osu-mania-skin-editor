@@ -8,10 +8,12 @@
             const DEFAULT_LANGUAGE = 'zh-CN';
             const SUPPORTED_LANGUAGES = new Set(['zh-CN', 'en']);
             const ATTRIBUTE_NAMES = ['title', 'placeholder', 'aria-label', 'alt'];
+            const HTML_TARGET_TAGS = new Set(['SPAN', 'P', 'LI', 'LABEL', 'TD', 'TH', 'DT', 'DD', 'FIGCAPTION']);
             const HAN_PATTERN = /[\u3400-\u9fff]/;
             const dictionary = window.OSU_I18N_EN || { exact: {}, patterns: [], fragments: [] };
             const exact = dictionary.exact || {};
             const html = dictionary.html || {};
+            const hasHtmlEntries = Object.keys(html).length > 0;
             const exactReverse = new Map();
             const patterns = Array.isArray(dictionary.patterns) ? dictionary.patterns : [];
             const fragments = (Array.isArray(dictionary.fragments) ? dictionary.fragments : [])
@@ -23,6 +25,7 @@
             const missing = new Set();
             let currentLanguage = DEFAULT_LANGUAGE;
             let observer = null;
+            let isObserving = false;
             let isApplying = false;
 
             for (const [source, translated] of Object.entries(exact)) {
@@ -174,6 +177,7 @@
                     }
                     return;
                 }
+                if (!hasHtmlEntries || !HTML_TARGET_TAGS.has(element.tagName)) return;
 
                 const key = (element.textContent || '').replace(/\s+/g, ' ').trim();
                 const translated = html[key];
@@ -225,21 +229,28 @@
             }
 
             function startObserver() {
-                if (observer || typeof MutationObserver === 'undefined') return;
-                observer = new MutationObserver((mutations) => {
-                    if (isApplying) return;
-                    for (const mutation of mutations) {
-                        if (mutation.type === 'characterData') {
-                            applyTextNode(mutation.target);
-                            continue;
+                if (isObserving || typeof MutationObserver === 'undefined') return;
+                if (!observer) {
+                    observer = new MutationObserver((mutations) => {
+                        if (isApplying || currentLanguage !== 'en') return;
+                        isApplying = true;
+                        try {
+                            for (const mutation of mutations) {
+                                if (mutation.type === 'characterData') {
+                                    applyTextNode(mutation.target);
+                                    continue;
+                                }
+                                if (mutation.type === 'attributes') {
+                                    applyAttribute(mutation.target, mutation.attributeName);
+                                    continue;
+                                }
+                                for (const node of mutation.addedNodes) translateSubtree(node);
+                            }
+                        } finally {
+                            isApplying = false;
                         }
-                        if (mutation.type === 'attributes') {
-                            applyAttribute(mutation.target, mutation.attributeName);
-                            continue;
-                        }
-                        for (const node of mutation.addedNodes) translateSubtree(node);
-                    }
-                });
+                    });
+                }
                 observer.observe(document.documentElement, {
                     subtree: true,
                     childList: true,
@@ -247,6 +258,13 @@
                     attributes: true,
                     attributeFilter: ATTRIBUTE_NAMES
                 });
+                isObserving = true;
+            }
+
+            function stopObserver() {
+                if (!isObserving || !observer) return;
+                observer.disconnect();
+                isObserving = false;
             }
 
             function syncLanguageControls(language) {
@@ -275,8 +293,14 @@
                 storeLanguage(nextLanguage);
                 syncLanguageControls(nextLanguage);
                 updateDocumentLanguage(nextLanguage);
-                translateSubtree(document.documentElement);
-                if (nextLanguage === 'en') refreshMissing(document.documentElement);
+                if (nextLanguage === 'en') {
+                    translateSubtree(document.documentElement);
+                    startObserver();
+                    refreshMissing(document.documentElement);
+                } else {
+                    stopObserver();
+                    translateSubtree(document.documentElement);
+                }
                 window.dispatchEvent(new CustomEvent('app-language-changed', {
                     detail: { language: nextLanguage }
                 }));
@@ -317,8 +341,10 @@
             currentLanguage = readStoredLanguage();
             syncLanguageControls(currentLanguage);
             updateDocumentLanguage(currentLanguage);
-            translateSubtree(document.documentElement);
             initLanguageControls();
-            startObserver();
-            if (currentLanguage === 'en') refreshMissing(document.documentElement);
+            if (currentLanguage === 'en') {
+                translateSubtree(document.documentElement);
+                startObserver();
+                refreshMissing(document.documentElement);
+            }
         })();

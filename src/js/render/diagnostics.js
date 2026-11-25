@@ -167,9 +167,35 @@
                     note.hit = (currentTimeMs >= note.startTime);
                 }
             }
+            if (typeof syncNotesRenderIndexCursors === 'function') {
+                syncNotesRenderIndexCursors(activeNotes, currentTimeMs);
+            }
             if (typeof reconcileManiaHitsoundCues === 'function') {
                 reconcileManiaHitsoundCues(currentTimeMs);
             }
+        }
+
+        function drawGlowHandlePill(targetCtx, x, y, w, h, radius, isActive) {
+            const haloExpand = isActive ? 3 : 2;
+            targetCtx.save();
+            targetCtx.fillStyle = isActive ? 'rgba(255, 102, 170, 0.28)' : 'rgba(255, 255, 255, 0.22)';
+            targetCtx.beginPath();
+            if (targetCtx.roundRect) {
+                targetCtx.roundRect(x - haloExpand, y - haloExpand, w + haloExpand * 2, h + haloExpand * 2, radius + haloExpand);
+            } else {
+                targetCtx.rect(x - haloExpand, y - haloExpand, w + haloExpand * 2, h + haloExpand * 2);
+            }
+            targetCtx.fill();
+
+            targetCtx.fillStyle = isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.95)';
+            targetCtx.beginPath();
+            if (targetCtx.roundRect) {
+                targetCtx.roundRect(x, y, w, h, radius);
+            } else {
+                targetCtx.rect(x, y, w, h);
+            }
+            targetCtx.fill();
+            targetCtx.restore();
         }
 
         // 说明：打击特效 (LightingN / LightingL) 过去会绘制一层「常驻虚线占位框」用于点选。
@@ -210,11 +236,16 @@
             ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
             ctx.fill();
 
-            // 高亮边框描边 (纯白带微发光)
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.45 + 0.5 * ease})`;
+            // 高亮边框描边（分层半透明外描边替代逐帧 shadowBlur）
+            const strokeAlpha = 0.45 + 0.5 * ease;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${(0.12 * ease).toFixed(3)})`;
+            ctx.lineWidth = 6;
+            ctx.stroke();
+            ctx.strokeStyle = `rgba(255, 255, 255, ${(0.22 * ease).toFixed(3)})`;
+            ctx.lineWidth = 3.5;
+            ctx.stroke();
+            ctx.strokeStyle = `rgba(255, 255, 255, ${strokeAlpha.toFixed(3)})`;
             ctx.lineWidth = 1.8;
-            ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
-            ctx.shadowBlur = 8;
             ctx.stroke();
 
             // 针对单轨元素渲染精致的右边缘拉伸控制条手柄
@@ -226,18 +257,7 @@
                     canvasDragState.element && canvasDragState.element.id === elem.id &&
                     canvasDragState.dragType === 'column_width');
 
-                ctx.save();
-                ctx.fillStyle = isDraggingWidth ? '#ffffff' : 'rgba(255, 255, 255, 0.95)';
-                ctx.shadowColor = isDraggingWidth ? 'rgba(255, 102, 170, 0.9)' : 'rgba(255, 255, 255, 0.75)';
-                ctx.shadowBlur = isDraggingWidth ? 12 : 8;
-                ctx.beginPath();
-                if (ctx.roundRect) {
-                    ctx.roundRect(rightX - 2.5, handleY, 5, handleH, 2.5);
-                } else {
-                    ctx.rect(rightX - 2.5, handleY, 5, handleH);
-                }
-                ctx.fill();
-                ctx.restore();
+                drawGlowHandlePill(ctx, rightX - 2.5, handleY, 5, handleH, 2.5, isDraggingWidth);
             }
 
             // KeyImage 上边框拉伸手柄：向上拖补底部透明像素，向下拖裁短 PNG，从而改变有效高度。
@@ -251,18 +271,7 @@
                     canvasDragState.element && canvasDragState.element.id === elem.id &&
                     canvasDragState.dragType === 'key_image_height');
 
-                ctx.save();
-                ctx.fillStyle = isDraggingHeight ? '#ffffff' : 'rgba(255, 255, 255, 0.95)';
-                ctx.shadowColor = isDraggingHeight ? 'rgba(255, 102, 170, 0.95)' : 'rgba(255, 255, 255, 0.75)';
-                ctx.shadowBlur = isDraggingHeight ? 12 : 8;
-                ctx.beginPath();
-                if (ctx.roundRect) {
-                    ctx.roundRect(handleX, edgeY - handleH / 2, handleW, handleH, handleH / 2);
-                } else {
-                    ctx.rect(handleX, edgeY - handleH / 2, handleW, handleH);
-                }
-                ctx.fill();
-                ctx.restore();
+                drawGlowHandlePill(ctx, handleX, edgeY - handleH / 2, handleW, handleH, handleH / 2, isDraggingHeight);
             }
 
             // 贯穿全屏的水平参考虚线（针对判定线、连击数、判定评价、光效等 Y 轴位置元素：选中期间持续常驻显示，拖动与步进实时联动）

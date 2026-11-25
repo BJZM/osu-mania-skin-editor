@@ -77,9 +77,7 @@
                         }
                     }
                     cx.putImageData(imgData, 0, 0);
-                    const newImg = new Image();
-                    newImg.src = c.toDataURL();
-                    return newImg;
+                    return c;
                 }
             } catch (err) {
                 console.error("处理皮肤图片失败", err);

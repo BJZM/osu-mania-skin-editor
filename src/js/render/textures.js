@@ -351,14 +351,18 @@
             return single ? [single] : null;
         }
 
-        function getManiaNoteDrawHeight(keys, columnIndex, img, colW, scale48) {
+        function getManiaNoteDrawHeight(keys, columnIndex, img, colW, scale48, widthForNoteHeightScalePxOverride = undefined) {
             if (!img || img.width <= 0 || img.height <= 0) return Math.round(20 * scale48);
-            const wnRes = getManiaSkinConfig(keys, LML.WidthForNoteHeightScale);
-
-            // 对齐 osu! lazer / stable 官方规范 (LegacyNotePiece):
-            // float noteHeight = widthForNoteHeightScale ?? DrawWidth;
-            // 贴图高度 = (img.height / img.width) * (widthForNoteHeightScale ?? colW)
-            const baseW = (wnRes && wnRes.value > 0) ? (wnRes.value * scale48) : colW;
+            let baseW = colW;
+            if (widthForNoteHeightScalePxOverride !== undefined) {
+                if (widthForNoteHeightScalePxOverride > 0) baseW = widthForNoteHeightScalePxOverride;
+            } else {
+                const wnRes = getManiaSkinConfig(keys, LML.WidthForNoteHeightScale);
+                // 对齐 osu! lazer / stable 官方规范 (LegacyNotePiece):
+                // float noteHeight = widthForNoteHeightScale ?? DrawWidth;
+                // 贴图高度 = (img.height / img.width) * (widthForNoteHeightScale ?? colW)
+                if (wnRes && wnRes.value > 0) baseW = wnRes.value * scale48;
+            }
             return Math.max(4, baseW * (img.height / img.width));
         }
 

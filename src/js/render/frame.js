@@ -210,12 +210,21 @@
                 // 纯皮肤预览同样走这条时间轴；虚拟时钟只负责在无谱面时持续前进。
                 const skinAnimationFps = getSkinAnimationFramerate();
                 const skinAnimationClockMs = currentBeatmap ? currentTime : effectAnimClockMs;
-                const noteFrameCache = new Map();
+                const noteFrameSlots = new Array(4 * keys);
                 const resolveNoteFrames = (lookup, col) => {
-                    const cacheKey = `${lookup}|${col}`;
-                    if (noteFrameCache.has(cacheKey)) return noteFrameCache.get(cacheKey);
-                    const frames = getManiaSkinAnimationFrames(keys, lookup, col) || null;
-                    noteFrameCache.set(cacheKey, frames);
+                    const base = lookup === LML.NoteImage ? 0
+                        : (lookup === LML.HoldNoteHeadImage ? 1
+                        : (lookup === LML.HoldNoteBodyImage ? 2
+                        : (lookup === LML.HoldNoteTailImage ? 3 : -1)));
+                    if (base < 0 || col < 0 || col >= keys) {
+                        return getManiaSkinAnimationFrames(keys, lookup, col) || null;
+                    }
+                    const slot = base * keys + col;
+                    let frames = noteFrameSlots[slot];
+                    if (frames === undefined) {
+                        frames = getManiaSkinAnimationFrames(keys, lookup, col) || null;
+                        noteFrameSlots[slot] = frames;
+                    }
                     return frames;
                 };
                 const resolveAnimatedNoteImage = (lookup, col, animationStartTimeMs = null) => {
@@ -232,9 +241,11 @@
                 const isUpsideDown = (udRes && (udRes.value === true || udRes.value === 1 || udRes.value === '1'));
 
                 let colWidths = [];
+                let rawColWidths = [];
                 for (let i = 0; i < keys; i++) {
                     const res = getManiaSkinConfig(keys, LML.ColumnWidth, i);
                     const rawW = (res && res.value > 0) ? res.value : 30;
+                    rawColWidths.push(rawW);
                     colWidths.push(rawW * scale48);
                 }
 
@@ -348,17 +359,61 @@
                 let columnPressed = Array(keys).fill(false);
                 let columnLastReleaseTime = Array(keys).fill(-Infinity);
                 const KEY_PRESS_DURATION = 90; // 单键音符贴图触碰判定线后的按键高亮时长(ms)
+                const notesIndex = (!isPreviewMode && notesList.length > 0 && typeof getOrBuildNotesRenderIndex === 'function')
+                    ? getOrBuildNotesRenderIndex(notesList)
+                    : null;
+                const useIndexedNotes = !!(notesIndex && notesIndex.sorted);
+                const activeHoldNotes = [];
+                let currentCombo = 0;
+                let isHoldingLN = false;
 
-                for (let i = 0; i < notesList.length; i++) {
-                    let note = notesList[i];
-                    const col = note.column;
-                    if (col < 0 || col >= keys) continue;
-                    const noteEndTime = note.isHold ? note.endTime : (note.startTime + KEY_PRESS_DURATION);
-                    if (currentTime >= note.startTime && currentTime <= noteEndTime) {
-                        columnPressed[col] = true;
-                    } else if (currentTime > noteEndTime) {
-                        if (noteEndTime > columnLastReleaseTime[col]) {
+                if (useIndexedNotes) {
+                    const startUpper = upperBoundByStartTime(notesList, currentTime);
+                    const tapLookbackStart = lowerBoundByStartTime(
+                        notesList,
+                        currentTime - KEY_PRESS_DURATION - STAGE_LIGHT_FADE_DURATION_MS - 1
+                    );
+                    for (let i = tapLookbackStart; i < startUpper; i++) {
+                        const note = notesList[i];
+                        if (note.isHold) continue;
+                        const col = note.column;
+                        if (col < 0 || col >= keys) continue;
+                        const noteEndTime = note.startTime + KEY_PRESS_DURATION;
+                        if (currentTime >= note.startTime && currentTime <= noteEndTime) {
+                            columnPressed[col] = true;
+                        } else if (currentTime > noteEndTime && noteEndTime > columnLastReleaseTime[col]) {
                             columnLastReleaseTime[col] = noteEndTime;
+                        }
+                    }
+
+                    const holdUpper = upperBoundByStartTime(notesIndex.holds, currentTime);
+                    const minHoldEndForLight = currentTime - STAGE_LIGHT_FADE_DURATION_MS - 1;
+                    for (let j = holdUpper - 1; j >= 0; j--) {
+                        if (notesIndex.holdPrefixMaxEnd[j] < minHoldEndForLight) break;
+                        const note = notesIndex.holds[j];
+                        const col = note.column;
+                        if (currentTime <= note.endTime) {
+                            if (col >= 0 && col < keys) columnPressed[col] = true;
+                            activeHoldNotes.push(note);
+                            if (currentTime < note.endTime) isHoldingLN = true;
+                        } else if (col >= 0 && col < keys && note.endTime > columnLastReleaseTime[col]) {
+                            columnLastReleaseTime[col] = note.endTime;
+                        }
+                    }
+                    if (activeHoldNotes.length > 1) activeHoldNotes.reverse();
+                    currentCombo = upperBoundFloat64(notesIndex.comboEventTimes, currentTime);
+                } else {
+                    for (let i = 0; i < notesList.length; i++) {
+                        let note = notesList[i];
+                        const col = note.column;
+                        if (col < 0 || col >= keys) continue;
+                        const noteEndTime = note.isHold ? note.endTime : (note.startTime + KEY_PRESS_DURATION);
+                        if (currentTime >= note.startTime && currentTime <= noteEndTime) {
+                            columnPressed[col] = true;
+                        } else if (currentTime > noteEndTime) {
+                            if (noteEndTime > columnLastReleaseTime[col]) {
+                                columnLastReleaseTime[col] = noteEndTime;
+                            }
                         }
                     }
                 }
@@ -404,40 +459,40 @@
                     scale768, rectTop
                 });
                 // ---- 计算连击数与长按状态 ----
-                let currentCombo = 0;
-                let isHoldingLN = false;
-                if (!isPreviewMode) {
-                    for (let i = 0; i < notesList.length; i++) {
-                        const n = notesList[i];
-                        if (n.isHold) {
-                            if (currentTime >= n.startTime) {
-                                currentCombo++;
-                                if (currentTime < n.endTime) isHoldingLN = true;
-                            }
-                            // 对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中每经过一个 Tick，Combo 持续递增
-                            if (n.ticks && n.ticks.length > 0) {
-                                for (let k = 0; k < n.ticks.length; k++) {
-                                    if (currentTime >= n.ticks[k]) {
-                                        currentCombo++;
-                                    } else {
-                                        break;
+                if (!useIndexedNotes) {
+                    if (!isPreviewMode) {
+                        for (let i = 0; i < notesList.length; i++) {
+                            const n = notesList[i];
+                            if (n.isHold) {
+                                if (currentTime >= n.startTime) {
+                                    currentCombo++;
+                                    if (currentTime < n.endTime) isHoldingLN = true;
+                                }
+                                // 对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中每经过一个 Tick，Combo 持续递增
+                                if (n.ticks && n.ticks.length > 0) {
+                                    for (let k = 0; k < n.ticks.length; k++) {
+                                        if (currentTime >= n.ticks[k]) {
+                                            currentCombo++;
+                                        } else {
+                                            break;
+                                        }
                                     }
                                 }
+                                if (currentTime >= n.endTime) {
+                                    currentCombo++;
+                                }
+                            } else {
+                                if (currentTime >= n.startTime) currentCombo++;
                             }
-                            if (currentTime >= n.endTime) {
-                                currentCombo++;
-                            }
-                        } else {
-                            if (currentTime >= n.startTime) currentCombo++;
                         }
-                    }
-                } else {
-                    currentCombo = 100;
-                    isHoldingLN = false;
-                    for (let i = 0; i < notesList.length; i++) {
-                        const n = notesList[i];
-                        if (n.isHold && currentTime >= n.startTime && currentTime < n.endTime) {
-                            isHoldingLN = true;
+                    } else {
+                        currentCombo = 100;
+                        isHoldingLN = false;
+                        for (let i = 0; i < notesList.length; i++) {
+                            const n = notesList[i];
+                            if (n.isHold && currentTime >= n.startTime && currentTime < n.endTime) {
+                                isHoldingLN = true;
+                            }
                         }
                     }
                 }
@@ -506,198 +561,285 @@
                     }
                 }
 
+                const triggerPlaybackNoteJudgement = (now) => {
+                    if (isPreviewJudgementActive) {
+                        const nextLookup = JUDGEMENT_PREVIEW_PATTERN[judgementPreviewIndex % JUDGEMENT_PREVIEW_PATTERN.length];
+                        judgementPreviewIndex++;
+                        triggerJudgement(now, nextLookup);
+                        if (nextLookup === LML.Hit0) {
+                            if (currentCombo > 0) {
+                                playbackSavedCombo = currentCombo;
+                            }
+                            comboAnimState.breakStartTime = now;
+                            comboAnimState.breakCount = (currentCombo > 0) ? currentCombo : ((playbackSavedCombo > 0) ? playbackSavedCombo : 100);
+                            comboAnimState.lastCombo = 0;
+                            playbackBreakResumeTime = now + 380;
+                            currentCombo = 0;
+                        }
+                    } else {
+                        triggerJudgement(now, LML.Hit300g);
+                    }
+                };
+
                 if (!isPreviewMode) {
                     if (typeof scheduleManiaHitsounds === 'function') {
                         scheduleManiaHitsounds(currentTime);
                     }
                     const now = performance.now();
-                    for (let i = 0; i < notesList.length; i++) {
-                        let note = notesList[i];
-                        if (!note.hit && currentTime >= note.startTime) {
-                            note.hit = true;
-                            // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
-                            if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
-                            // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
-                            if (!note.isHold) {
-                                if (isPreviewJudgementActive) {
-                                    const nextLookup = JUDGEMENT_PREVIEW_PATTERN[judgementPreviewIndex % JUDGEMENT_PREVIEW_PATTERN.length];
-                                    judgementPreviewIndex++;
-                                    triggerJudgement(now, nextLookup);
-                                    if (nextLookup === LML.Hit0) {
-                                        // Miss 判定：触发断连爆破动画
-                                        if (currentCombo > 0) {
-                                            playbackSavedCombo = currentCombo;
-                                        }
-                                        comboAnimState.breakStartTime = now;
-                                        comboAnimState.breakCount = (currentCombo > 0) ? currentCombo : ((playbackSavedCombo > 0) ? playbackSavedCombo : 100);
-                                        comboAnimState.lastCombo = 0;
-                                        playbackBreakResumeTime = now + 380;
-                                        currentCombo = 0;
-                                    }
-                                } else {
-                                    triggerJudgement(now, LML.Hit300g);
+                    if (useIndexedNotes) {
+                        if (currentTime < notesIndex.lastHitScanTime) {
+                            notesIndex.hitCursor = lowerBoundByStartTime(notesList, currentTime);
+                            notesIndex.tailHitCursor = lowerBoundByEndTime(notesIndex.holdsByEnd, currentTime);
+                        }
+                        const hitLimit = upperBoundByStartTime(notesList, currentTime);
+                        for (let i = notesIndex.hitCursor; i < hitLimit; i++) {
+                            const note = notesList[i];
+                            if (!note.hit && currentTime >= note.startTime) {
+                                note.hit = true;
+                                // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
+                                if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
+                                // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
+                                if (!note.isHold) {
+                                    triggerPlaybackNoteJudgement(now);
                                 }
+                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
                             }
-                            activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                        }
+                        notesIndex.hitCursor = hitLimit;
+
+                        const tailLimit = upperBoundByEndTime(notesIndex.holdsByEnd, currentTime);
+                        for (let j = notesIndex.tailHitCursor; j < tailLimit; j++) {
+                            const note = notesIndex.holdsByEnd[j];
+                            if (!note.tailHit && currentTime >= note.endTime) {
+                                note.tailHit = true;
+                                if (!isPlaybackEventFresh(note.endTime, currentTime)) continue;
+                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                                triggerPlaybackNoteJudgement(now);
+                            }
+                        }
+                        notesIndex.tailHitCursor = tailLimit;
+                        notesIndex.lastHitScanTime = currentTime;
+                    } else {
+                        for (let i = 0; i < notesList.length; i++) {
+                            let note = notesList[i];
+                            if (!note.hit && currentTime >= note.startTime) {
+                                note.hit = true;
+                                // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
+                                if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
+                                // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
+                                if (!note.isHold) {
+                                    triggerPlaybackNoteJudgement(now);
+                                }
+                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                            }
                         }
                     }
                 }
 
                 // ---- 5. 录制长条身体与长条尾巴的绘制批次（与 Note 共用层级） ----
                 const activeNoteElements = [];
-                const renderHoldNotes = () => {
-                    for (let i = 0; i < notesList.length; i++) {
-                        let note = notesList[i];
-                        if (!note.isHold) continue;
-                        if (currentTime >= note.endTime) {
-                            if (!note.tailHit) {
-                                note.tailHit = true;
-                                if (!isPlaybackEventFresh(note.endTime, currentTime)) continue;
-                                const now = performance.now();
-                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
-                                if (!isPreviewMode) {
-                                    if (isPreviewJudgementActive) {
-                                        const nextLookup = JUDGEMENT_PREVIEW_PATTERN[judgementPreviewIndex % JUDGEMENT_PREVIEW_PATTERN.length];
-                                        judgementPreviewIndex++;
-                                        triggerJudgement(now, nextLookup);
-                                        if (nextLookup === LML.Hit0) {
-                                            if (currentCombo > 0) {
-                                                playbackSavedCombo = currentCombo;
-                                            }
-                                            comboAnimState.breakStartTime = now;
-                                            comboAnimState.breakCount = (currentCombo > 0) ? currentCombo : ((playbackSavedCombo > 0) ? playbackSavedCombo : 100);
-                                            comboAnimState.lastCombo = 0;
-                                            playbackBreakResumeTime = now + 380;
-                                            currentCombo = 0;
-                                        }
-                                    } else {
-                                        triggerJudgement(now, LML.Hit300g);
-                                    }
-                                }
-                            }
-                            continue;
+                const wnRes = getManiaSkinConfig(keys, LML.WidthForNoteHeightScale);
+                const widthForNoteHeightScalePx = (wnRes && wnRes.value > 0) ? (wnRes.value * scale48) : 0;
+                const colNoteBodyStyles = new Array(keys);
+                let noteTextureNames = null;
+                let holdHeadTextureNames = null;
+                let holdBodyTextureNames = null;
+                let holdTailTextureNames = null;
+                if (canvasEditMode) {
+                    noteTextureNames = new Array(keys);
+                    holdHeadTextureNames = new Array(keys);
+                    holdBodyTextureNames = new Array(keys);
+                    holdTailTextureNames = new Array(keys);
+                    for (let c = 0; c < keys; c++) {
+                        noteTextureNames[c] = getManiaNoteTextureName(keys, LML.NoteImage, c);
+                        holdHeadTextureNames[c] = getManiaNoteTextureName(keys, LML.HoldNoteHeadImage, c);
+                        holdBodyTextureNames[c] = getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, c);
+                        holdTailTextureNames[c] = getManiaNoteTextureName(keys, LML.HoldNoteTailImage, c);
+                    }
+                }
+
+                let visStartIdx = 0;
+                let visEndIdx = notesList.length;
+                const earlyVisibleHolds = [];
+                if (useIndexedNotes) {
+                    const windowPad = Math.max(400, 400 * scale48);
+                    const minVisibleScrollPos = currentScrollPosition + (hitPos - canvas.height - windowPad) / speedFactor;
+                    const maxVisibleScrollPos = currentScrollPosition + (hitPos + windowPad) / speedFactor;
+                    visStartIdx = lowerBoundByScrollStart(notesList, minVisibleScrollPos);
+                    visEndIdx = upperBoundByScrollStart(notesList, maxVisibleScrollPos);
+
+                    const holdSearchEnd = upperBoundInt32(notesIndex.holdNoteIndices, visStartIdx - 1);
+                    for (let j = holdSearchEnd - 1; j >= 0; j--) {
+                        if (notesIndex.holdPrefixMaxScrollEnd[j] < minVisibleScrollPos ||
+                            notesIndex.holdPrefixMaxEnd[j] <= currentTime) {
+                            break;
                         }
+                        const hold = notesIndex.holds[j];
+                        if (hold.endTime > currentTime && hold.scrollPositionEnd >= minVisibleScrollPos) {
+                            earlyVisibleHolds.push(hold);
+                        }
+                    }
+                    if (earlyVisibleHolds.length > 1) earlyVisibleHolds.reverse();
+                }
 
-                        let w = colWidths[note.column];
-                        let colX = colXCache[note.column];
-
-                        const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, note.column, note.startTime);
-                        const holdTailImg = resolveAnimatedNoteImage(LML.HoldNoteTailImage, note.column, note.endTime);
-                        const holdBodyImg = resolveAnimatedNoteImage(LML.HoldNoteBodyImage, note.column);
-
-                        const headDrawHeight = holdHeadImg ? getManiaNoteDrawHeight(keys, note.column, holdHeadImg, w, scale48) : Math.round(20 * scale48);
-                        const tailDrawHeight = holdTailImg ? getManiaNoteDrawHeight(keys, note.column, holdTailImg, w, scale48) : Math.round(20 * scale48);
-
-                        const holdGeometry = getStableHoldNoteGeometry(
-                            note, currentScrollPosition, currentTime, hitPos, speedFactor,
-                            headDrawHeight, tailDrawHeight
-                        );
-                        note.holdHeadFrozen = holdGeometry.headFrozen;
-
-                        const {
-                            headAnchorY,
-                            headTopY,
-                            headCenterY,
-                            tailAnchorY: tailBottomY,
-                            tailTopY,
-                            bodyTopY: bodyTop,
-                            bodyBottomY: bodyBottom,
-                            bodyHeight
-                        } = holdGeometry;
-
-                        const wholeTop = Math.min(headTopY, tailTopY, bodyTop);
-                        const wholeBottom = Math.max(headAnchorY, tailBottomY, bodyBottom);
-                        if (wholeBottom < -100 || wholeTop > canvas.height + 100) continue;
-
-                        // 5a. 身体 (近端位于头部中心，长度只由头尾下端锚点决定)
-                        if (bodyHeight > 0.5) {
-                            if (canvasEditMode && bodyHeight > 4 && bodyTop < canvas.height && bodyBottom > 0 && bodyTop <= hitPos + 25) {
-                                activeNoteElements.push({
-                                    id: `hold_body_${note.column}`,
-                                    noteInstanceKey: `hold_body_${note.column}_${note.startTime}`,
-                                    name: `第 ${note.column + 1} 轨长条身`,
-                                    paramKey: `NoteImage${note.column}L`,
-                                    fallbackParamKey: 'HoldNoteBodyImage',
-                                    category: 'Mania',
-                                    x: colX,
-                                    y: rectTop(bodyTop, bodyHeight),
-                                    w: w,
-                                    h: bodyHeight,
-                                    isTexture: true,
-                                    textureName: getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, note.column),
-                                    textureKey: LML.HoldNoteBodyImage,
-                                    colIndex: note.column,
-                                    dragAxis: null,
-                                    valFormatter: () => `第 ${note.column + 1} 轨长条身`
-                                });
-                            }
-
-                            if (holdBodyImg) {
-                                const nbsRes = getManiaSkinConfig(keys, LML.NoteBodyStyle, note.column);
-                                const style = (nbsRes && nbsRes.value != null) ? nbsRes.value : NOTE_BODY_STYLE.RepeatFromTail;
-                                drawStableHoldBodyTexture(ctx, holdBodyImg, style, colX, w, bodyTop, bodyHeight);
-                            } else {
-                                const inset = 5;
-                                const bx = colX + inset;
-                                const bw = w - inset * 2;
-                                const grad = ctx.createLinearGradient(bx, bodyTop, bx, bodyBottom);
-                                const baseColor = note.column % 2 === 0 ? '0, 229, 255' : '255, 255, 255';
-                                grad.addColorStop(0, `rgba(${baseColor}, 0.55)`);
-                                grad.addColorStop(1, `rgba(${baseColor}, 0.75)`);
-                                ctx.fillStyle = grad;
-                                roundRect(ctx, bx, bodyTop, bw, bodyHeight, 4);
-                                ctx.fill();
-
-                                ctx.save();
-                                ctx.globalAlpha = 0.35;
-                                ctx.fillStyle = `rgba(255,255,255,0.85)`;
-                                ctx.fillRect(bx + bw * 0.35, bodyTop + 2, bw * 0.3, bodyHeight);
-                                ctx.restore();
+                const holdPreCullPad = Math.max(400, 400 * scale48);
+                const renderHoldNoteItem = (note) => {
+                    if (!note.isHold) return;
+                    if (currentTime >= note.endTime) {
+                        if (!useIndexedNotes && !note.tailHit) {
+                            note.tailHit = true;
+                            if (!isPlaybackEventFresh(note.endTime, currentTime)) return;
+                            const now = performance.now();
+                            activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                            if (!isPreviewMode) {
+                                triggerPlaybackNoteJudgement(now);
                             }
                         }
+                        return;
+                    }
 
-                        // 5b. 尾巴 (到达头部中点即停止渲染)
-                        if (tailBottomY > -tailDrawHeight * 2 && tailTopY < canvas.height + tailDrawHeight * 2) {
-                            if (canvasEditMode && tailBottomY <= hitPos + 25) {
-                                activeNoteElements.push({
-                                    id: `hold_tail_${note.column}`,
-                                    noteInstanceKey: `hold_tail_${note.column}_${note.startTime}`,
-                                    name: `第 ${note.column + 1} 轨长条尾`,
-                                    paramKey: `NoteImage${note.column}T`,
-                                    fallbackParamKey: 'HoldNoteTailImage',
-                                    category: 'Mania',
-                                    x: colX,
-                                    y: rectTop(tailTopY, tailDrawHeight),
-                                    w: w,
-                                    h: tailDrawHeight,
-                                    isTexture: true,
-                                    textureName: getManiaNoteTextureName(keys, LML.HoldNoteTailImage, note.column),
-                                    textureKey: LML.HoldNoteTailImage,
-                                    colIndex: note.column,
-                                    dragAxis: null,
-                                    valFormatter: () => `第 ${note.column + 1} 轨长条尾`
-                                });
+                    const headAnchorYPre = getStableHoldHeadAnchorY(
+                        note, currentScrollPosition, currentTime, hitPos, speedFactor
+                    );
+                    const tailAnchorYPre = getStableHoldTailAnchorY(
+                        note, currentScrollPosition, hitPos, speedFactor
+                    );
+                    note.holdHeadFrozen = currentTime >= note.startTime;
+                    if (headAnchorYPre < -100 || tailAnchorYPre > canvas.height + holdPreCullPad) return;
+
+                    const col = note.column;
+                    const w = colWidths[col];
+                    const colX = colXCache[col];
+
+                    const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, col, note.startTime);
+                    const holdTailImg = resolveAnimatedNoteImage(LML.HoldNoteTailImage, col, note.endTime);
+
+                    const headDrawHeight = holdHeadImg ? getManiaNoteDrawHeight(keys, col, holdHeadImg, w, scale48, widthForNoteHeightScalePx) : Math.round(20 * scale48);
+                    const tailDrawHeight = holdTailImg ? getManiaNoteDrawHeight(keys, col, holdTailImg, w, scale48, widthForNoteHeightScalePx) : Math.round(20 * scale48);
+
+                    const holdGeometry = getStableHoldNoteGeometry(
+                        note, currentScrollPosition, currentTime, hitPos, speedFactor,
+                        headDrawHeight, tailDrawHeight
+                    );
+                    note.holdHeadFrozen = holdGeometry.headFrozen;
+
+                    const {
+                        headAnchorY,
+                        headTopY,
+                        headCenterY,
+                        tailAnchorY: tailBottomY,
+                        tailTopY,
+                        bodyTopY: bodyTop,
+                        bodyBottomY: bodyBottom,
+                        bodyHeight
+                    } = holdGeometry;
+
+                    const wholeTop = Math.min(headTopY, tailTopY, bodyTop);
+                    const wholeBottom = Math.max(headAnchorY, tailBottomY, bodyBottom);
+                    if (wholeBottom < -100 || wholeTop > canvas.height + 100) return;
+
+                    // 5a. 身体 (近端位于头部中心，长度只由头尾下端锚点决定)
+                    if (bodyHeight > 0.5) {
+                        const holdBodyImg = resolveAnimatedNoteImage(LML.HoldNoteBodyImage, col);
+                        if (canvasEditMode && bodyHeight > 4 && bodyTop < canvas.height && bodyBottom > 0 && bodyTop <= hitPos + 25) {
+                            activeNoteElements.push({
+                                id: `hold_body_${col}`,
+                                noteInstanceKey: `hold_body_${col}_${note.startTime}`,
+                                name: `第 ${col + 1} 轨长条身`,
+                                paramKey: `NoteImage${col}L`,
+                                fallbackParamKey: 'HoldNoteBodyImage',
+                                category: 'Mania',
+                                x: colX,
+                                y: rectTop(bodyTop, bodyHeight),
+                                w: w,
+                                h: bodyHeight,
+                                isTexture: true,
+                                textureName: holdBodyTextureNames ? holdBodyTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, col),
+                                textureKey: LML.HoldNoteBodyImage,
+                                colIndex: col,
+                                dragAxis: null,
+                                valFormatter: () => `第 ${col + 1} 轨长条身`
+                            });
+                        }
+
+                        if (holdBodyImg) {
+                            let style = colNoteBodyStyles[col];
+                            if (style === undefined) {
+                                const nbsRes = getManiaSkinConfig(keys, LML.NoteBodyStyle, col);
+                                style = (nbsRes && nbsRes.value != null) ? nbsRes.value : NOTE_BODY_STYLE.RepeatFromTail;
+                                colNoteBodyStyles[col] = style;
                             }
+                            drawStableHoldBodyTexture(ctx, holdBodyImg, style, colX, w, bodyTop, bodyHeight);
+                        } else {
+                            const inset = 5;
+                            const bx = colX + inset;
+                            const bw = w - inset * 2;
+                            const grad = ctx.createLinearGradient(bx, bodyTop, bx, bodyBottom);
+                            const baseColor = col % 2 === 0 ? '0, 229, 255' : '255, 255, 255';
+                            grad.addColorStop(0, `rgba(${baseColor}, 0.55)`);
+                            grad.addColorStop(1, `rgba(${baseColor}, 0.75)`);
+                            ctx.fillStyle = grad;
+                            roundRect(ctx, bx, bodyTop, bw, bodyHeight, 4);
+                            ctx.fill();
 
                             ctx.save();
-                            ctx.beginPath();
-                            ctx.rect(0, 0, canvas.width, Math.max(0, headCenterY));
-                            ctx.clip();
-
-                            if (holdTailImg) {
-                                ctx.save();
-                                ctx.translate(colX, tailBottomY);
-                                ctx.scale(1, -1);
-                                ctx.drawImage(holdTailImg, 0, 0, w, tailDrawHeight);
-                                ctx.restore();
-                            } else {
-                                ctx.fillStyle = note.column % 2 === 0 ? '#00b8d4' : '#cccccc';
-                                const rh = tailDrawHeight;
-                                roundRect(ctx, colX + 4, tailTopY, w - 8, rh, 4);
-                                ctx.fill();
-                            }
+                            ctx.globalAlpha = 0.35;
+                            ctx.fillStyle = `rgba(255,255,255,0.85)`;
+                            ctx.fillRect(bx + bw * 0.35, bodyTop + 2, bw * 0.3, bodyHeight);
                             ctx.restore();
                         }
+                    }
+
+                    // 5b. 尾巴 (到达头部中点即停止渲染)
+                    if (tailBottomY > -tailDrawHeight * 2 && tailTopY < canvas.height + tailDrawHeight * 2) {
+                        if (canvasEditMode && tailBottomY <= hitPos + 25) {
+                            activeNoteElements.push({
+                                id: `hold_tail_${col}`,
+                                noteInstanceKey: `hold_tail_${col}_${note.startTime}`,
+                                name: `第 ${col + 1} 轨长条尾`,
+                                paramKey: `NoteImage${col}T`,
+                                fallbackParamKey: 'HoldNoteTailImage',
+                                category: 'Mania',
+                                x: colX,
+                                y: rectTop(tailTopY, tailDrawHeight),
+                                w: w,
+                                h: tailDrawHeight,
+                                isTexture: true,
+                                textureName: holdTailTextureNames ? holdTailTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteTailImage, col),
+                                textureKey: LML.HoldNoteTailImage,
+                                colIndex: col,
+                                dragAxis: null,
+                                valFormatter: () => `第 ${col + 1} 轨长条尾`
+                            });
+                        }
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(0, 0, canvas.width, Math.max(0, headCenterY));
+                        ctx.clip();
+
+                        if (holdTailImg) {
+                            ctx.save();
+                            ctx.translate(colX, tailBottomY);
+                            ctx.scale(1, -1);
+                            ctx.drawImage(holdTailImg, 0, 0, w, tailDrawHeight);
+                            ctx.restore();
+                        } else {
+                            ctx.fillStyle = col % 2 === 0 ? '#00b8d4' : '#cccccc';
+                            const rh = tailDrawHeight;
+                            roundRect(ctx, colX + 4, tailTopY, w - 8, rh, 4);
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                    }
+                };
+
+                const renderHoldNotes = () => {
+                    for (let i = 0; i < earlyVisibleHolds.length; i++) {
+                        renderHoldNoteItem(earlyVisibleHolds[i]);
+                    }
+                    for (let i = visStartIdx; i < visEndIdx; i++) {
+                        renderHoldNoteItem(notesList[i]);
                     }
                 };
 
@@ -709,12 +851,14 @@
                 const keysUnderNotes = (kunRes && (kunRes.value === 1 || kunRes.value === '1' || kunRes.value === true)) ? 1 : 0;
 
                 const renderKeyImages = createKeyImageRenderer({
-                    keys, colWidths, colXCache, columnPressed, hitPos, canvas
+                    keys, colWidths, rawColWidths, colXCache, columnPressed, hitPos, canvas
                 });
                 const renderNotes = createNoteRenderer({
-                    notesList, colWidths, colXCache, hitPos, currentScrollPosition,
+                    notesList, earlyVisibleHolds, visStartIdx, visEndIdx,
+                    colWidths, colXCache, hitPos, currentScrollPosition,
                     speedFactor, canvas, canvasEditMode, activeNoteElements, currentTime,
-                    resolveAnimatedNoteImage, keys, scale48, rectTop
+                    resolveAnimatedNoteImage, keys, scale48, rectTop,
+                    widthForNoteHeightScalePx, noteTextureNames, holdHeadTextureNames
                 });
                 // 根据 keysUnderNotes 决定渲染层级：
                 // 1: Note 渲染在 KeyImage 上
@@ -775,7 +919,8 @@
                 // 画布交互层据此判断某一轨的打击特效此刻是否可见：只有可见（正在爆发 / 正在按住长条）
                 // 时，该轨元素才可被点选——与音符等元素一致，不再依赖常驻占位框。
                 const activeLightingBoxes = renderLightingEffects({
-                    ctx, isPreviewMode, notesList, currentTime, keys, colXCache, colWidths,
+                    ctx, isPreviewMode, notesList, activeHoldNotes: useIndexedNotes ? activeHoldNotes : null,
+                    currentTime, keys, colXCache, colWidths,
                     scale768, scale48, canvasEditMode, selectedCanvasElement,
                     activeExplosions, effectAnimClockMs, lightPosY, lightFps, rectTop
                 });

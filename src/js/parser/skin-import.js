@@ -227,15 +227,26 @@
                     }
                 }
 
-                // 先读取优先贴图，再读取其他贴图
+                // 先读取优先贴图，再读取其他贴图；并发读取解压与解码，再按原顺序注册以保证根目录/子目录优先级完全不变
                 const orderedImages = [...priorityImages, ...otherImages];
                 const totalFiles = orderedImages.length;
-                let processed = 0;
+                const decodedResults = new Array(totalFiles);
+                let nextImageIdx = 0;
+                let completedCount = 0;
+                let lastProgressUiAt = 0;
+                const PROGRESS_THROTTLE_MS = 50;
 
-                for (const relativePath of orderedImages) {
-                    processed++;
-                    updateProgress(processed, totalFiles, relativePath);
+                const reportImportProgress = (currentPath, force = false) => {
+                    const now = performance.now();
+                    if (!force && completedCount > 1 && completedCount < totalFiles &&
+                        (now - lastProgressUiAt) < PROGRESS_THROTTLE_MS) {
+                        return;
+                    }
+                    lastProgressUiAt = now;
+                    updateProgress(completedCount, totalFiles, currentPath);
+                };
 
+                const decodeOneSkinImage = async (relativePath) => {
                     let blobUrl = null;
                     try {
                         const arrayBuffer = await oskZip.files[relativePath].async("arraybuffer");
@@ -256,7 +267,6 @@
                         if (!img) {
                             const imgBlob = new Blob([arrayBuffer]);
                             blobUrl = URL.createObjectURL(imgBlob);
-                            activeSkinBlobUrls.push(blobUrl);
 
                             img = await new Promise((resolve, reject) => {
                                 const tempImg = new Image();
@@ -277,12 +287,20 @@
                                     (imageBase && opaqueStageSideImageKeys.has(imageBase));
                                 const processedImg = processSkinImage(img, relativePath, preserveBlack);
                                 if (processedImg !== img) {
-                                    await new Promise((resolve) => {
-                                        processedImg.onload = resolve;
-                                        processedImg.onerror = resolve;
-                                    });
+                                    if (typeof HTMLImageElement !== 'undefined' &&
+                                        processedImg instanceof HTMLImageElement &&
+                                        !processedImg.complete) {
+                                        await new Promise((resolve) => {
+                                            processedImg.onload = resolve;
+                                            processedImg.onerror = resolve;
+                                        });
+                                    }
                                     if (processedImg.width && processedImg.height) {
                                         finalImg = processedImg;
+                                        if (blobUrl) {
+                                            try { URL.revokeObjectURL(blobUrl); } catch (_) { }
+                                            blobUrl = null;
+                                        }
                                     }
                                 }
                             }
@@ -291,14 +309,41 @@
                             finalImg = img;
                         }
 
-                        const nk = normalizeSkinKey(relativePath);
-                        registerSkinImage(nk, finalImg);
+                        return { finalImg, blobUrl };
                     } catch (err) {
-                        console.warn(`[跳过无法加载的贴图] ${relativePath}:`, err);
-                        failedFiles.push(relativePath);
                         if (blobUrl) {
                             try { URL.revokeObjectURL(blobUrl); } catch (_) { }
                         }
+                        return { error: err };
+                    }
+                };
+
+                if (totalFiles > 0) {
+                    const concurrency = Math.min(8, totalFiles);
+                    const workers = Array.from({ length: concurrency }, async () => {
+                        while (nextImageIdx < totalFiles) {
+                            const idx = nextImageIdx++;
+                            const relativePath = orderedImages[idx];
+                            decodedResults[idx] = await decodeOneSkinImage(relativePath);
+                            completedCount++;
+                            reportImportProgress(relativePath, completedCount === totalFiles);
+                        }
+                    });
+                    await Promise.all(workers);
+
+                    for (let idx = 0; idx < totalFiles; idx++) {
+                        const relativePath = orderedImages[idx];
+                        const res = decodedResults[idx];
+                        if (!res || res.error || !res.finalImg) {
+                            console.warn(`[跳过无法加载的贴图] ${relativePath}:`, res && res.error);
+                            failedFiles.push(relativePath);
+                            continue;
+                        }
+                        if (res.blobUrl) {
+                            activeSkinBlobUrls.push(res.blobUrl);
+                        }
+                        const nk = normalizeSkinKey(relativePath);
+                        registerSkinImage(nk, res.finalImg);
                     }
                 }
 

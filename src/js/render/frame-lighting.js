@@ -5,7 +5,7 @@
 
         function renderLightingEffects(context) {
             const {
-                ctx, isPreviewMode, notesList, currentTime, keys, colXCache, colWidths,
+                ctx, isPreviewMode, notesList, activeHoldNotes, currentTime, keys, colXCache, colWidths,
                 scale768, scale48, canvasEditMode, selectedCanvasElement,
                 activeExplosions, effectAnimClockMs, lightPosY, lightFps, rectTop
             } = context;
@@ -24,12 +24,17 @@
 
             // 渲染 LightingL: 当前正在按住的长条（对齐 osu!lazer LegacySkin / HoldNoteLightScale）
             if (!isPreviewMode) {
-                for (let i = 0; i < notesList.length; i++) {
-                    const note = notesList[i];
+                const holdCandidates = Array.isArray(activeHoldNotes) ? activeHoldNotes : notesList;
+                const lightingLFrames = getManiaSkinAnimationFrames(keys, LML.HoldNoteLightImage, 0);
+                const lightingLScaleRes = getManiaSkinConfig(keys, LML.HoldNoteLightScale, 0);
+                const holdLightScale = (lightingLScaleRes && lightingLScaleRes.value > 0) ? lightingLScaleRes.value : 1.0;
+
+                for (let i = 0; i < holdCandidates.length; i++) {
+                    const note = holdCandidates[i];
                     if (!note.isHold) continue;
                     if (currentTime >= note.startTime && currentTime <= note.endTime) {
                         const col = note.column;
-                        const frames = getManiaSkinAnimationFrames(keys, LML.HoldNoteLightImage, col);
+                        const frames = (col === 0) ? lightingLFrames : getManiaSkinAnimationFrames(keys, LML.HoldNoteLightImage, col);
                         let drewLight = false;
                         if (frames && frames.length > 0) {
                             const frameIdx = Math.floor(((currentTime - note.startTime) / 1000) * lightFps) % frames.length;
@@ -38,13 +43,13 @@
                                 const colX = colXCache[col];
                                 const colW = colWidths[col] || colWidths[0];
                                 // 对齐 osu!lazer: HoldNoteLightScale 缩放 (LightingLWidth / 30 或 ColumnWidth / 30)
-                                const hlsRes = getManiaSkinConfig(keys, LML.HoldNoteLightScale, col);
-                                const holdLightScale = (hlsRes && hlsRes.value > 0) ? hlsRes.value : 1.0;
+                                const hlsRes = (col === 0) ? null : getManiaSkinConfig(keys, LML.HoldNoteLightScale, col);
+                                const scaleVal = (col === 0) ? holdLightScale : ((hlsRes && hlsRes.value > 0) ? hlsRes.value : 1.0);
                                 const is2x = !!img._is2x;
                                 const nativeW = is2x ? img.width / 2 : img.width;
                                 const nativeH = is2x ? img.height / 2 : img.height;
-                                const drawW = nativeW * scale768 * holdLightScale;
-                                const drawH = nativeH * scale768 * holdLightScale;
+                                const drawW = nativeW * scale768 * scaleVal;
+                                const drawH = nativeH * scale768 * scaleVal;
                                 const cx = colX + colW / 2;
 
                                 ctx.save();

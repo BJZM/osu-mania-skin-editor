@@ -4,6 +4,43 @@
 // ============================================================================
 
         let nextTextureCreatorTabId = 1;
+        let textureCreatorPreviewTimer = null;
+        let textureCreatorPreviewRaf = 0;
+
+        function cancelScheduledTextureCreatorPreview() {
+            if (textureCreatorPreviewTimer) {
+                clearTimeout(textureCreatorPreviewTimer);
+                textureCreatorPreviewTimer = null;
+            }
+            if (textureCreatorPreviewRaf) {
+                cancelAnimationFrame(textureCreatorPreviewRaf);
+                textureCreatorPreviewRaf = 0;
+            }
+        }
+
+        function updateTextureCreatorPreviewLabels() {
+            const sizeLabel = byId('textureImageCreatePreviewSize');
+            const specLabel = byId('textureImageCreateSpecLabel');
+            if (sizeLabel) {
+                sizeLabel.textContent = `${textureCreatorState.width} × ${textureCreatorState.height}px`;
+            }
+            if (specLabel) {
+                specLabel.textContent = textureCreatorState.spec === '2x' ? '@2x' : '1x';
+            }
+        }
+
+        function scheduleTextureCreatorPreview() {
+            updateTextureCreatorPreviewLabels();
+            syncActiveCreatorTabDirtyDot();
+            cancelScheduledTextureCreatorPreview();
+            textureCreatorPreviewTimer = setTimeout(() => {
+                textureCreatorPreviewTimer = null;
+                textureCreatorPreviewRaf = requestAnimationFrame(() => {
+                    textureCreatorPreviewRaf = 0;
+                    refreshTextureCreatorPreview();
+                });
+            }, 80);
+        }
 
         function createTextureCreatorState(options = {}) {
             const editPath = options.editPath || null;
@@ -219,15 +256,9 @@
         }
 
         function refreshTextureCreatorPreview() {
+            cancelScheduledTextureCreatorPreview();
             const canvas = byId('textureImageCreatePreviewCanvas');
-            const sizeLabel = byId('textureImageCreatePreviewSize');
-            const specLabel = byId('textureImageCreateSpecLabel');
-            if (sizeLabel) {
-                sizeLabel.textContent = `${textureCreatorState.width} × ${textureCreatorState.height}px`;
-            }
-            if (specLabel) {
-                specLabel.textContent = textureCreatorState.spec === '2x' ? '@2x' : '1x';
-            }
+            updateTextureCreatorPreviewLabels();
             renderTextureCreatorShapePreviews();
             if (!canvas) return;
 
@@ -582,6 +613,7 @@
         }
 
         function closeTextureCreator() {
+            cancelScheduledTextureCreatorPreview();
             const tab = getActiveTab();
             if (!tab || tab.kind !== 'creator') return false;
             return removeTab(tab.id, { restorePreview: true });
@@ -603,22 +635,39 @@
                 throw new Error(`画布尺寸过大，单边不能超过 ${TEXTURE_SOLID_SHAPE_MAX_DIMENSION}px`);
             }
 
+            const checkedSpec = document.querySelector('input[name="textureImageCreateSpec"]:checked');
+            const spec = checkedSpec ? (checkedSpec.value === '2x' ? '2x' : '1x') : textureCreatorState.spec;
+            const colorHexInput = byId('textureImageCreateColorHex');
+            const colorInput = byId('textureImageCreateColor');
+            const rawColor = (colorHexInput && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(colorHexInput.value.trim()))
+                ? colorHexInput.value
+                : ((colorInput && colorInput.value) || textureCreatorState.color);
+            const color = normalizeTextureHexColor(rawColor);
+
             const alphaValue = Number((byId('textureImageCreateAlphaValue') || {}).value);
             const alpha = Number.isFinite(alphaValue)
                 ? Math.max(0, Math.min(100, Math.round(alphaValue)))
                 : textureCreatorState.alpha;
+            const strokeColorHexInput = byId('textureImageCreateStrokeColorHex');
+            const strokeColorInput = byId('textureImageCreateStrokeColor');
+            const rawStrokeColor = (strokeColorHexInput && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(strokeColorHexInput.value.trim()))
+                ? strokeColorHexInput.value
+                : ((strokeColorInput && strokeColorInput.value) || textureCreatorState.strokeColor);
+            const strokeColor = normalizeTextureHexColor(rawStrokeColor);
             const strokeAlphaValue = Number(
                 (byId('textureImageCreateStrokeAlphaValue') || {}).value
             );
             const strokeAlpha = Number.isFinite(strokeAlphaValue)
                 ? Math.max(0, Math.min(100, Math.round(strokeAlphaValue)))
                 : textureCreatorState.strokeAlpha;
+            const strokeEnabledInput = byId('textureImageCreateStrokeEnabled');
             const strokeWidthValue = Number(
                 (byId('textureImageCreateStrokeWidthValue') || {}).value
             );
-            const strokeWidth = Number.isFinite(strokeWidthValue)
+            const parsedStrokeWidth = Number.isFinite(strokeWidthValue)
                 ? Math.max(0, Math.min(64, Math.round(strokeWidthValue)))
                 : textureCreatorState.strokeWidth;
+            const strokeWidth = (strokeEnabledInput && !strokeEnabledInput.checked) ? 0 : parsedStrokeWidth;
             const radiusValue = Number((byId('textureImageCreateCornerRadius') || {}).value);
             const cornerRadius = normalizeTextureCreatorCornerRadius(
                 radiusValue,
@@ -652,7 +701,10 @@
             textureCreatorState.name = rawName;
             textureCreatorState.width = width;
             textureCreatorState.height = height;
+            textureCreatorState.spec = spec;
+            textureCreatorState.color = color;
             textureCreatorState.alpha = alpha;
+            textureCreatorState.strokeColor = strokeColor;
             textureCreatorState.strokeWidth = strokeWidth;
             textureCreatorState.strokeEnabled = strokeWidth > 0;
             textureCreatorState.strokeAlpha = strokeAlpha;
@@ -665,12 +717,12 @@
                 name: rawName,
                 width,
                 height,
-                spec: textureCreatorState.spec,
-                is2x: textureCreatorState.spec === '2x',
-                color: textureCreatorState.color,
+                spec,
+                is2x: spec === '2x',
+                color,
                 alpha,
                 strokeEnabled: textureCreatorState.strokeEnabled,
-                strokeColor: textureCreatorState.strokeColor,
+                strokeColor,
                 strokeAlpha,
                 strokeWidth,
                 shape: textureCreatorState.shape,
@@ -683,6 +735,7 @@
         }
 
         async function createTextureFromCreator() {
+            cancelScheduledTextureCreatorPreview();
             const errorEl = byId('textureImageCreateNameError');
             if (errorEl) {
                 errorEl.textContent = '';
@@ -822,7 +875,7 @@
             if (!Number.isFinite(value)) return;
             textureCreatorState.alpha = Math.max(0, Math.min(100, Math.round(value)));
             updateTextureCreatorAlphaInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorStrokeEnabled(enabled) {
@@ -836,10 +889,11 @@
             refreshTextureCreatorPreview();
         }
 
-        function applyTextureCreatorStrokeColor(rawValue) {
+        function applyTextureCreatorStrokeColor(rawValue, immediate = false) {
             textureCreatorState.strokeColor = normalizeTextureHexColor(rawValue);
             updateTextureCreatorStrokeInputs();
-            refreshTextureCreatorPreview();
+            if (immediate) refreshTextureCreatorPreview();
+            else scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorStrokeWidth(rawValue) {
@@ -852,7 +906,7 @@
             );
             textureCreatorState.strokeEnabled = textureCreatorState.strokeWidth > 0;
             updateTextureCreatorStrokeInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorStrokeAlpha(rawValue) {
@@ -864,13 +918,14 @@
                 Math.min(100, Math.round(value))
             );
             updateTextureCreatorStrokeInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
-        function applyTextureCreatorFillTransparentColor(rawValue) {
+        function applyTextureCreatorFillTransparentColor(rawValue, immediate = false) {
             textureCreatorState.fillTransparentColor = normalizeTextureHexColor(rawValue);
             updateTextureCreatorFillTransparentInputs();
-            refreshTextureCreatorPreview();
+            if (immediate) refreshTextureCreatorPreview();
+            else scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorFillTransparentAlpha(rawValue) {
@@ -882,7 +937,7 @@
                 Math.min(100, Math.round(value))
             );
             updateTextureCreatorFillTransparentInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorCornerRadius(rawValue) {
@@ -891,7 +946,7 @@
             if (!Number.isFinite(value)) return;
             textureCreatorState.cornerRadius = normalizeTextureCreatorCornerRadius(value);
             updateTextureCreatorCornerInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorArrowThickness(rawValue) {
@@ -900,7 +955,7 @@
             if (!Number.isFinite(value)) return;
             textureCreatorState.arrowThickness = Math.max(8, Math.min(50, Math.round(value)));
             updateTextureCreatorArrowInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorArrowRoundness(rawValue) {
@@ -909,7 +964,7 @@
             if (!Number.isFinite(value)) return;
             textureCreatorState.arrowRoundness = Math.max(0, Math.min(100, Math.round(value)));
             updateTextureCreatorArrowInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function initTextureCreatorUI() {
@@ -969,7 +1024,7 @@
                     if (!Number.isInteger(value) || value < 1) return;
                     textureCreatorState.width = value;
                     updateTextureCreatorCornerInputs();
-                    refreshTextureCreatorPreview();
+                    scheduleTextureCreatorPreview();
                 });
             }
             if (heightInput) {
@@ -978,14 +1033,14 @@
                     if (!Number.isInteger(value) || value < 1) return;
                     textureCreatorState.height = value;
                     updateTextureCreatorCornerInputs();
-                    refreshTextureCreatorPreview();
+                    scheduleTextureCreatorPreview();
                 });
             }
             if (colorInput) {
                 colorInput.addEventListener('input', () => {
                     textureCreatorState.color = normalizeTextureHexColor(colorInput.value);
                     if (colorHexInput) colorHexInput.value = textureCreatorState.color;
-                    refreshTextureCreatorPreview();
+                    scheduleTextureCreatorPreview();
                 });
             }
             if (colorHexInput) {
@@ -994,7 +1049,7 @@
                     if (!/^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) return;
                     textureCreatorState.color = normalizeTextureHexColor(raw);
                     if (colorInput) colorInput.value = textureCreatorState.color;
-                    refreshTextureCreatorPreview();
+                    scheduleTextureCreatorPreview();
                 });
                 colorHexInput.addEventListener('blur', () => {
                     textureCreatorState.color = normalizeTextureHexColor(colorHexInput.value);
@@ -1026,7 +1081,7 @@
                     applyTextureCreatorStrokeColor(raw);
                 });
                 strokeColorHexInput.addEventListener('blur', () => {
-                    applyTextureCreatorStrokeColor(strokeColorHexInput.value);
+                    applyTextureCreatorStrokeColor(strokeColorHexInput.value, true);
                 });
             }
             if (strokeWidthRange) {
@@ -1061,7 +1116,7 @@
                     applyTextureCreatorFillTransparentColor(raw);
                 });
                 fillTransparentColorHexInput.addEventListener('blur', () => {
-                    applyTextureCreatorFillTransparentColor(fillTransparentColorHexInput.value);
+                    applyTextureCreatorFillTransparentColor(fillTransparentColorHexInput.value, true);
                 });
             }
             if (fillTransparentAlphaRange) {

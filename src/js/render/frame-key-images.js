@@ -4,7 +4,7 @@
 // ============================================================================
 
         function createKeyImageRenderer(context) {
-            const { keys, colWidths, colXCache, columnPressed, hitPos, canvas } = context;
+            const { keys, colWidths, rawColWidths, colXCache, columnPressed, hitPos, canvas } = context;
 
             return () => {
                 const keyAreaHeight = canvas.height - hitPos;
@@ -19,8 +19,13 @@
                         : getManiaSkinImage(keys, LML.KeyImage, i);
 
                     if (keyImg && keyImg.width > 0 && keyImg.height > 0) {
-                        const rawColWRes = getManiaSkinConfig(keys, LML.ColumnWidth, i);
-                        const rawColW = (rawColWRes && rawColWRes.value > 0) ? rawColWRes.value : 30;
+                        let rawColW;
+                        if (rawColWidths && rawColWidths[i] > 0) {
+                            rawColW = rawColWidths[i];
+                        } else {
+                            const rawColWRes = getManiaSkinConfig(keys, LML.ColumnWidth, i);
+                            rawColW = (rawColWRes && rawColWRes.value > 0) ? rawColWRes.value : 30;
+                        }
 
                         const is2x = !!keyImg._is2x;
                         const scaleFactor = is2x ? 3.2 : 1.6;

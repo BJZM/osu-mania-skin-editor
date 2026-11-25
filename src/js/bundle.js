@@ -1142,7 +1142,8 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
                 '确定要将当前分类下的所有参数恢复为推荐默认值吗？': 'Restore all parameters in this category to their recommended defaults?',
                 '输入 score-percent 透明垫片的 1x 逻辑宽度 (1 - 2000，1 = 仅隐藏百分号):': 'Enter the 1x logical width of the transparent score-percent spacer (1–2000; 1 hides only the percent sign):',
                 '输入新的打击特效宽度 (0 - 300，480p 虚拟像素；0 = 跟随列宽):': 'Enter a new hit-lighting width (0–300, 480p virtual pixels; 0 follows column width):',
-                '输入新的数值 (0 - 1000):': 'Enter a new value (0–1000):'
+                '输入新的数值 (0 - 1000):': 'Enter a new value (0–1000):',
+                'ini 未指定 (实际使用: score 字体贴图)': 'Not set in skin.ini (using: score font textures)'
             },
             html: {
                 '无视图片自身宽度，强制拉伸或压缩到该轨的 ColumnWidth。每轨各自拉满，所以同一张贴图在不同列宽下显示宽度也不同。': 'Ignore the texture’s native width and <strong>stretch or compress it to the column’s <code>ColumnWidth</code></strong>. Every column fills its own width, so the same texture appears wider or narrower in different columns.',
@@ -1456,10 +1457,12 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
             const DEFAULT_LANGUAGE = 'zh-CN';
             const SUPPORTED_LANGUAGES = new Set(['zh-CN', 'en']);
             const ATTRIBUTE_NAMES = ['title', 'placeholder', 'aria-label', 'alt'];
+            const HTML_TARGET_TAGS = new Set(['SPAN', 'P', 'LI', 'LABEL', 'TD', 'TH', 'DT', 'DD', 'FIGCAPTION']);
             const HAN_PATTERN = /[\u3400-\u9fff]/;
             const dictionary = window.OSU_I18N_EN || { exact: {}, patterns: [], fragments: [] };
             const exact = dictionary.exact || {};
             const html = dictionary.html || {};
+            const hasHtmlEntries = Object.keys(html).length > 0;
             const exactReverse = new Map();
             const patterns = Array.isArray(dictionary.patterns) ? dictionary.patterns : [];
             const fragments = (Array.isArray(dictionary.fragments) ? dictionary.fragments : [])
@@ -1471,6 +1474,7 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
             const missing = new Set();
             let currentLanguage = DEFAULT_LANGUAGE;
             let observer = null;
+            let isObserving = false;
             let isApplying = false;
 
             for (const [source, translated] of Object.entries(exact)) {
@@ -1622,6 +1626,7 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
                     }
                     return;
                 }
+                if (!hasHtmlEntries || !HTML_TARGET_TAGS.has(element.tagName)) return;
 
                 const key = (element.textContent || '').replace(/\s+/g, ' ').trim();
                 const translated = html[key];
@@ -1673,21 +1678,28 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
             }
 
             function startObserver() {
-                if (observer || typeof MutationObserver === 'undefined') return;
-                observer = new MutationObserver((mutations) => {
-                    if (isApplying) return;
-                    for (const mutation of mutations) {
-                        if (mutation.type === 'characterData') {
-                            applyTextNode(mutation.target);
-                            continue;
+                if (isObserving || typeof MutationObserver === 'undefined') return;
+                if (!observer) {
+                    observer = new MutationObserver((mutations) => {
+                        if (isApplying || currentLanguage !== 'en') return;
+                        isApplying = true;
+                        try {
+                            for (const mutation of mutations) {
+                                if (mutation.type === 'characterData') {
+                                    applyTextNode(mutation.target);
+                                    continue;
+                                }
+                                if (mutation.type === 'attributes') {
+                                    applyAttribute(mutation.target, mutation.attributeName);
+                                    continue;
+                                }
+                                for (const node of mutation.addedNodes) translateSubtree(node);
+                            }
+                        } finally {
+                            isApplying = false;
                         }
-                        if (mutation.type === 'attributes') {
-                            applyAttribute(mutation.target, mutation.attributeName);
-                            continue;
-                        }
-                        for (const node of mutation.addedNodes) translateSubtree(node);
-                    }
-                });
+                    });
+                }
                 observer.observe(document.documentElement, {
                     subtree: true,
                     childList: true,
@@ -1695,6 +1707,13 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
                     attributes: true,
                     attributeFilter: ATTRIBUTE_NAMES
                 });
+                isObserving = true;
+            }
+
+            function stopObserver() {
+                if (!isObserving || !observer) return;
+                observer.disconnect();
+                isObserving = false;
             }
 
             function syncLanguageControls(language) {
@@ -1723,8 +1742,14 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
                 storeLanguage(nextLanguage);
                 syncLanguageControls(nextLanguage);
                 updateDocumentLanguage(nextLanguage);
-                translateSubtree(document.documentElement);
-                if (nextLanguage === 'en') refreshMissing(document.documentElement);
+                if (nextLanguage === 'en') {
+                    translateSubtree(document.documentElement);
+                    startObserver();
+                    refreshMissing(document.documentElement);
+                } else {
+                    stopObserver();
+                    translateSubtree(document.documentElement);
+                }
                 window.dispatchEvent(new CustomEvent('app-language-changed', {
                     detail: { language: nextLanguage }
                 }));
@@ -1765,10 +1790,12 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
             currentLanguage = readStoredLanguage();
             syncLanguageControls(currentLanguage);
             updateDocumentLanguage(currentLanguage);
-            translateSubtree(document.documentElement);
             initLanguageControls();
-            startObserver();
-            if (currentLanguage === 'en') refreshMissing(document.documentElement);
+            if (currentLanguage === 'en') {
+                translateSubtree(document.documentElement);
+                startObserver();
+                refreshMissing(document.documentElement);
+            }
         })();
 // --- END core/i18n.js ---
 
@@ -5864,9 +5891,7 @@ async function getBeatmapDecoder() {
                         }
                     }
                     cx.putImageData(imgData, 0, 0);
-                    const newImg = new Image();
-                    newImg.src = c.toDataURL();
-                    return newImg;
+                    return c;
                 }
             } catch (err) {
                 console.error("处理皮肤图片失败", err);
@@ -6757,15 +6782,26 @@ async function getBeatmapDecoder() {
                     }
                 }
 
-                // 先读取优先贴图，再读取其他贴图
+                // 先读取优先贴图，再读取其他贴图；并发读取解压与解码，再按原顺序注册以保证根目录/子目录优先级完全不变
                 const orderedImages = [...priorityImages, ...otherImages];
                 const totalFiles = orderedImages.length;
-                let processed = 0;
+                const decodedResults = new Array(totalFiles);
+                let nextImageIdx = 0;
+                let completedCount = 0;
+                let lastProgressUiAt = 0;
+                const PROGRESS_THROTTLE_MS = 50;
 
-                for (const relativePath of orderedImages) {
-                    processed++;
-                    updateProgress(processed, totalFiles, relativePath);
+                const reportImportProgress = (currentPath, force = false) => {
+                    const now = performance.now();
+                    if (!force && completedCount > 1 && completedCount < totalFiles &&
+                        (now - lastProgressUiAt) < PROGRESS_THROTTLE_MS) {
+                        return;
+                    }
+                    lastProgressUiAt = now;
+                    updateProgress(completedCount, totalFiles, currentPath);
+                };
 
+                const decodeOneSkinImage = async (relativePath) => {
                     let blobUrl = null;
                     try {
                         const arrayBuffer = await oskZip.files[relativePath].async("arraybuffer");
@@ -6786,7 +6822,6 @@ async function getBeatmapDecoder() {
                         if (!img) {
                             const imgBlob = new Blob([arrayBuffer]);
                             blobUrl = URL.createObjectURL(imgBlob);
-                            activeSkinBlobUrls.push(blobUrl);
 
                             img = await new Promise((resolve, reject) => {
                                 const tempImg = new Image();
@@ -6807,12 +6842,20 @@ async function getBeatmapDecoder() {
                                     (imageBase && opaqueStageSideImageKeys.has(imageBase));
                                 const processedImg = processSkinImage(img, relativePath, preserveBlack);
                                 if (processedImg !== img) {
-                                    await new Promise((resolve) => {
-                                        processedImg.onload = resolve;
-                                        processedImg.onerror = resolve;
-                                    });
+                                    if (typeof HTMLImageElement !== 'undefined' &&
+                                        processedImg instanceof HTMLImageElement &&
+                                        !processedImg.complete) {
+                                        await new Promise((resolve) => {
+                                            processedImg.onload = resolve;
+                                            processedImg.onerror = resolve;
+                                        });
+                                    }
                                     if (processedImg.width && processedImg.height) {
                                         finalImg = processedImg;
+                                        if (blobUrl) {
+                                            try { URL.revokeObjectURL(blobUrl); } catch (_) { }
+                                            blobUrl = null;
+                                        }
                                     }
                                 }
                             }
@@ -6821,14 +6864,41 @@ async function getBeatmapDecoder() {
                             finalImg = img;
                         }
 
-                        const nk = normalizeSkinKey(relativePath);
-                        registerSkinImage(nk, finalImg);
+                        return { finalImg, blobUrl };
                     } catch (err) {
-                        console.warn(`[跳过无法加载的贴图] ${relativePath}:`, err);
-                        failedFiles.push(relativePath);
                         if (blobUrl) {
                             try { URL.revokeObjectURL(blobUrl); } catch (_) { }
                         }
+                        return { error: err };
+                    }
+                };
+
+                if (totalFiles > 0) {
+                    const concurrency = Math.min(8, totalFiles);
+                    const workers = Array.from({ length: concurrency }, async () => {
+                        while (nextImageIdx < totalFiles) {
+                            const idx = nextImageIdx++;
+                            const relativePath = orderedImages[idx];
+                            decodedResults[idx] = await decodeOneSkinImage(relativePath);
+                            completedCount++;
+                            reportImportProgress(relativePath, completedCount === totalFiles);
+                        }
+                    });
+                    await Promise.all(workers);
+
+                    for (let idx = 0; idx < totalFiles; idx++) {
+                        const relativePath = orderedImages[idx];
+                        const res = decodedResults[idx];
+                        if (!res || res.error || !res.finalImg) {
+                            console.warn(`[跳过无法加载的贴图] ${relativePath}:`, res && res.error);
+                            failedFiles.push(relativePath);
+                            continue;
+                        }
+                        if (res.blobUrl) {
+                            activeSkinBlobUrls.push(res.blobUrl);
+                        }
+                        const nk = normalizeSkinKey(relativePath);
+                        registerSkinImage(nk, res.finalImg);
                     }
                 }
 
@@ -7539,14 +7609,18 @@ async function getBeatmapDecoder() {
             return single ? [single] : null;
         }
 
-        function getManiaNoteDrawHeight(keys, columnIndex, img, colW, scale48) {
+        function getManiaNoteDrawHeight(keys, columnIndex, img, colW, scale48, widthForNoteHeightScalePxOverride = undefined) {
             if (!img || img.width <= 0 || img.height <= 0) return Math.round(20 * scale48);
-            const wnRes = getManiaSkinConfig(keys, LML.WidthForNoteHeightScale);
-
-            // 对齐 osu! lazer / stable 官方规范 (LegacyNotePiece):
-            // float noteHeight = widthForNoteHeightScale ?? DrawWidth;
-            // 贴图高度 = (img.height / img.width) * (widthForNoteHeightScale ?? colW)
-            const baseW = (wnRes && wnRes.value > 0) ? (wnRes.value * scale48) : colW;
+            let baseW = colW;
+            if (widthForNoteHeightScalePxOverride !== undefined) {
+                if (widthForNoteHeightScalePxOverride > 0) baseW = widthForNoteHeightScalePxOverride;
+            } else {
+                const wnRes = getManiaSkinConfig(keys, LML.WidthForNoteHeightScale);
+                // 对齐 osu! lazer / stable 官方规范 (LegacyNotePiece):
+                // float noteHeight = widthForNoteHeightScale ?? DrawWidth;
+                // 贴图高度 = (img.height / img.width) * (widthForNoteHeightScale ?? colW)
+                if (wnRes && wnRes.value > 0) baseW = wnRes.value * scale48;
+            }
             return Math.max(4, baseW * (img.height / img.width));
         }
 
@@ -9856,7 +9930,7 @@ async function getBeatmapDecoder() {
 // ============================================================================
 
         function createKeyImageRenderer(context) {
-            const { keys, colWidths, colXCache, columnPressed, hitPos, canvas } = context;
+            const { keys, colWidths, rawColWidths, colXCache, columnPressed, hitPos, canvas } = context;
 
             return () => {
                 const keyAreaHeight = canvas.height - hitPos;
@@ -9871,8 +9945,13 @@ async function getBeatmapDecoder() {
                         : getManiaSkinImage(keys, LML.KeyImage, i);
 
                     if (keyImg && keyImg.width > 0 && keyImg.height > 0) {
-                        const rawColWRes = getManiaSkinConfig(keys, LML.ColumnWidth, i);
-                        const rawColW = (rawColWRes && rawColWRes.value > 0) ? rawColWRes.value : 30;
+                        let rawColW;
+                        if (rawColWidths && rawColWidths[i] > 0) {
+                            rawColW = rawColWidths[i];
+                        } else {
+                            const rawColWRes = getManiaSkinConfig(keys, LML.ColumnWidth, i);
+                            rawColW = (rawColWRes && rawColWRes.value > 0) ? rawColWRes.value : 30;
+                        }
 
                         const is2x = !!keyImg._is2x;
                         const scaleFactor = is2x ? 3.2 : 1.6;
@@ -9924,108 +10003,309 @@ async function getBeatmapDecoder() {
 
 // --- BEGIN render/frame-notes.js ---
 // ============================================================================
-// frame-notes.js - 帧内 Note 与长条头绘制
+// frame-notes.js - 帧内 Note 与长条头绘制及有序音符索引
 // 从 render/frame.js 按帧内职责拆分；共享数据通过 context 显式传入。
 // ============================================================================
 
-        function createNoteRenderer(context) {
-            const {
-                notesList, colWidths, colXCache, hitPos, currentScrollPosition,
-                speedFactor, canvas, canvasEditMode, activeNoteElements, currentTime,
-                resolveAnimatedNoteImage, keys, scale48, rectTop
-            } = context;
+        const notesRenderIndexCache = new WeakMap();
 
-            return () => {
-                for (let i = 0; i < notesList.length; i++) {
-                    let note = notesList[i];
-                    let w = colWidths[note.column];
-                    let colX = colXCache[note.column];
+        function upperBoundByStartTime(arr, time) {
+            let lo = 0;
+            let hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid].startTime <= time) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
 
-                    if (!note.isHold) {
-                        if (note.hit) continue;
-                        let bottomY = hitPos - (note.scrollPositionStart - currentScrollPosition) * speedFactor;
-                        if (bottomY > canvas.height + 80 || bottomY < -80) continue;
+        function lowerBoundByStartTime(arr, time) {
+            let lo = 0;
+            let hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid].startTime < time) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
 
-                        let noteImg = resolveAnimatedNoteImage(LML.NoteImage, note.column, note.startTime);
-                        const drawHeight = noteImg ? getManiaNoteDrawHeight(keys, note.column, noteImg, w, scale48) : Math.round(20 * scale48);
+        function upperBoundByEndTime(arr, time) {
+            let lo = 0;
+            let hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid].endTime <= time) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
 
-                        if (canvasEditMode && bottomY <= hitPos + 25) {
-                            activeNoteElements.push({
-                                id: `note_${note.column}`,
-                                noteInstanceKey: `note_${note.column}_${note.startTime}`,
-                                name: `第 ${note.column + 1} 轨单键`,
-                                paramKey: `NoteImage${note.column}`,
-                                fallbackParamKey: 'NoteImage',
-                                category: 'Mania',
-                                x: colX,
-                                y: rectTop(bottomY - drawHeight, drawHeight),
-                                w: w,
-                                h: drawHeight,
-                                isTexture: true,
-                                textureName: getManiaNoteTextureName(keys, LML.NoteImage, note.column),
-                                textureKey: LML.NoteImage,
-                                colIndex: note.column,
-                                dragAxis: null,
-                                valFormatter: () => `第 ${note.column + 1} 轨音符`
-                            });
-                        }
+        function lowerBoundByEndTime(arr, time) {
+            let lo = 0;
+            let hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid].endTime < time) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
 
-                        if (noteImg) {
-                            ctx.drawImage(noteImg, colX, bottomY - drawHeight, w, drawHeight);
-                        } else {
-                            const r = 4;
-                            const nh = Math.round(20 * scale48 / 1.5);
-                            ctx.fillStyle = note.column % 2 === 0 ? '#00e5ff' : '#ffffff';
-                            roundRect(ctx, colX + 2, bottomY - nh, w - 4, nh, r);
-                            ctx.fill();
-                        }
-                    } else {
-                        if (currentTime >= note.endTime) continue;
+        function lowerBoundByScrollStart(arr, scrollPos) {
+            let lo = 0;
+            let hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid].scrollPositionStart < scrollPos) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
 
-                        const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, note.column, note.startTime);
-                        const headDrawHeight = holdHeadImg ? getManiaNoteDrawHeight(keys, note.column, holdHeadImg, w, scale48) : Math.round(22 * scale48 / 1.5);
+        function upperBoundByScrollStart(arr, scrollPos) {
+            let lo = 0;
+            let hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid].scrollPositionStart <= scrollPos) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
 
-                        const headAnchorY = getStableHoldHeadAnchorY(
-                            note, currentScrollPosition, currentTime, hitPos, speedFactor
-                        );
-                        const headTopY = headAnchorY - headDrawHeight;
+        function upperBoundInt32(arr, value) {
+            let lo = 0;
+            let hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid] <= value) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
 
-                        if (headAnchorY > canvas.height + 80 || headTopY < -80) continue;
+        function upperBoundFloat64(arr, value) {
+            let lo = 0;
+            let hi = arr.length;
+            while (lo < hi) {
+                const mid = (lo + hi) >>> 1;
+                if (arr[mid] <= value) lo = mid + 1;
+                else hi = mid;
+            }
+            return lo;
+        }
 
-                        if (canvasEditMode && headAnchorY <= hitPos + 25) {
-                            activeNoteElements.push({
-                                id: `hold_head_${note.column}`,
-                                noteInstanceKey: `hold_head_${note.column}_${note.startTime}`,
-                                name: `第 ${note.column + 1} 轨长条头`,
-                                paramKey: `NoteImage${note.column}H`,
-                                fallbackParamKey: 'HoldNoteHeadImage',
-                                category: 'Mania',
-                                x: colX,
-                                y: rectTop(headTopY, headDrawHeight),
-                                w: w,
-                                h: headDrawHeight,
-                                isTexture: true,
-                                textureName: getManiaNoteTextureName(keys, LML.HoldNoteHeadImage, note.column),
-                                textureKey: LML.HoldNoteHeadImage,
-                                colIndex: note.column,
-                                dragAxis: null,
-                                valFormatter: () => `第 ${note.column + 1} 轨长条头`
-                            });
-                        }
+        function buildNotesRenderIndex(notes) {
+            const len = notes.length;
+            const holds = [];
+            const holdIndicesList = [];
+            const comboList = [];
+            let sorted = true;
+            let prevStart = -Infinity;
+            let prevScroll = -Infinity;
 
-                        if (holdHeadImg) {
-                            ctx.drawImage(holdHeadImg, colX, headTopY, w, headDrawHeight);
-                        } else {
-                            const r = 4;
-                            ctx.fillStyle = '#ffffff';
-                            roundRect(ctx, colX + 2, headTopY, w - 4, headDrawHeight, r);
-                            ctx.fill();
-                            if (note.holdHeadFrozen) {
-                                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                                ctx.fillRect(colX + 2, headAnchorY - 3, w - 4, 3);
-                            }
+            for (let i = 0; i < len; i++) {
+                const n = notes[i];
+                const st = Number(n.startTime);
+                const ss = Number(n.scrollPositionStart);
+                if (!Number.isFinite(st) || !Number.isFinite(ss) || st < prevStart || ss < prevScroll) {
+                    sorted = false;
+                    break;
+                }
+                prevStart = st;
+                prevScroll = ss;
+
+                comboList.push(st);
+                if (n.isHold) {
+                    holds.push(n);
+                    holdIndicesList.push(i);
+                    if (n.ticks && n.ticks.length > 0) {
+                        for (let k = 0; k < n.ticks.length; k++) {
+                            comboList.push(n.ticks[k]);
                         }
                     }
+                    comboList.push(n.endTime);
+                }
+            }
+
+            if (!sorted) {
+                return { sorted: false, length: len };
+            }
+
+            const holdCount = holds.length;
+            const holdNoteIndices = Int32Array.from(holdIndicesList);
+            const holdPrefixMaxEnd = new Float64Array(holdCount);
+            const holdPrefixMaxScrollEnd = new Float64Array(holdCount);
+            let maxEnd = -Infinity;
+            let maxScrollEnd = -Infinity;
+            for (let j = 0; j < holdCount; j++) {
+                const h = holds[j];
+                if (h.endTime > maxEnd) maxEnd = h.endTime;
+                if (h.scrollPositionEnd > maxScrollEnd) maxScrollEnd = h.scrollPositionEnd;
+                holdPrefixMaxEnd[j] = maxEnd;
+                holdPrefixMaxScrollEnd[j] = maxScrollEnd;
+            }
+
+            const holdsByEnd = holds.slice().sort((a, b) => a.endTime - b.endTime);
+            const comboEventTimes = Float64Array.from(comboList);
+            comboEventTimes.sort();
+
+            return {
+                sorted: true,
+                length: len,
+                notes,
+                holds,
+                holdNoteIndices,
+                holdPrefixMaxEnd,
+                holdPrefixMaxScrollEnd,
+                holdsByEnd,
+                comboEventTimes,
+                hitCursor: 0,
+                tailHitCursor: 0,
+                lastHitScanTime: -Infinity
+            };
+        }
+
+        function getOrBuildNotesRenderIndex(notes) {
+            if (!Array.isArray(notes) || notes.length === 0) return null;
+            let cached = notesRenderIndexCache.get(notes);
+            if (!cached || cached.length !== notes.length) {
+                cached = buildNotesRenderIndex(notes);
+                notesRenderIndexCache.set(notes, cached);
+            }
+            return cached;
+        }
+
+        function syncNotesRenderIndexCursors(notes, currentTimeMs) {
+            if (!Array.isArray(notes)) return;
+            const cached = notesRenderIndexCache.get(notes);
+            if (!cached || !cached.sorted || cached.length !== notes.length) return;
+            cached.hitCursor = upperBoundByStartTime(cached.notes, currentTimeMs);
+            cached.tailHitCursor = upperBoundByEndTime(cached.holdsByEnd, currentTimeMs);
+            cached.lastHitScanTime = currentTimeMs;
+        }
+
+        function createNoteRenderer(context) {
+            const {
+                notesList, earlyVisibleHolds, visStartIdx, visEndIdx,
+                colWidths, colXCache, hitPos, currentScrollPosition,
+                speedFactor, canvas, canvasEditMode, activeNoteElements, currentTime,
+                resolveAnimatedNoteImage, keys, scale48, rectTop,
+                widthForNoteHeightScalePx, noteTextureNames, holdHeadTextureNames
+            } = context;
+
+            const startIdx = (visStartIdx != null) ? visStartIdx : 0;
+            const endIdx = (visEndIdx != null) ? visEndIdx : notesList.length;
+            const headPreCullPad = Math.max(400, 400 * scale48);
+
+            const drawNoteItem = (note) => {
+                const col = note.column;
+                const w = colWidths[col];
+                const colX = colXCache[col];
+
+                if (!note.isHold) {
+                    if (note.hit) return;
+                    const bottomY = hitPos - (note.scrollPositionStart - currentScrollPosition) * speedFactor;
+                    if (bottomY > canvas.height + 80 || bottomY < -80) return;
+
+                    const noteImg = resolveAnimatedNoteImage(LML.NoteImage, col, note.startTime);
+                    const drawHeight = noteImg
+                        ? getManiaNoteDrawHeight(keys, col, noteImg, w, scale48, widthForNoteHeightScalePx)
+                        : Math.round(20 * scale48);
+
+                    if (canvasEditMode && bottomY <= hitPos + 25) {
+                        activeNoteElements.push({
+                            id: `note_${col}`,
+                            noteInstanceKey: `note_${col}_${note.startTime}`,
+                            name: `第 ${col + 1} 轨单键`,
+                            paramKey: `NoteImage${col}`,
+                            fallbackParamKey: 'NoteImage',
+                            category: 'Mania',
+                            x: colX,
+                            y: rectTop(bottomY - drawHeight, drawHeight),
+                            w: w,
+                            h: drawHeight,
+                            isTexture: true,
+                            textureName: noteTextureNames ? noteTextureNames[col] : getManiaNoteTextureName(keys, LML.NoteImage, col),
+                            textureKey: LML.NoteImage,
+                            colIndex: col,
+                            dragAxis: null,
+                            valFormatter: () => `第 ${col + 1} 轨音符`
+                        });
+                    }
+
+                    if (noteImg) {
+                        ctx.drawImage(noteImg, colX, bottomY - drawHeight, w, drawHeight);
+                    } else {
+                        const r = 4;
+                        const nh = Math.round(20 * scale48 / 1.5);
+                        ctx.fillStyle = col % 2 === 0 ? '#00e5ff' : '#ffffff';
+                        roundRect(ctx, colX + 2, bottomY - nh, w - 4, nh, r);
+                        ctx.fill();
+                    }
+                } else {
+                    if (currentTime >= note.endTime) return;
+
+                    const headAnchorY = getStableHoldHeadAnchorY(
+                        note, currentScrollPosition, currentTime, hitPos, speedFactor
+                    );
+                    // 先用宽松边界裁剪视口外的长条头，再解析序列帧贴图
+                    if (headAnchorY < -80 || headAnchorY > canvas.height + headPreCullPad) return;
+
+                    const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, col, note.startTime);
+                    const headDrawHeight = holdHeadImg
+                        ? getManiaNoteDrawHeight(keys, col, holdHeadImg, w, scale48, widthForNoteHeightScalePx)
+                        : Math.round(22 * scale48 / 1.5);
+                    const headTopY = headAnchorY - headDrawHeight;
+
+                    if (headAnchorY > canvas.height + 80 || headTopY < -80) return;
+
+                    if (canvasEditMode && headAnchorY <= hitPos + 25) {
+                        activeNoteElements.push({
+                            id: `hold_head_${col}`,
+                            noteInstanceKey: `hold_head_${col}_${note.startTime}`,
+                            name: `第 ${col + 1} 轨长条头`,
+                            paramKey: `NoteImage${col}H`,
+                            fallbackParamKey: 'HoldNoteHeadImage',
+                            category: 'Mania',
+                            x: colX,
+                            y: rectTop(headTopY, headDrawHeight),
+                            w: w,
+                            h: headDrawHeight,
+                            isTexture: true,
+                            textureName: holdHeadTextureNames ? holdHeadTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteHeadImage, col),
+                            textureKey: LML.HoldNoteHeadImage,
+                            colIndex: col,
+                            dragAxis: null,
+                            valFormatter: () => `第 ${col + 1} 轨长条头`
+                        });
+                    }
+
+                    if (holdHeadImg) {
+                        ctx.drawImage(holdHeadImg, colX, headTopY, w, headDrawHeight);
+                    } else {
+                        const r = 4;
+                        ctx.fillStyle = '#ffffff';
+                        roundRect(ctx, colX + 2, headTopY, w - 4, headDrawHeight, r);
+                        ctx.fill();
+                        if (note.holdHeadFrozen) {
+                            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                            ctx.fillRect(colX + 2, headAnchorY - 3, w - 4, 3);
+                        }
+                    }
+                }
+            };
+
+            return () => {
+                if (earlyVisibleHolds && earlyVisibleHolds.length > 0) {
+                    for (let i = 0; i < earlyVisibleHolds.length; i++) {
+                        drawNoteItem(earlyVisibleHolds[i]);
+                    }
+                }
+                for (let i = startIdx; i < endIdx; i++) {
+                    drawNoteItem(notesList[i]);
                 }
             };
         }
@@ -10128,7 +10408,7 @@ async function getBeatmapDecoder() {
 
         function renderLightingEffects(context) {
             const {
-                ctx, isPreviewMode, notesList, currentTime, keys, colXCache, colWidths,
+                ctx, isPreviewMode, notesList, activeHoldNotes, currentTime, keys, colXCache, colWidths,
                 scale768, scale48, canvasEditMode, selectedCanvasElement,
                 activeExplosions, effectAnimClockMs, lightPosY, lightFps, rectTop
             } = context;
@@ -10147,12 +10427,17 @@ async function getBeatmapDecoder() {
 
             // 渲染 LightingL: 当前正在按住的长条（对齐 osu!lazer LegacySkin / HoldNoteLightScale）
             if (!isPreviewMode) {
-                for (let i = 0; i < notesList.length; i++) {
-                    const note = notesList[i];
+                const holdCandidates = Array.isArray(activeHoldNotes) ? activeHoldNotes : notesList;
+                const lightingLFrames = getManiaSkinAnimationFrames(keys, LML.HoldNoteLightImage, 0);
+                const lightingLScaleRes = getManiaSkinConfig(keys, LML.HoldNoteLightScale, 0);
+                const holdLightScale = (lightingLScaleRes && lightingLScaleRes.value > 0) ? lightingLScaleRes.value : 1.0;
+
+                for (let i = 0; i < holdCandidates.length; i++) {
+                    const note = holdCandidates[i];
                     if (!note.isHold) continue;
                     if (currentTime >= note.startTime && currentTime <= note.endTime) {
                         const col = note.column;
-                        const frames = getManiaSkinAnimationFrames(keys, LML.HoldNoteLightImage, col);
+                        const frames = (col === 0) ? lightingLFrames : getManiaSkinAnimationFrames(keys, LML.HoldNoteLightImage, col);
                         let drewLight = false;
                         if (frames && frames.length > 0) {
                             const frameIdx = Math.floor(((currentTime - note.startTime) / 1000) * lightFps) % frames.length;
@@ -10161,13 +10446,13 @@ async function getBeatmapDecoder() {
                                 const colX = colXCache[col];
                                 const colW = colWidths[col] || colWidths[0];
                                 // 对齐 osu!lazer: HoldNoteLightScale 缩放 (LightingLWidth / 30 或 ColumnWidth / 30)
-                                const hlsRes = getManiaSkinConfig(keys, LML.HoldNoteLightScale, col);
-                                const holdLightScale = (hlsRes && hlsRes.value > 0) ? hlsRes.value : 1.0;
+                                const hlsRes = (col === 0) ? null : getManiaSkinConfig(keys, LML.HoldNoteLightScale, col);
+                                const scaleVal = (col === 0) ? holdLightScale : ((hlsRes && hlsRes.value > 0) ? hlsRes.value : 1.0);
                                 const is2x = !!img._is2x;
                                 const nativeW = is2x ? img.width / 2 : img.width;
                                 const nativeH = is2x ? img.height / 2 : img.height;
-                                const drawW = nativeW * scale768 * holdLightScale;
-                                const drawH = nativeH * scale768 * holdLightScale;
+                                const drawW = nativeW * scale768 * scaleVal;
+                                const drawH = nativeH * scale768 * scaleVal;
                                 const cx = colX + colW / 2;
 
                                 ctx.save();
@@ -10816,12 +11101,21 @@ async function getBeatmapDecoder() {
                 // 纯皮肤预览同样走这条时间轴；虚拟时钟只负责在无谱面时持续前进。
                 const skinAnimationFps = getSkinAnimationFramerate();
                 const skinAnimationClockMs = currentBeatmap ? currentTime : effectAnimClockMs;
-                const noteFrameCache = new Map();
+                const noteFrameSlots = new Array(4 * keys);
                 const resolveNoteFrames = (lookup, col) => {
-                    const cacheKey = `${lookup}|${col}`;
-                    if (noteFrameCache.has(cacheKey)) return noteFrameCache.get(cacheKey);
-                    const frames = getManiaSkinAnimationFrames(keys, lookup, col) || null;
-                    noteFrameCache.set(cacheKey, frames);
+                    const base = lookup === LML.NoteImage ? 0
+                        : (lookup === LML.HoldNoteHeadImage ? 1
+                        : (lookup === LML.HoldNoteBodyImage ? 2
+                        : (lookup === LML.HoldNoteTailImage ? 3 : -1)));
+                    if (base < 0 || col < 0 || col >= keys) {
+                        return getManiaSkinAnimationFrames(keys, lookup, col) || null;
+                    }
+                    const slot = base * keys + col;
+                    let frames = noteFrameSlots[slot];
+                    if (frames === undefined) {
+                        frames = getManiaSkinAnimationFrames(keys, lookup, col) || null;
+                        noteFrameSlots[slot] = frames;
+                    }
                     return frames;
                 };
                 const resolveAnimatedNoteImage = (lookup, col, animationStartTimeMs = null) => {
@@ -10838,9 +11132,11 @@ async function getBeatmapDecoder() {
                 const isUpsideDown = (udRes && (udRes.value === true || udRes.value === 1 || udRes.value === '1'));
 
                 let colWidths = [];
+                let rawColWidths = [];
                 for (let i = 0; i < keys; i++) {
                     const res = getManiaSkinConfig(keys, LML.ColumnWidth, i);
                     const rawW = (res && res.value > 0) ? res.value : 30;
+                    rawColWidths.push(rawW);
                     colWidths.push(rawW * scale48);
                 }
 
@@ -10954,17 +11250,61 @@ async function getBeatmapDecoder() {
                 let columnPressed = Array(keys).fill(false);
                 let columnLastReleaseTime = Array(keys).fill(-Infinity);
                 const KEY_PRESS_DURATION = 90; // 单键音符贴图触碰判定线后的按键高亮时长(ms)
+                const notesIndex = (!isPreviewMode && notesList.length > 0 && typeof getOrBuildNotesRenderIndex === 'function')
+                    ? getOrBuildNotesRenderIndex(notesList)
+                    : null;
+                const useIndexedNotes = !!(notesIndex && notesIndex.sorted);
+                const activeHoldNotes = [];
+                let currentCombo = 0;
+                let isHoldingLN = false;
 
-                for (let i = 0; i < notesList.length; i++) {
-                    let note = notesList[i];
-                    const col = note.column;
-                    if (col < 0 || col >= keys) continue;
-                    const noteEndTime = note.isHold ? note.endTime : (note.startTime + KEY_PRESS_DURATION);
-                    if (currentTime >= note.startTime && currentTime <= noteEndTime) {
-                        columnPressed[col] = true;
-                    } else if (currentTime > noteEndTime) {
-                        if (noteEndTime > columnLastReleaseTime[col]) {
+                if (useIndexedNotes) {
+                    const startUpper = upperBoundByStartTime(notesList, currentTime);
+                    const tapLookbackStart = lowerBoundByStartTime(
+                        notesList,
+                        currentTime - KEY_PRESS_DURATION - STAGE_LIGHT_FADE_DURATION_MS - 1
+                    );
+                    for (let i = tapLookbackStart; i < startUpper; i++) {
+                        const note = notesList[i];
+                        if (note.isHold) continue;
+                        const col = note.column;
+                        if (col < 0 || col >= keys) continue;
+                        const noteEndTime = note.startTime + KEY_PRESS_DURATION;
+                        if (currentTime >= note.startTime && currentTime <= noteEndTime) {
+                            columnPressed[col] = true;
+                        } else if (currentTime > noteEndTime && noteEndTime > columnLastReleaseTime[col]) {
                             columnLastReleaseTime[col] = noteEndTime;
+                        }
+                    }
+
+                    const holdUpper = upperBoundByStartTime(notesIndex.holds, currentTime);
+                    const minHoldEndForLight = currentTime - STAGE_LIGHT_FADE_DURATION_MS - 1;
+                    for (let j = holdUpper - 1; j >= 0; j--) {
+                        if (notesIndex.holdPrefixMaxEnd[j] < minHoldEndForLight) break;
+                        const note = notesIndex.holds[j];
+                        const col = note.column;
+                        if (currentTime <= note.endTime) {
+                            if (col >= 0 && col < keys) columnPressed[col] = true;
+                            activeHoldNotes.push(note);
+                            if (currentTime < note.endTime) isHoldingLN = true;
+                        } else if (col >= 0 && col < keys && note.endTime > columnLastReleaseTime[col]) {
+                            columnLastReleaseTime[col] = note.endTime;
+                        }
+                    }
+                    if (activeHoldNotes.length > 1) activeHoldNotes.reverse();
+                    currentCombo = upperBoundFloat64(notesIndex.comboEventTimes, currentTime);
+                } else {
+                    for (let i = 0; i < notesList.length; i++) {
+                        let note = notesList[i];
+                        const col = note.column;
+                        if (col < 0 || col >= keys) continue;
+                        const noteEndTime = note.isHold ? note.endTime : (note.startTime + KEY_PRESS_DURATION);
+                        if (currentTime >= note.startTime && currentTime <= noteEndTime) {
+                            columnPressed[col] = true;
+                        } else if (currentTime > noteEndTime) {
+                            if (noteEndTime > columnLastReleaseTime[col]) {
+                                columnLastReleaseTime[col] = noteEndTime;
+                            }
                         }
                     }
                 }
@@ -11010,40 +11350,40 @@ async function getBeatmapDecoder() {
                     scale768, rectTop
                 });
                 // ---- 计算连击数与长按状态 ----
-                let currentCombo = 0;
-                let isHoldingLN = false;
-                if (!isPreviewMode) {
-                    for (let i = 0; i < notesList.length; i++) {
-                        const n = notesList[i];
-                        if (n.isHold) {
-                            if (currentTime >= n.startTime) {
-                                currentCombo++;
-                                if (currentTime < n.endTime) isHoldingLN = true;
-                            }
-                            // 对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中每经过一个 Tick，Combo 持续递增
-                            if (n.ticks && n.ticks.length > 0) {
-                                for (let k = 0; k < n.ticks.length; k++) {
-                                    if (currentTime >= n.ticks[k]) {
-                                        currentCombo++;
-                                    } else {
-                                        break;
+                if (!useIndexedNotes) {
+                    if (!isPreviewMode) {
+                        for (let i = 0; i < notesList.length; i++) {
+                            const n = notesList[i];
+                            if (n.isHold) {
+                                if (currentTime >= n.startTime) {
+                                    currentCombo++;
+                                    if (currentTime < n.endTime) isHoldingLN = true;
+                                }
+                                // 对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中每经过一个 Tick，Combo 持续递增
+                                if (n.ticks && n.ticks.length > 0) {
+                                    for (let k = 0; k < n.ticks.length; k++) {
+                                        if (currentTime >= n.ticks[k]) {
+                                            currentCombo++;
+                                        } else {
+                                            break;
+                                        }
                                     }
                                 }
+                                if (currentTime >= n.endTime) {
+                                    currentCombo++;
+                                }
+                            } else {
+                                if (currentTime >= n.startTime) currentCombo++;
                             }
-                            if (currentTime >= n.endTime) {
-                                currentCombo++;
-                            }
-                        } else {
-                            if (currentTime >= n.startTime) currentCombo++;
                         }
-                    }
-                } else {
-                    currentCombo = 100;
-                    isHoldingLN = false;
-                    for (let i = 0; i < notesList.length; i++) {
-                        const n = notesList[i];
-                        if (n.isHold && currentTime >= n.startTime && currentTime < n.endTime) {
-                            isHoldingLN = true;
+                    } else {
+                        currentCombo = 100;
+                        isHoldingLN = false;
+                        for (let i = 0; i < notesList.length; i++) {
+                            const n = notesList[i];
+                            if (n.isHold && currentTime >= n.startTime && currentTime < n.endTime) {
+                                isHoldingLN = true;
+                            }
                         }
                     }
                 }
@@ -11112,198 +11452,285 @@ async function getBeatmapDecoder() {
                     }
                 }
 
+                const triggerPlaybackNoteJudgement = (now) => {
+                    if (isPreviewJudgementActive) {
+                        const nextLookup = JUDGEMENT_PREVIEW_PATTERN[judgementPreviewIndex % JUDGEMENT_PREVIEW_PATTERN.length];
+                        judgementPreviewIndex++;
+                        triggerJudgement(now, nextLookup);
+                        if (nextLookup === LML.Hit0) {
+                            if (currentCombo > 0) {
+                                playbackSavedCombo = currentCombo;
+                            }
+                            comboAnimState.breakStartTime = now;
+                            comboAnimState.breakCount = (currentCombo > 0) ? currentCombo : ((playbackSavedCombo > 0) ? playbackSavedCombo : 100);
+                            comboAnimState.lastCombo = 0;
+                            playbackBreakResumeTime = now + 380;
+                            currentCombo = 0;
+                        }
+                    } else {
+                        triggerJudgement(now, LML.Hit300g);
+                    }
+                };
+
                 if (!isPreviewMode) {
                     if (typeof scheduleManiaHitsounds === 'function') {
                         scheduleManiaHitsounds(currentTime);
                     }
                     const now = performance.now();
-                    for (let i = 0; i < notesList.length; i++) {
-                        let note = notesList[i];
-                        if (!note.hit && currentTime >= note.startTime) {
-                            note.hit = true;
-                            // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
-                            if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
-                            // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
-                            if (!note.isHold) {
-                                if (isPreviewJudgementActive) {
-                                    const nextLookup = JUDGEMENT_PREVIEW_PATTERN[judgementPreviewIndex % JUDGEMENT_PREVIEW_PATTERN.length];
-                                    judgementPreviewIndex++;
-                                    triggerJudgement(now, nextLookup);
-                                    if (nextLookup === LML.Hit0) {
-                                        // Miss 判定：触发断连爆破动画
-                                        if (currentCombo > 0) {
-                                            playbackSavedCombo = currentCombo;
-                                        }
-                                        comboAnimState.breakStartTime = now;
-                                        comboAnimState.breakCount = (currentCombo > 0) ? currentCombo : ((playbackSavedCombo > 0) ? playbackSavedCombo : 100);
-                                        comboAnimState.lastCombo = 0;
-                                        playbackBreakResumeTime = now + 380;
-                                        currentCombo = 0;
-                                    }
-                                } else {
-                                    triggerJudgement(now, LML.Hit300g);
+                    if (useIndexedNotes) {
+                        if (currentTime < notesIndex.lastHitScanTime) {
+                            notesIndex.hitCursor = lowerBoundByStartTime(notesList, currentTime);
+                            notesIndex.tailHitCursor = lowerBoundByEndTime(notesIndex.holdsByEnd, currentTime);
+                        }
+                        const hitLimit = upperBoundByStartTime(notesList, currentTime);
+                        for (let i = notesIndex.hitCursor; i < hitLimit; i++) {
+                            const note = notesList[i];
+                            if (!note.hit && currentTime >= note.startTime) {
+                                note.hit = true;
+                                // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
+                                if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
+                                // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
+                                if (!note.isHold) {
+                                    triggerPlaybackNoteJudgement(now);
                                 }
+                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
                             }
-                            activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                        }
+                        notesIndex.hitCursor = hitLimit;
+
+                        const tailLimit = upperBoundByEndTime(notesIndex.holdsByEnd, currentTime);
+                        for (let j = notesIndex.tailHitCursor; j < tailLimit; j++) {
+                            const note = notesIndex.holdsByEnd[j];
+                            if (!note.tailHit && currentTime >= note.endTime) {
+                                note.tailHit = true;
+                                if (!isPlaybackEventFresh(note.endTime, currentTime)) continue;
+                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                                triggerPlaybackNoteJudgement(now);
+                            }
+                        }
+                        notesIndex.tailHitCursor = tailLimit;
+                        notesIndex.lastHitScanTime = currentTime;
+                    } else {
+                        for (let i = 0; i < notesList.length; i++) {
+                            let note = notesList[i];
+                            if (!note.hit && currentTime >= note.startTime) {
+                                note.hit = true;
+                                // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
+                                if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
+                                // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
+                                if (!note.isHold) {
+                                    triggerPlaybackNoteJudgement(now);
+                                }
+                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                            }
                         }
                     }
                 }
 
                 // ---- 5. 录制长条身体与长条尾巴的绘制批次（与 Note 共用层级） ----
                 const activeNoteElements = [];
-                const renderHoldNotes = () => {
-                    for (let i = 0; i < notesList.length; i++) {
-                        let note = notesList[i];
-                        if (!note.isHold) continue;
-                        if (currentTime >= note.endTime) {
-                            if (!note.tailHit) {
-                                note.tailHit = true;
-                                if (!isPlaybackEventFresh(note.endTime, currentTime)) continue;
-                                const now = performance.now();
-                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
-                                if (!isPreviewMode) {
-                                    if (isPreviewJudgementActive) {
-                                        const nextLookup = JUDGEMENT_PREVIEW_PATTERN[judgementPreviewIndex % JUDGEMENT_PREVIEW_PATTERN.length];
-                                        judgementPreviewIndex++;
-                                        triggerJudgement(now, nextLookup);
-                                        if (nextLookup === LML.Hit0) {
-                                            if (currentCombo > 0) {
-                                                playbackSavedCombo = currentCombo;
-                                            }
-                                            comboAnimState.breakStartTime = now;
-                                            comboAnimState.breakCount = (currentCombo > 0) ? currentCombo : ((playbackSavedCombo > 0) ? playbackSavedCombo : 100);
-                                            comboAnimState.lastCombo = 0;
-                                            playbackBreakResumeTime = now + 380;
-                                            currentCombo = 0;
-                                        }
-                                    } else {
-                                        triggerJudgement(now, LML.Hit300g);
-                                    }
-                                }
-                            }
-                            continue;
+                const wnRes = getManiaSkinConfig(keys, LML.WidthForNoteHeightScale);
+                const widthForNoteHeightScalePx = (wnRes && wnRes.value > 0) ? (wnRes.value * scale48) : 0;
+                const colNoteBodyStyles = new Array(keys);
+                let noteTextureNames = null;
+                let holdHeadTextureNames = null;
+                let holdBodyTextureNames = null;
+                let holdTailTextureNames = null;
+                if (canvasEditMode) {
+                    noteTextureNames = new Array(keys);
+                    holdHeadTextureNames = new Array(keys);
+                    holdBodyTextureNames = new Array(keys);
+                    holdTailTextureNames = new Array(keys);
+                    for (let c = 0; c < keys; c++) {
+                        noteTextureNames[c] = getManiaNoteTextureName(keys, LML.NoteImage, c);
+                        holdHeadTextureNames[c] = getManiaNoteTextureName(keys, LML.HoldNoteHeadImage, c);
+                        holdBodyTextureNames[c] = getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, c);
+                        holdTailTextureNames[c] = getManiaNoteTextureName(keys, LML.HoldNoteTailImage, c);
+                    }
+                }
+
+                let visStartIdx = 0;
+                let visEndIdx = notesList.length;
+                const earlyVisibleHolds = [];
+                if (useIndexedNotes) {
+                    const windowPad = Math.max(400, 400 * scale48);
+                    const minVisibleScrollPos = currentScrollPosition + (hitPos - canvas.height - windowPad) / speedFactor;
+                    const maxVisibleScrollPos = currentScrollPosition + (hitPos + windowPad) / speedFactor;
+                    visStartIdx = lowerBoundByScrollStart(notesList, minVisibleScrollPos);
+                    visEndIdx = upperBoundByScrollStart(notesList, maxVisibleScrollPos);
+
+                    const holdSearchEnd = upperBoundInt32(notesIndex.holdNoteIndices, visStartIdx - 1);
+                    for (let j = holdSearchEnd - 1; j >= 0; j--) {
+                        if (notesIndex.holdPrefixMaxScrollEnd[j] < minVisibleScrollPos ||
+                            notesIndex.holdPrefixMaxEnd[j] <= currentTime) {
+                            break;
                         }
+                        const hold = notesIndex.holds[j];
+                        if (hold.endTime > currentTime && hold.scrollPositionEnd >= minVisibleScrollPos) {
+                            earlyVisibleHolds.push(hold);
+                        }
+                    }
+                    if (earlyVisibleHolds.length > 1) earlyVisibleHolds.reverse();
+                }
 
-                        let w = colWidths[note.column];
-                        let colX = colXCache[note.column];
-
-                        const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, note.column, note.startTime);
-                        const holdTailImg = resolveAnimatedNoteImage(LML.HoldNoteTailImage, note.column, note.endTime);
-                        const holdBodyImg = resolveAnimatedNoteImage(LML.HoldNoteBodyImage, note.column);
-
-                        const headDrawHeight = holdHeadImg ? getManiaNoteDrawHeight(keys, note.column, holdHeadImg, w, scale48) : Math.round(20 * scale48);
-                        const tailDrawHeight = holdTailImg ? getManiaNoteDrawHeight(keys, note.column, holdTailImg, w, scale48) : Math.round(20 * scale48);
-
-                        const holdGeometry = getStableHoldNoteGeometry(
-                            note, currentScrollPosition, currentTime, hitPos, speedFactor,
-                            headDrawHeight, tailDrawHeight
-                        );
-                        note.holdHeadFrozen = holdGeometry.headFrozen;
-
-                        const {
-                            headAnchorY,
-                            headTopY,
-                            headCenterY,
-                            tailAnchorY: tailBottomY,
-                            tailTopY,
-                            bodyTopY: bodyTop,
-                            bodyBottomY: bodyBottom,
-                            bodyHeight
-                        } = holdGeometry;
-
-                        const wholeTop = Math.min(headTopY, tailTopY, bodyTop);
-                        const wholeBottom = Math.max(headAnchorY, tailBottomY, bodyBottom);
-                        if (wholeBottom < -100 || wholeTop > canvas.height + 100) continue;
-
-                        // 5a. 身体 (近端位于头部中心，长度只由头尾下端锚点决定)
-                        if (bodyHeight > 0.5) {
-                            if (canvasEditMode && bodyHeight > 4 && bodyTop < canvas.height && bodyBottom > 0 && bodyTop <= hitPos + 25) {
-                                activeNoteElements.push({
-                                    id: `hold_body_${note.column}`,
-                                    noteInstanceKey: `hold_body_${note.column}_${note.startTime}`,
-                                    name: `第 ${note.column + 1} 轨长条身`,
-                                    paramKey: `NoteImage${note.column}L`,
-                                    fallbackParamKey: 'HoldNoteBodyImage',
-                                    category: 'Mania',
-                                    x: colX,
-                                    y: rectTop(bodyTop, bodyHeight),
-                                    w: w,
-                                    h: bodyHeight,
-                                    isTexture: true,
-                                    textureName: getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, note.column),
-                                    textureKey: LML.HoldNoteBodyImage,
-                                    colIndex: note.column,
-                                    dragAxis: null,
-                                    valFormatter: () => `第 ${note.column + 1} 轨长条身`
-                                });
-                            }
-
-                            if (holdBodyImg) {
-                                const nbsRes = getManiaSkinConfig(keys, LML.NoteBodyStyle, note.column);
-                                const style = (nbsRes && nbsRes.value != null) ? nbsRes.value : NOTE_BODY_STYLE.RepeatFromTail;
-                                drawStableHoldBodyTexture(ctx, holdBodyImg, style, colX, w, bodyTop, bodyHeight);
-                            } else {
-                                const inset = 5;
-                                const bx = colX + inset;
-                                const bw = w - inset * 2;
-                                const grad = ctx.createLinearGradient(bx, bodyTop, bx, bodyBottom);
-                                const baseColor = note.column % 2 === 0 ? '0, 229, 255' : '255, 255, 255';
-                                grad.addColorStop(0, `rgba(${baseColor}, 0.55)`);
-                                grad.addColorStop(1, `rgba(${baseColor}, 0.75)`);
-                                ctx.fillStyle = grad;
-                                roundRect(ctx, bx, bodyTop, bw, bodyHeight, 4);
-                                ctx.fill();
-
-                                ctx.save();
-                                ctx.globalAlpha = 0.35;
-                                ctx.fillStyle = `rgba(255,255,255,0.85)`;
-                                ctx.fillRect(bx + bw * 0.35, bodyTop + 2, bw * 0.3, bodyHeight);
-                                ctx.restore();
+                const holdPreCullPad = Math.max(400, 400 * scale48);
+                const renderHoldNoteItem = (note) => {
+                    if (!note.isHold) return;
+                    if (currentTime >= note.endTime) {
+                        if (!useIndexedNotes && !note.tailHit) {
+                            note.tailHit = true;
+                            if (!isPlaybackEventFresh(note.endTime, currentTime)) return;
+                            const now = performance.now();
+                            activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                            if (!isPreviewMode) {
+                                triggerPlaybackNoteJudgement(now);
                             }
                         }
+                        return;
+                    }
 
-                        // 5b. 尾巴 (到达头部中点即停止渲染)
-                        if (tailBottomY > -tailDrawHeight * 2 && tailTopY < canvas.height + tailDrawHeight * 2) {
-                            if (canvasEditMode && tailBottomY <= hitPos + 25) {
-                                activeNoteElements.push({
-                                    id: `hold_tail_${note.column}`,
-                                    noteInstanceKey: `hold_tail_${note.column}_${note.startTime}`,
-                                    name: `第 ${note.column + 1} 轨长条尾`,
-                                    paramKey: `NoteImage${note.column}T`,
-                                    fallbackParamKey: 'HoldNoteTailImage',
-                                    category: 'Mania',
-                                    x: colX,
-                                    y: rectTop(tailTopY, tailDrawHeight),
-                                    w: w,
-                                    h: tailDrawHeight,
-                                    isTexture: true,
-                                    textureName: getManiaNoteTextureName(keys, LML.HoldNoteTailImage, note.column),
-                                    textureKey: LML.HoldNoteTailImage,
-                                    colIndex: note.column,
-                                    dragAxis: null,
-                                    valFormatter: () => `第 ${note.column + 1} 轨长条尾`
-                                });
+                    const headAnchorYPre = getStableHoldHeadAnchorY(
+                        note, currentScrollPosition, currentTime, hitPos, speedFactor
+                    );
+                    const tailAnchorYPre = getStableHoldTailAnchorY(
+                        note, currentScrollPosition, hitPos, speedFactor
+                    );
+                    note.holdHeadFrozen = currentTime >= note.startTime;
+                    if (headAnchorYPre < -100 || tailAnchorYPre > canvas.height + holdPreCullPad) return;
+
+                    const col = note.column;
+                    const w = colWidths[col];
+                    const colX = colXCache[col];
+
+                    const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, col, note.startTime);
+                    const holdTailImg = resolveAnimatedNoteImage(LML.HoldNoteTailImage, col, note.endTime);
+
+                    const headDrawHeight = holdHeadImg ? getManiaNoteDrawHeight(keys, col, holdHeadImg, w, scale48, widthForNoteHeightScalePx) : Math.round(20 * scale48);
+                    const tailDrawHeight = holdTailImg ? getManiaNoteDrawHeight(keys, col, holdTailImg, w, scale48, widthForNoteHeightScalePx) : Math.round(20 * scale48);
+
+                    const holdGeometry = getStableHoldNoteGeometry(
+                        note, currentScrollPosition, currentTime, hitPos, speedFactor,
+                        headDrawHeight, tailDrawHeight
+                    );
+                    note.holdHeadFrozen = holdGeometry.headFrozen;
+
+                    const {
+                        headAnchorY,
+                        headTopY,
+                        headCenterY,
+                        tailAnchorY: tailBottomY,
+                        tailTopY,
+                        bodyTopY: bodyTop,
+                        bodyBottomY: bodyBottom,
+                        bodyHeight
+                    } = holdGeometry;
+
+                    const wholeTop = Math.min(headTopY, tailTopY, bodyTop);
+                    const wholeBottom = Math.max(headAnchorY, tailBottomY, bodyBottom);
+                    if (wholeBottom < -100 || wholeTop > canvas.height + 100) return;
+
+                    // 5a. 身体 (近端位于头部中心，长度只由头尾下端锚点决定)
+                    if (bodyHeight > 0.5) {
+                        const holdBodyImg = resolveAnimatedNoteImage(LML.HoldNoteBodyImage, col);
+                        if (canvasEditMode && bodyHeight > 4 && bodyTop < canvas.height && bodyBottom > 0 && bodyTop <= hitPos + 25) {
+                            activeNoteElements.push({
+                                id: `hold_body_${col}`,
+                                noteInstanceKey: `hold_body_${col}_${note.startTime}`,
+                                name: `第 ${col + 1} 轨长条身`,
+                                paramKey: `NoteImage${col}L`,
+                                fallbackParamKey: 'HoldNoteBodyImage',
+                                category: 'Mania',
+                                x: colX,
+                                y: rectTop(bodyTop, bodyHeight),
+                                w: w,
+                                h: bodyHeight,
+                                isTexture: true,
+                                textureName: holdBodyTextureNames ? holdBodyTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, col),
+                                textureKey: LML.HoldNoteBodyImage,
+                                colIndex: col,
+                                dragAxis: null,
+                                valFormatter: () => `第 ${col + 1} 轨长条身`
+                            });
+                        }
+
+                        if (holdBodyImg) {
+                            let style = colNoteBodyStyles[col];
+                            if (style === undefined) {
+                                const nbsRes = getManiaSkinConfig(keys, LML.NoteBodyStyle, col);
+                                style = (nbsRes && nbsRes.value != null) ? nbsRes.value : NOTE_BODY_STYLE.RepeatFromTail;
+                                colNoteBodyStyles[col] = style;
                             }
+                            drawStableHoldBodyTexture(ctx, holdBodyImg, style, colX, w, bodyTop, bodyHeight);
+                        } else {
+                            const inset = 5;
+                            const bx = colX + inset;
+                            const bw = w - inset * 2;
+                            const grad = ctx.createLinearGradient(bx, bodyTop, bx, bodyBottom);
+                            const baseColor = col % 2 === 0 ? '0, 229, 255' : '255, 255, 255';
+                            grad.addColorStop(0, `rgba(${baseColor}, 0.55)`);
+                            grad.addColorStop(1, `rgba(${baseColor}, 0.75)`);
+                            ctx.fillStyle = grad;
+                            roundRect(ctx, bx, bodyTop, bw, bodyHeight, 4);
+                            ctx.fill();
 
                             ctx.save();
-                            ctx.beginPath();
-                            ctx.rect(0, 0, canvas.width, Math.max(0, headCenterY));
-                            ctx.clip();
-
-                            if (holdTailImg) {
-                                ctx.save();
-                                ctx.translate(colX, tailBottomY);
-                                ctx.scale(1, -1);
-                                ctx.drawImage(holdTailImg, 0, 0, w, tailDrawHeight);
-                                ctx.restore();
-                            } else {
-                                ctx.fillStyle = note.column % 2 === 0 ? '#00b8d4' : '#cccccc';
-                                const rh = tailDrawHeight;
-                                roundRect(ctx, colX + 4, tailTopY, w - 8, rh, 4);
-                                ctx.fill();
-                            }
+                            ctx.globalAlpha = 0.35;
+                            ctx.fillStyle = `rgba(255,255,255,0.85)`;
+                            ctx.fillRect(bx + bw * 0.35, bodyTop + 2, bw * 0.3, bodyHeight);
                             ctx.restore();
                         }
+                    }
+
+                    // 5b. 尾巴 (到达头部中点即停止渲染)
+                    if (tailBottomY > -tailDrawHeight * 2 && tailTopY < canvas.height + tailDrawHeight * 2) {
+                        if (canvasEditMode && tailBottomY <= hitPos + 25) {
+                            activeNoteElements.push({
+                                id: `hold_tail_${col}`,
+                                noteInstanceKey: `hold_tail_${col}_${note.startTime}`,
+                                name: `第 ${col + 1} 轨长条尾`,
+                                paramKey: `NoteImage${col}T`,
+                                fallbackParamKey: 'HoldNoteTailImage',
+                                category: 'Mania',
+                                x: colX,
+                                y: rectTop(tailTopY, tailDrawHeight),
+                                w: w,
+                                h: tailDrawHeight,
+                                isTexture: true,
+                                textureName: holdTailTextureNames ? holdTailTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteTailImage, col),
+                                textureKey: LML.HoldNoteTailImage,
+                                colIndex: col,
+                                dragAxis: null,
+                                valFormatter: () => `第 ${col + 1} 轨长条尾`
+                            });
+                        }
+
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(0, 0, canvas.width, Math.max(0, headCenterY));
+                        ctx.clip();
+
+                        if (holdTailImg) {
+                            ctx.save();
+                            ctx.translate(colX, tailBottomY);
+                            ctx.scale(1, -1);
+                            ctx.drawImage(holdTailImg, 0, 0, w, tailDrawHeight);
+                            ctx.restore();
+                        } else {
+                            ctx.fillStyle = col % 2 === 0 ? '#00b8d4' : '#cccccc';
+                            const rh = tailDrawHeight;
+                            roundRect(ctx, colX + 4, tailTopY, w - 8, rh, 4);
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                    }
+                };
+
+                const renderHoldNotes = () => {
+                    for (let i = 0; i < earlyVisibleHolds.length; i++) {
+                        renderHoldNoteItem(earlyVisibleHolds[i]);
+                    }
+                    for (let i = visStartIdx; i < visEndIdx; i++) {
+                        renderHoldNoteItem(notesList[i]);
                     }
                 };
 
@@ -11315,12 +11742,14 @@ async function getBeatmapDecoder() {
                 const keysUnderNotes = (kunRes && (kunRes.value === 1 || kunRes.value === '1' || kunRes.value === true)) ? 1 : 0;
 
                 const renderKeyImages = createKeyImageRenderer({
-                    keys, colWidths, colXCache, columnPressed, hitPos, canvas
+                    keys, colWidths, rawColWidths, colXCache, columnPressed, hitPos, canvas
                 });
                 const renderNotes = createNoteRenderer({
-                    notesList, colWidths, colXCache, hitPos, currentScrollPosition,
+                    notesList, earlyVisibleHolds, visStartIdx, visEndIdx,
+                    colWidths, colXCache, hitPos, currentScrollPosition,
                     speedFactor, canvas, canvasEditMode, activeNoteElements, currentTime,
-                    resolveAnimatedNoteImage, keys, scale48, rectTop
+                    resolveAnimatedNoteImage, keys, scale48, rectTop,
+                    widthForNoteHeightScalePx, noteTextureNames, holdHeadTextureNames
                 });
                 // 根据 keysUnderNotes 决定渲染层级：
                 // 1: Note 渲染在 KeyImage 上
@@ -11381,7 +11810,8 @@ async function getBeatmapDecoder() {
                 // 画布交互层据此判断某一轨的打击特效此刻是否可见：只有可见（正在爆发 / 正在按住长条）
                 // 时，该轨元素才可被点选——与音符等元素一致，不再依赖常驻占位框。
                 const activeLightingBoxes = renderLightingEffects({
-                    ctx, isPreviewMode, notesList, currentTime, keys, colXCache, colWidths,
+                    ctx, isPreviewMode, notesList, activeHoldNotes: useIndexedNotes ? activeHoldNotes : null,
+                    currentTime, keys, colXCache, colWidths,
                     scale768, scale48, canvasEditMode, selectedCanvasElement,
                     activeExplosions, effectAnimClockMs, lightPosY, lightFps, rectTop
                 });
@@ -11761,6 +12191,52 @@ async function getBeatmapDecoder() {
 // 依赖：render/fonts.js、render/textures.js
 // ============================================================================
 
+        const songProgressPieOverlayCache = {
+            scaleKey: '',
+            canvas: null,
+            halfSize: 0
+        };
+
+        function getSongProgressPieOverlay(scale768) {
+            const scaleKey = scale768.toFixed(4);
+            if (songProgressPieOverlayCache.canvas && songProgressPieOverlayCache.scaleKey === scaleKey) {
+                return songProgressPieOverlayCache;
+            }
+            const pieDiameter = 33 * scale768;
+            const borderWidth = 2 * scale768;
+            const dotRadius = 2 * scale768;
+            const glowBlur = 3 * scale768;
+            const pad = Math.ceil(glowBlur * 2 + borderWidth) + 4;
+            const size = Math.max(8, Math.ceil(pieDiameter + pad * 2));
+            const halfSize = size / 2;
+
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = size;
+            offCanvas.height = size;
+            const offCtx = offCanvas.getContext('2d');
+            if (offCtx) {
+                offCtx.save();
+                offCtx.shadowColor = 'rgba(255, 255, 255, 0.4)';
+                offCtx.shadowBlur = glowBlur;
+                offCtx.strokeStyle = '#ffffff';
+                offCtx.lineWidth = borderWidth;
+                offCtx.beginPath();
+                offCtx.arc(halfSize, halfSize, (pieDiameter - borderWidth) / 2, 0, Math.PI * 2);
+                offCtx.stroke();
+                offCtx.restore();
+
+                offCtx.fillStyle = '#ffffff';
+                offCtx.beginPath();
+                offCtx.arc(halfSize, halfSize, dotRadius, 0, Math.PI * 2);
+                offCtx.fill();
+            }
+
+            songProgressPieOverlayCache.scaleKey = scaleKey;
+            songProgressPieOverlayCache.canvas = offCanvas;
+            songProgressPieOverlayCache.halfSize = halfSize;
+            return songProgressPieOverlayCache;
+        }
+
 
         function drawTopRightHUD(keys, scale768) {
             const hudInteractiveElements = [];
@@ -11964,24 +12440,11 @@ async function getBeatmapDecoder() {
                 ctx.fill();
             }
 
-            // 2. 外部白色圆环边框 (直径 33px，线宽 2px，带抗锯齿辉光)
-            ctx.save();
-            ctx.shadowColor = 'rgba(255, 255, 255, 0.4)';
-            ctx.shadowBlur = 3 * scale768;
-            const borderWidth = 2 * scale768;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = borderWidth;
-            ctx.beginPath();
-            ctx.arc(pieCenterX, pieCenterY, (pieDiameter - borderWidth) / 2, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
-
-            // 3. 中心小白圆点 (直径 4px，半径 2px)
-            const dotRadius = 2 * scale768;
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(pieCenterX, pieCenterY, dotRadius, 0, Math.PI * 2);
-            ctx.fill();
+            // 2 & 3. 外部白色圆环边框 + 中心小白圆点（使用按 scale768 缓存的离屏图形，避免逐帧 shadowBlur）
+            const pieOverlay = getSongProgressPieOverlay(scale768);
+            if (pieOverlay.canvas) {
+                ctx.drawImage(pieOverlay.canvas, pieCenterX - pieOverlay.halfSize, pieCenterY - pieOverlay.halfSize);
+            }
 
             ctx.restore();
 
@@ -12256,9 +12719,35 @@ async function getBeatmapDecoder() {
                     note.hit = (currentTimeMs >= note.startTime);
                 }
             }
+            if (typeof syncNotesRenderIndexCursors === 'function') {
+                syncNotesRenderIndexCursors(activeNotes, currentTimeMs);
+            }
             if (typeof reconcileManiaHitsoundCues === 'function') {
                 reconcileManiaHitsoundCues(currentTimeMs);
             }
+        }
+
+        function drawGlowHandlePill(targetCtx, x, y, w, h, radius, isActive) {
+            const haloExpand = isActive ? 3 : 2;
+            targetCtx.save();
+            targetCtx.fillStyle = isActive ? 'rgba(255, 102, 170, 0.28)' : 'rgba(255, 255, 255, 0.22)';
+            targetCtx.beginPath();
+            if (targetCtx.roundRect) {
+                targetCtx.roundRect(x - haloExpand, y - haloExpand, w + haloExpand * 2, h + haloExpand * 2, radius + haloExpand);
+            } else {
+                targetCtx.rect(x - haloExpand, y - haloExpand, w + haloExpand * 2, h + haloExpand * 2);
+            }
+            targetCtx.fill();
+
+            targetCtx.fillStyle = isActive ? '#ffffff' : 'rgba(255, 255, 255, 0.95)';
+            targetCtx.beginPath();
+            if (targetCtx.roundRect) {
+                targetCtx.roundRect(x, y, w, h, radius);
+            } else {
+                targetCtx.rect(x, y, w, h);
+            }
+            targetCtx.fill();
+            targetCtx.restore();
         }
 
         // 说明：打击特效 (LightingN / LightingL) 过去会绘制一层「常驻虚线占位框」用于点选。
@@ -12299,11 +12788,16 @@ async function getBeatmapDecoder() {
             ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
             ctx.fill();
 
-            // 高亮边框描边 (纯白带微发光)
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.45 + 0.5 * ease})`;
+            // 高亮边框描边（分层半透明外描边替代逐帧 shadowBlur）
+            const strokeAlpha = 0.45 + 0.5 * ease;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${(0.12 * ease).toFixed(3)})`;
+            ctx.lineWidth = 6;
+            ctx.stroke();
+            ctx.strokeStyle = `rgba(255, 255, 255, ${(0.22 * ease).toFixed(3)})`;
+            ctx.lineWidth = 3.5;
+            ctx.stroke();
+            ctx.strokeStyle = `rgba(255, 255, 255, ${strokeAlpha.toFixed(3)})`;
             ctx.lineWidth = 1.8;
-            ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
-            ctx.shadowBlur = 8;
             ctx.stroke();
 
             // 针对单轨元素渲染精致的右边缘拉伸控制条手柄
@@ -12315,18 +12809,7 @@ async function getBeatmapDecoder() {
                     canvasDragState.element && canvasDragState.element.id === elem.id &&
                     canvasDragState.dragType === 'column_width');
 
-                ctx.save();
-                ctx.fillStyle = isDraggingWidth ? '#ffffff' : 'rgba(255, 255, 255, 0.95)';
-                ctx.shadowColor = isDraggingWidth ? 'rgba(255, 102, 170, 0.9)' : 'rgba(255, 255, 255, 0.75)';
-                ctx.shadowBlur = isDraggingWidth ? 12 : 8;
-                ctx.beginPath();
-                if (ctx.roundRect) {
-                    ctx.roundRect(rightX - 2.5, handleY, 5, handleH, 2.5);
-                } else {
-                    ctx.rect(rightX - 2.5, handleY, 5, handleH);
-                }
-                ctx.fill();
-                ctx.restore();
+                drawGlowHandlePill(ctx, rightX - 2.5, handleY, 5, handleH, 2.5, isDraggingWidth);
             }
 
             // KeyImage 上边框拉伸手柄：向上拖补底部透明像素，向下拖裁短 PNG，从而改变有效高度。
@@ -12340,18 +12823,7 @@ async function getBeatmapDecoder() {
                     canvasDragState.element && canvasDragState.element.id === elem.id &&
                     canvasDragState.dragType === 'key_image_height');
 
-                ctx.save();
-                ctx.fillStyle = isDraggingHeight ? '#ffffff' : 'rgba(255, 255, 255, 0.95)';
-                ctx.shadowColor = isDraggingHeight ? 'rgba(255, 102, 170, 0.95)' : 'rgba(255, 255, 255, 0.75)';
-                ctx.shadowBlur = isDraggingHeight ? 12 : 8;
-                ctx.beginPath();
-                if (ctx.roundRect) {
-                    ctx.roundRect(handleX, edgeY - handleH / 2, handleW, handleH, handleH / 2);
-                } else {
-                    ctx.rect(handleX, edgeY - handleH / 2, handleW, handleH);
-                }
-                ctx.fill();
-                ctx.restore();
+                drawGlowHandlePill(ctx, handleX, edgeY - handleH / 2, handleW, handleH, handleH / 2, isDraggingHeight);
             }
 
             // 贯穿全屏的水平参考虚线（针对判定线、连击数、判定评价、光效等 Y 轴位置元素：选中期间持续常驻显示，拖动与步进实时联动）
@@ -28184,6 +28656,43 @@ void primeDefaultSkin();
 // ============================================================================
 
         let nextTextureCreatorTabId = 1;
+        let textureCreatorPreviewTimer = null;
+        let textureCreatorPreviewRaf = 0;
+
+        function cancelScheduledTextureCreatorPreview() {
+            if (textureCreatorPreviewTimer) {
+                clearTimeout(textureCreatorPreviewTimer);
+                textureCreatorPreviewTimer = null;
+            }
+            if (textureCreatorPreviewRaf) {
+                cancelAnimationFrame(textureCreatorPreviewRaf);
+                textureCreatorPreviewRaf = 0;
+            }
+        }
+
+        function updateTextureCreatorPreviewLabels() {
+            const sizeLabel = byId('textureImageCreatePreviewSize');
+            const specLabel = byId('textureImageCreateSpecLabel');
+            if (sizeLabel) {
+                sizeLabel.textContent = `${textureCreatorState.width} × ${textureCreatorState.height}px`;
+            }
+            if (specLabel) {
+                specLabel.textContent = textureCreatorState.spec === '2x' ? '@2x' : '1x';
+            }
+        }
+
+        function scheduleTextureCreatorPreview() {
+            updateTextureCreatorPreviewLabels();
+            syncActiveCreatorTabDirtyDot();
+            cancelScheduledTextureCreatorPreview();
+            textureCreatorPreviewTimer = setTimeout(() => {
+                textureCreatorPreviewTimer = null;
+                textureCreatorPreviewRaf = requestAnimationFrame(() => {
+                    textureCreatorPreviewRaf = 0;
+                    refreshTextureCreatorPreview();
+                });
+            }, 80);
+        }
 
         function createTextureCreatorState(options = {}) {
             const editPath = options.editPath || null;
@@ -28399,15 +28908,9 @@ void primeDefaultSkin();
         }
 
         function refreshTextureCreatorPreview() {
+            cancelScheduledTextureCreatorPreview();
             const canvas = byId('textureImageCreatePreviewCanvas');
-            const sizeLabel = byId('textureImageCreatePreviewSize');
-            const specLabel = byId('textureImageCreateSpecLabel');
-            if (sizeLabel) {
-                sizeLabel.textContent = `${textureCreatorState.width} × ${textureCreatorState.height}px`;
-            }
-            if (specLabel) {
-                specLabel.textContent = textureCreatorState.spec === '2x' ? '@2x' : '1x';
-            }
+            updateTextureCreatorPreviewLabels();
             renderTextureCreatorShapePreviews();
             if (!canvas) return;
 
@@ -28762,6 +29265,7 @@ void primeDefaultSkin();
         }
 
         function closeTextureCreator() {
+            cancelScheduledTextureCreatorPreview();
             const tab = getActiveTab();
             if (!tab || tab.kind !== 'creator') return false;
             return removeTab(tab.id, { restorePreview: true });
@@ -28783,22 +29287,39 @@ void primeDefaultSkin();
                 throw new Error(`画布尺寸过大，单边不能超过 ${TEXTURE_SOLID_SHAPE_MAX_DIMENSION}px`);
             }
 
+            const checkedSpec = document.querySelector('input[name="textureImageCreateSpec"]:checked');
+            const spec = checkedSpec ? (checkedSpec.value === '2x' ? '2x' : '1x') : textureCreatorState.spec;
+            const colorHexInput = byId('textureImageCreateColorHex');
+            const colorInput = byId('textureImageCreateColor');
+            const rawColor = (colorHexInput && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(colorHexInput.value.trim()))
+                ? colorHexInput.value
+                : ((colorInput && colorInput.value) || textureCreatorState.color);
+            const color = normalizeTextureHexColor(rawColor);
+
             const alphaValue = Number((byId('textureImageCreateAlphaValue') || {}).value);
             const alpha = Number.isFinite(alphaValue)
                 ? Math.max(0, Math.min(100, Math.round(alphaValue)))
                 : textureCreatorState.alpha;
+            const strokeColorHexInput = byId('textureImageCreateStrokeColorHex');
+            const strokeColorInput = byId('textureImageCreateStrokeColor');
+            const rawStrokeColor = (strokeColorHexInput && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(strokeColorHexInput.value.trim()))
+                ? strokeColorHexInput.value
+                : ((strokeColorInput && strokeColorInput.value) || textureCreatorState.strokeColor);
+            const strokeColor = normalizeTextureHexColor(rawStrokeColor);
             const strokeAlphaValue = Number(
                 (byId('textureImageCreateStrokeAlphaValue') || {}).value
             );
             const strokeAlpha = Number.isFinite(strokeAlphaValue)
                 ? Math.max(0, Math.min(100, Math.round(strokeAlphaValue)))
                 : textureCreatorState.strokeAlpha;
+            const strokeEnabledInput = byId('textureImageCreateStrokeEnabled');
             const strokeWidthValue = Number(
                 (byId('textureImageCreateStrokeWidthValue') || {}).value
             );
-            const strokeWidth = Number.isFinite(strokeWidthValue)
+            const parsedStrokeWidth = Number.isFinite(strokeWidthValue)
                 ? Math.max(0, Math.min(64, Math.round(strokeWidthValue)))
                 : textureCreatorState.strokeWidth;
+            const strokeWidth = (strokeEnabledInput && !strokeEnabledInput.checked) ? 0 : parsedStrokeWidth;
             const radiusValue = Number((byId('textureImageCreateCornerRadius') || {}).value);
             const cornerRadius = normalizeTextureCreatorCornerRadius(
                 radiusValue,
@@ -28832,7 +29353,10 @@ void primeDefaultSkin();
             textureCreatorState.name = rawName;
             textureCreatorState.width = width;
             textureCreatorState.height = height;
+            textureCreatorState.spec = spec;
+            textureCreatorState.color = color;
             textureCreatorState.alpha = alpha;
+            textureCreatorState.strokeColor = strokeColor;
             textureCreatorState.strokeWidth = strokeWidth;
             textureCreatorState.strokeEnabled = strokeWidth > 0;
             textureCreatorState.strokeAlpha = strokeAlpha;
@@ -28845,12 +29369,12 @@ void primeDefaultSkin();
                 name: rawName,
                 width,
                 height,
-                spec: textureCreatorState.spec,
-                is2x: textureCreatorState.spec === '2x',
-                color: textureCreatorState.color,
+                spec,
+                is2x: spec === '2x',
+                color,
                 alpha,
                 strokeEnabled: textureCreatorState.strokeEnabled,
-                strokeColor: textureCreatorState.strokeColor,
+                strokeColor,
                 strokeAlpha,
                 strokeWidth,
                 shape: textureCreatorState.shape,
@@ -28863,6 +29387,7 @@ void primeDefaultSkin();
         }
 
         async function createTextureFromCreator() {
+            cancelScheduledTextureCreatorPreview();
             const errorEl = byId('textureImageCreateNameError');
             if (errorEl) {
                 errorEl.textContent = '';
@@ -29002,7 +29527,7 @@ void primeDefaultSkin();
             if (!Number.isFinite(value)) return;
             textureCreatorState.alpha = Math.max(0, Math.min(100, Math.round(value)));
             updateTextureCreatorAlphaInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorStrokeEnabled(enabled) {
@@ -29016,10 +29541,11 @@ void primeDefaultSkin();
             refreshTextureCreatorPreview();
         }
 
-        function applyTextureCreatorStrokeColor(rawValue) {
+        function applyTextureCreatorStrokeColor(rawValue, immediate = false) {
             textureCreatorState.strokeColor = normalizeTextureHexColor(rawValue);
             updateTextureCreatorStrokeInputs();
-            refreshTextureCreatorPreview();
+            if (immediate) refreshTextureCreatorPreview();
+            else scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorStrokeWidth(rawValue) {
@@ -29032,7 +29558,7 @@ void primeDefaultSkin();
             );
             textureCreatorState.strokeEnabled = textureCreatorState.strokeWidth > 0;
             updateTextureCreatorStrokeInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorStrokeAlpha(rawValue) {
@@ -29044,13 +29570,14 @@ void primeDefaultSkin();
                 Math.min(100, Math.round(value))
             );
             updateTextureCreatorStrokeInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
-        function applyTextureCreatorFillTransparentColor(rawValue) {
+        function applyTextureCreatorFillTransparentColor(rawValue, immediate = false) {
             textureCreatorState.fillTransparentColor = normalizeTextureHexColor(rawValue);
             updateTextureCreatorFillTransparentInputs();
-            refreshTextureCreatorPreview();
+            if (immediate) refreshTextureCreatorPreview();
+            else scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorFillTransparentAlpha(rawValue) {
@@ -29062,7 +29589,7 @@ void primeDefaultSkin();
                 Math.min(100, Math.round(value))
             );
             updateTextureCreatorFillTransparentInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorCornerRadius(rawValue) {
@@ -29071,7 +29598,7 @@ void primeDefaultSkin();
             if (!Number.isFinite(value)) return;
             textureCreatorState.cornerRadius = normalizeTextureCreatorCornerRadius(value);
             updateTextureCreatorCornerInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorArrowThickness(rawValue) {
@@ -29080,7 +29607,7 @@ void primeDefaultSkin();
             if (!Number.isFinite(value)) return;
             textureCreatorState.arrowThickness = Math.max(8, Math.min(50, Math.round(value)));
             updateTextureCreatorArrowInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function applyTextureCreatorArrowRoundness(rawValue) {
@@ -29089,7 +29616,7 @@ void primeDefaultSkin();
             if (!Number.isFinite(value)) return;
             textureCreatorState.arrowRoundness = Math.max(0, Math.min(100, Math.round(value)));
             updateTextureCreatorArrowInputs();
-            refreshTextureCreatorPreview();
+            scheduleTextureCreatorPreview();
         }
 
         function initTextureCreatorUI() {
@@ -29149,7 +29676,7 @@ void primeDefaultSkin();
                     if (!Number.isInteger(value) || value < 1) return;
                     textureCreatorState.width = value;
                     updateTextureCreatorCornerInputs();
-                    refreshTextureCreatorPreview();
+                    scheduleTextureCreatorPreview();
                 });
             }
             if (heightInput) {
@@ -29158,14 +29685,14 @@ void primeDefaultSkin();
                     if (!Number.isInteger(value) || value < 1) return;
                     textureCreatorState.height = value;
                     updateTextureCreatorCornerInputs();
-                    refreshTextureCreatorPreview();
+                    scheduleTextureCreatorPreview();
                 });
             }
             if (colorInput) {
                 colorInput.addEventListener('input', () => {
                     textureCreatorState.color = normalizeTextureHexColor(colorInput.value);
                     if (colorHexInput) colorHexInput.value = textureCreatorState.color;
-                    refreshTextureCreatorPreview();
+                    scheduleTextureCreatorPreview();
                 });
             }
             if (colorHexInput) {
@@ -29174,7 +29701,7 @@ void primeDefaultSkin();
                     if (!/^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(raw)) return;
                     textureCreatorState.color = normalizeTextureHexColor(raw);
                     if (colorInput) colorInput.value = textureCreatorState.color;
-                    refreshTextureCreatorPreview();
+                    scheduleTextureCreatorPreview();
                 });
                 colorHexInput.addEventListener('blur', () => {
                     textureCreatorState.color = normalizeTextureHexColor(colorHexInput.value);
@@ -29206,7 +29733,7 @@ void primeDefaultSkin();
                     applyTextureCreatorStrokeColor(raw);
                 });
                 strokeColorHexInput.addEventListener('blur', () => {
-                    applyTextureCreatorStrokeColor(strokeColorHexInput.value);
+                    applyTextureCreatorStrokeColor(strokeColorHexInput.value, true);
                 });
             }
             if (strokeWidthRange) {
@@ -29241,7 +29768,7 @@ void primeDefaultSkin();
                     applyTextureCreatorFillTransparentColor(raw);
                 });
                 fillTransparentColorHexInput.addEventListener('blur', () => {
-                    applyTextureCreatorFillTransparentColor(fillTransparentColorHexInput.value);
+                    applyTextureCreatorFillTransparentColor(fillTransparentColorHexInput.value, true);
                 });
             }
             if (fillTransparentAlphaRange) {
@@ -34741,6 +35268,14 @@ void primeDefaultSkin();
             }
             state = (activeTab && activeTab.kind === 'texture') ? activeTab.state : menuState;
             syncActiveTabView({ installPreview: false });
+            if (activeTab && activeTab.kind === 'texture' && activeTab.target && activeTab.target.p &&
+                typeof isEditingKeyImageParam === 'function' &&
+                isEditingKeyImageParam(activeTab.target.p)) {
+                const recipe = getStoredTextureEditRecipe(activeTab.target);
+                if (recipe && typeof applyKeyImageHeightCropInputOverride === 'function') {
+                    applyKeyImageHeightCropInputOverride(activeTab, { currentParams: recipe.params });
+                }
+            }
             if (typeof renderPicker === 'function') renderPicker();
             return refreshedAny;
         }
