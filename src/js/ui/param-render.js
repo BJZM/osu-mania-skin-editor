@@ -623,12 +623,21 @@
                         textInput.title = '直接输入 RGBA 格式数值 (r,g,b,a)';
 
                         const updateColourBarline = (recordUndo = true) => {
-                            if (recordUndo) recordSkinUndoBeforeChange('调整小节线颜色');
                             const hex = picker.value;
                             const r = parseInt(hex.slice(1, 3), 16);
                             const g = parseInt(hex.slice(3, 5), 16);
                             const b = parseInt(hex.slice(5, 7), 16);
                             const a = parseInt(alphaSlider.value, 10);
+                            const prevBarline = cfg.ColourBarline;
+                            const prevAlpha = prevBarline && prevBarline.a != null ? prevBarline.a : 255;
+                            const isSameBarline = !!prevBarline &&
+                                prevBarline.r === r &&
+                                prevBarline.g === g &&
+                                prevBarline.b === b &&
+                                prevAlpha === a;
+                            if (recordUndo && !isSameBarline) {
+                                recordSkinUndoBeforeChange('调整小节线颜色');
+                            }
                             const pct = ((a / 255) * 100).toFixed(1) + '%';
                             alphaSlider.style.setProperty('--slider-pct', pct);
                             updateBarlineLabel(a);
@@ -637,9 +646,9 @@
                             drawFrame();
                         };
 
-                        picker.oninput = () => updateColourBarline(false);
+                        picker.oninput = () => updateColourBarline(true);
                         picker.onchange = () => updateColourBarline(true);
-                        alphaSlider.oninput = () => updateColourBarline(false);
+                        alphaSlider.oninput = () => updateColourBarline(true);
                         alphaSlider.onchange = () => updateColourBarline(true);
 
                         textInput.onchange = (e) => {

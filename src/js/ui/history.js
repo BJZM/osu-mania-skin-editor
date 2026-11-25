@@ -189,6 +189,55 @@
             ]));
         }
 
+        function cloneCreatedTextureParamsEntryForHistory(entry) {
+            if (!entry || typeof entry !== 'object') return entry;
+            if (typeof cloneTextureEditParams === 'function') {
+                return cloneTextureEditParams(entry);
+            }
+            try {
+                return JSON.parse(JSON.stringify(entry));
+            } catch (_) {
+                return {
+                    ...entry,
+                    generalEditParams: entry.generalEditParams
+                        ? {
+                            ...entry.generalEditParams,
+                            cropRect: entry.generalEditParams.cropRect
+                                ? { ...entry.generalEditParams.cropRect }
+                                : null,
+                            imageTransform: entry.generalEditParams.imageTransform
+                                ? { ...entry.generalEditParams.imageTransform }
+                                : null,
+                            rgbAdjustment: entry.generalEditParams.rgbAdjustment
+                                ? { ...entry.generalEditParams.rgbAdjustment }
+                                : null
+                        }
+                        : undefined
+                };
+            }
+        }
+
+        function cloneTextureEditRecipesForHistory(recipesMap) {
+            if (!(recipesMap instanceof Map)) return null;
+            return new Map(Array.from(recipesMap.entries(), ([k, v]) => [k, {
+                sourceFrames: (v.sourceFrames || []).map((f) => cloneFrame(f)),
+                originalReference: v.originalReference,
+                keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
+                    ? cloneKeyImageEditSources(v.keyImageOriginalSources)
+                    : {},
+                params: v.params ? {
+                    ...v.params,
+                    imageTransform: typeof cloneImageTransform === 'function'
+                        ? cloneImageTransform(v.params.imageTransform)
+                        : (v.params.imageTransform ? { ...v.params.imageTransform } : null),
+                    rgbAdjustment: typeof cloneRgbAdjustment === 'function'
+                        ? cloneRgbAdjustment(v.params.rgbAdjustment)
+                        : (v.params.rgbAdjustment ? { ...v.params.rgbAdjustment } : null)
+                } : null,
+                outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
+            }]));
+        }
+
         function createSkinSnapshot(desc = '操作') {
             return {
                 desc,
@@ -204,25 +253,12 @@
                     : new Map(),
                 userReplacedTextures: new Map(userReplacedTextures),
                 deletedSkinTexturePaths: new Set(deletedSkinTexturePaths),
-                createdSkinTextureParams: new Map(Array.from(createdSkinTextureParams.entries(), ([k, v]) => [k, { ...v }])),
+                createdSkinTextureParams: new Map(Array.from(
+                    createdSkinTextureParams.entries(),
+                    ([k, v]) => [k, cloneCreatedTextureParamsEntryForHistory(v)]
+                )),
                 textureEditRecipes: (typeof textureEditRecipes !== 'undefined' && textureEditRecipes instanceof Map)
-                    ? new Map(Array.from(textureEditRecipes.entries(), ([k, v]) => [k, {
-                        sourceFrames: (v.sourceFrames || []).map((f) => cloneFrame(f)),
-                        originalReference: v.originalReference,
-                        keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
-                            ? cloneKeyImageEditSources(v.keyImageOriginalSources)
-                            : {},
-                        params: v.params ? {
-                            ...v.params,
-                            imageTransform: typeof cloneImageTransform === 'function'
-                                ? cloneImageTransform(v.params.imageTransform)
-                                : (v.params.imageTransform ? { ...v.params.imageTransform } : null),
-                            rgbAdjustment: typeof cloneRgbAdjustment === 'function'
-                                ? cloneRgbAdjustment(v.params.rgbAdjustment)
-                                : (v.params.rgbAdjustment ? { ...v.params.rgbAdjustment } : null)
-                        } : null,
-                        outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
-                    }]))
+                    ? cloneTextureEditRecipesForHistory(textureEditRecipes)
                     : null,
                 longBodyComposerSessions: cloneLongBodyComposerSessionsForHistory(),
                 activeEditorKeyCount: activeEditorKeyCount,
@@ -262,6 +298,24 @@
             continuousActionTimer = setTimeout(() => {
                 continuousActionActive = false;
             }, 600);
+        }
+
+        function rollbackLastRecordedSkinUndo(expectedSnapshot, previousRedoStack = null) {
+            if (!expectedSnapshot || undoStack.length === 0) return false;
+            if (undoStack[undoStack.length - 1] !== expectedSnapshot) return false;
+            undoStack.pop();
+            if (Array.isArray(previousRedoStack)) {
+                redoStack.length = 0;
+                redoStack.push(...previousRedoStack);
+            }
+            if (continuousActionTimer) {
+                clearTimeout(continuousActionTimer);
+                continuousActionTimer = null;
+            }
+            continuousActionActive = false;
+            applySkinSnapshot(expectedSnapshot);
+            updateUndoButtonState();
+            return true;
         }
 
         function syncTextureEditorNonTextureSettings() {
@@ -317,30 +371,15 @@
                 createdSkinTextureParams.clear();
                 if (snap.createdSkinTextureParams) {
                     for (const [k, v] of snap.createdSkinTextureParams.entries()) {
-                        createdSkinTextureParams.set(k, { ...v });
+                        createdSkinTextureParams.set(k, cloneCreatedTextureParamsEntryForHistory(v));
                     }
                 }
                 if (typeof textureEditRecipes !== 'undefined' && textureEditRecipes instanceof Map) {
                     textureEditRecipes.clear();
-                    if (snap.textureEditRecipes) {
-                        for (const [k, v] of snap.textureEditRecipes.entries()) {
-                            textureEditRecipes.set(k, {
-                                sourceFrames: (v.sourceFrames || []).map((f) => cloneFrame(f)),
-                                originalReference: v.originalReference,
-                                keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
-                                    ? cloneKeyImageEditSources(v.keyImageOriginalSources)
-                                    : {},
-                                params: v.params ? {
-                                    ...v.params,
-                                    imageTransform: typeof cloneImageTransform === 'function'
-                                        ? cloneImageTransform(v.params.imageTransform)
-                                        : (v.params.imageTransform ? { ...v.params.imageTransform } : null),
-                                    rgbAdjustment: typeof cloneRgbAdjustment === 'function'
-                                        ? cloneRgbAdjustment(v.params.rgbAdjustment)
-                                        : (v.params.rgbAdjustment ? { ...v.params.rgbAdjustment } : null)
-                                } : null,
-                                outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
-                            });
+                    const clonedRecipes = cloneTextureEditRecipesForHistory(snap.textureEditRecipes);
+                    if (clonedRecipes) {
+                        for (const [k, v] of clonedRecipes.entries()) {
+                            textureEditRecipes.set(k, v);
                         }
                     }
                 }
@@ -532,16 +571,7 @@
             try {
                 if (window.skinWorkspaceRevision) window.skinWorkspaceRevision.reset();
                 initialSkinSnapshot = {
-                    maniaSkinConfigurations: cloneManiaSkinConfigs(maniaSkinConfigurations),
-                    currentSkinMetadata: JSON.parse(JSON.stringify(currentSkinMetadata)),
-                    skinFontsConfig: { ...skinFontsConfig },
-                    globalSkinImageLookups: new Map(globalSkinImageLookups),
-                    skinImageStore: cloneSkinImageStore(skinImageStore),
-                    skinFallbackImageStore: cloneSkinImageStore(skinFallbackImageStore),
-                    skinHitsoundReplacements: typeof cloneSkinHitsoundReplacements === 'function'
-                        ? cloneSkinHitsoundReplacements()
-                        : new Map(),
-                    deletedSkinTexturePaths: new Set(deletedSkinTexturePaths),
+                    ...createSkinSnapshot('初始皮肤'),
                     revisionId: 0
                 };
                 undoStack.length = 0;

@@ -65,6 +65,36 @@
 
         let textureCreatorState = createTextureCreatorState({ assignDefaultName: false });
 
+        function captureTextureCreatorBaseline(cs) {
+            if (!cs) return null;
+            return {
+                name: String(cs.name || ''),
+                width: Number(cs.width) || 0,
+                height: Number(cs.height) || 0,
+                spec: cs.spec === '2x' ? '2x' : '1x',
+                color: String(cs.color || '').toLowerCase(),
+                alpha: Number(cs.alpha),
+                strokeEnabled: !!cs.strokeEnabled,
+                strokeColor: String(cs.strokeColor || '').toLowerCase(),
+                strokeAlpha: Number(cs.strokeAlpha),
+                strokeWidth: Number(cs.strokeWidth) || 0,
+                shape: String(cs.shape || ''),
+                cornerRadius: Number(cs.cornerRadius) || 0,
+                arrowThickness: Number(cs.arrowThickness) || 0,
+                arrowRoundness: Number(cs.arrowRoundness) || 0,
+                fillTransparentColor: String(cs.fillTransparentColor || '').toLowerCase(),
+                fillTransparentAlpha: Number(cs.fillTransparentAlpha) || 0
+            };
+        }
+
+        function isTextureCreatorStateDirty(cs) {
+            if (!cs || !cs.editPath || !cs.previewSnapshot) return false;
+            const base = cs.baseline;
+            if (!base) return true;
+            const cur = captureTextureCreatorBaseline(cs);
+            return Object.keys(base).some((key) => base[key] !== cur[key]);
+        }
+
         function generateDefaultTextureName(prefix = 'texture') {
             const sources = typeof collectExistingTextureSources === 'function'
                 ? collectExistingTextureSources()
@@ -272,7 +302,25 @@
             return frame;
         }
 
+        function syncActiveCreatorTabDirtyDot(tab = (typeof getActiveTab === 'function' ? getActiveTab() : null)) {
+            if (!tab || tab.kind !== 'creator' ||
+                typeof isTabDirty !== 'function' || typeof renderTabs !== 'function') {
+                return;
+            }
+            const tabEl = document.querySelector(`.texture-image-tab[data-tab-id="${tab.id}"]`);
+            const hasDirtyDot = !!(tabEl && tabEl.querySelector('.texture-image-tab-dirty'));
+            if (hasDirtyDot !== isTabDirty(tab)) {
+                renderTabs();
+            }
+        }
+
         function refreshTextureCreatorCanvasPreview() {
+            const modal = byId('textureImageEditorModal');
+            const activeTab = typeof getActiveTab === 'function' ? getActiveTab() : null;
+            if (!modal || !modal.classList.contains('active') || modal.classList.contains('is-closing') ||
+                !activeTab || activeTab.kind !== 'creator' || activeTab.creatorState !== textureCreatorState) {
+                return false;
+            }
             if (!textureCreatorState.editPath ||
                 typeof installTextureFramesAtPath !== 'function' ||
                 typeof drawFrame !== 'function') {
@@ -286,6 +334,7 @@
                     { draw: false }
                 );
                 drawFrame();
+                syncActiveCreatorTabDirtyDot();
                 return true;
             } catch (err) {
                 console.warn('生成设置画布实时预览失败:', err);
@@ -482,6 +531,7 @@
                 }
                 break;
             }
+            syncActiveCreatorTabDirtyDot(tab);
         }
 
         function openTextureCreator(options = {}) {
@@ -500,6 +550,7 @@
                     creatorState.previewSnapshot = createSkinSnapshot(
                         '生成设置实时预览基线'
                     );
+                    creatorState.baseline = captureTextureCreatorBaseline(creatorState);
                 }
                 tab = {
                     id: getNextTextureCreatorTabId(),
@@ -533,7 +584,7 @@
         function closeTextureCreator() {
             const tab = getActiveTab();
             if (!tab || tab.kind !== 'creator') return false;
-            return closeTab(tab.id);
+            return removeTab(tab.id, { restorePreview: true });
         }
 
         function readTextureCreatorPayload() {

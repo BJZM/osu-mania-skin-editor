@@ -475,6 +475,9 @@
             }
 
             const cleanupState = () => {
+                if (typeof resetTextureCreatorState === 'function') {
+                    resetTextureCreatorState();
+                }
                 Object.assign(menuState, createEditorState());
                 menuState.previewSnapshot = null;
                 state = menuState;

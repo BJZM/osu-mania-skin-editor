@@ -6,6 +6,7 @@ const outputDir = path.join(root, 'site');
 
 const files = [
   'index.html',
+  'googled9f619fe06c64c49.html',
   'LICENSE',
   'THIRD_PARTY_NOTICES.md',
   'src/css/style.css',

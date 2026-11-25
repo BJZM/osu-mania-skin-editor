@@ -427,7 +427,7 @@
             return buildLongBodyCompositeForSourceAsync(composer, maxHeight, onProgress);
         }
 
-        function regenerateLongBodyComposite() {
+        function regenerateLongBodyComposite(options = {}) {
             const composer = state.longBodyComposer;
             const output = buildLongBodyComposite(LONG_BODY_PREVIEW_HEIGHT);
             if (!output) return;
@@ -451,7 +451,7 @@
             updateCropInputs(state.cropRect);
             state.snapGuides = null;
             state.contentBoundsCache = null;
-            if (!composer.preserveImportedOutput) {
+            if (options.installPreview !== false && !composer.preserveImportedOutput) {
                 installFramesToStores(state.previewFrames, state.selected, { persist: false });
             }
             updateMeta();

@@ -243,8 +243,14 @@
                         ? null
                         : `${normalizedPath}-${index}`;
                     if (!staleBase || index < serialized.length) continue;
-                    currentSkinZip.remove(`${staleBase}.png`);
-                    currentSkinZip.remove(`${staleBase}@2x.png`);
+                    const stalePng = `${staleBase}.png`.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                    const stale2xPng = `${staleBase}@2x.png`.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                    for (const zipName of Object.keys(currentSkinZip.files || {})) {
+                        const normalizedZip = zipName.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                        if (normalizedZip === stalePng || normalizedZip === stale2xPng) {
+                            deletedSkinTexturePaths.add(normalizedZip);
+                        }
+                    }
                 }
             }
 
@@ -395,8 +401,14 @@
                 userReplacedTextures.delete(`${frameKey}.png`);
                 userReplacedTextures.delete(`${frameKey}@2x.png`);
                 if (currentSkinZip) {
-                    currentSkinZip.remove(`${frameKey}.png`);
-                    currentSkinZip.remove(`${frameKey}@2x.png`);
+                    const stalePng = `${frameKey}.png`.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                    const stale2xPng = `${frameKey}@2x.png`.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                    for (const zipName of Object.keys(currentSkinZip.files || {})) {
+                        const normalizedZip = zipName.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                        if (normalizedZip === stalePng || normalizedZip === stale2xPng) {
+                            deletedSkinTexturePaths.add(normalizedZip);
+                        }
+                    }
                 }
             }
 

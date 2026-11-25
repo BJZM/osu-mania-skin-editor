@@ -333,8 +333,9 @@
                     }
                 }
                 for (const name of Object.keys(currentSkinZip.files || {})) {
-                    if (candidates.has(name) || candidates.has(name.toLowerCase())) {
-                        currentSkinZip.remove(name);
+                    const normalizedArchive = name.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                    if (candidates.has(name) || candidates.has(name.toLowerCase()) || candidates.has(normalizedArchive)) {
+                        deletedSkinTexturePaths.add(normalizedArchive);
                     }
                 }
             }
@@ -359,7 +360,9 @@
                         normalized === normalizeSkinKey(`${base}.png`) ||
                         normalized === normalizeSkinKey(`${base}@2x.png`)
                     )) {
-                        currentSkinZip.remove(name);
+                        deletedSkinTexturePaths.add(
+                            name.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase()
+                        );
                     }
                 }
             }
@@ -387,7 +390,11 @@
             for (const name of skinImageStore.keys()) add(name);
             for (const name of skinFallbackImageStore.keys()) add(name);
             if (currentSkinZip) {
-                for (const name of Object.keys(currentSkinZip.files || {})) add(name);
+                for (const name of Object.keys(currentSkinZip.files || {})) {
+                    const normalizedArchive = name.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                    if (deletedSkinTexturePaths.has(normalizedArchive)) continue;
+                    add(name);
+                }
             }
             return bases;
         }
@@ -500,7 +507,7 @@
             return true;
         }
 
-        function enableLongBodyComposer(session = null) {
+        function enableLongBodyComposer(session = null, options = {}) {
             if (!isHoldBodySelected()) return false;
             const composer = state.longBodyComposer;
             const nextSessionKey = getLongBodySessionKey();
@@ -589,8 +596,10 @@
                 : null;
             state.previewBaseViewport = null;
             state.previewViewport = null;
-            setNoteBodyStyleOne(false, false);
-            regenerateLongBodyComposite();
+            if (options.installPreview !== false) {
+                setNoteBodyStyleOne(false, false);
+            }
+            regenerateLongBodyComposite({ installPreview: options.installPreview });
             updateLongBodyComposerUI();
             renderTabs();
             return true;
@@ -681,7 +690,7 @@
             const oppositeFileName = `${base}${is2x ? '.png' : '@2x.png'}`;
             userReplacedTextures.set(fileName, serialized.arrayBuffer);
             userReplacedTextures.delete(oppositeFileName);
-            deletedSkinTexturePaths.delete(fileName.toLowerCase());
+            deletedSkinTexturePaths.delete(fileName.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase());
 
             assignTextureParamLookup(keys, param, base);
             syncParamInputValue(paramKey, base);

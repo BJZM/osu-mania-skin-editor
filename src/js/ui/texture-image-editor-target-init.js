@@ -44,7 +44,7 @@
             return sources;
         }
 
-        function initializeTextureTab(tab) {
+        function initializeTextureTab(tab, options = {}) {
             const target = tab.target;
             state = tab.state;
             state.selected = target;
@@ -152,7 +152,7 @@
                 : null;
             resetEditorHistory();
             if (session) {
-                enableLongBodyComposer(session);
+                enableLongBodyComposer(session, options);
             } else {
                 updateLongBodyComposerUI();
             }

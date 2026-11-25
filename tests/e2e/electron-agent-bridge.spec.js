@@ -85,6 +85,34 @@ test('Electron Agent Bridge exposes the live renderer session over loopback', as
     expect(preview.mimeType).toBe('image/png');
     expect(preview.imageBase64.length).toBeGreaterThan(100);
 
+    const iniResult = await invokeBridge(discovery, 'skin_ini_get');
+    expect(iniResult.ok).toBe(true);
+    expect(iniResult.text).toContain('[Mania]');
+
+    const hitsoundsResult = await invokeBridge(discovery, 'skin_hitsound_list');
+    expect(hitsoundsResult.ok).toBe(true);
+    expect(hitsoundsResult.total).toBeGreaterThan(0);
+
+    const undoResult = await invokeBridge(discovery, 'skin_undo');
+    expect(undoResult.ok).toBe(true);
+
+    const inspectResult = await invokeBridge(discovery, 'texture_inspect', { paramKey: 'NoteImage0' });
+    expect(inspectResult.ok).toBe(true);
+    expect(inspectResult.paramKey).toBe('NoteImage0');
+
+    const blankResult = await invokeBridge(discovery, 'texture_set_blank', { paramKey: 'StageHint' });
+    expect(blankResult.ok).toBe(true);
+    expect(blankResult.isBlank).toBe(true);
+
+    const createResult = await invokeBridge(discovery, 'texture_create', {
+      paramKey: 'KeyImage0',
+      width: 128,
+      height: 64,
+      shape: 'rectangle'
+    });
+    expect(createResult.ok).toBe(true);
+    expect(createResult.path).toBeTruthy();
+
     const invalidTokenResponse = await fetch(`${discovery.url}/invoke`, {
       method: 'POST',
       headers: {

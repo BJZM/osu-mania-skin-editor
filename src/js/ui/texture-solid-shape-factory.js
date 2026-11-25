@@ -599,10 +599,10 @@
             // vx[i], vy[i] 记录该像素到达最近外部/透明像素的二维相对位移向量。
             // 使用真欧几里得距离 Math.hypot(vx, vy) 计算描边，避免切比雪夫距离 (L_inf)
             // 在对角线方向上膨胀 1.414 倍导致大描边宽度时圆形内凹成菱形/星形、箭头边缘畸变的问题。
-            const INF = 1e9;
-            const vx = new Int16Array(regionLength);
-            const vy = new Int16Array(regionLength);
-            const distSq = new Float64Array(regionLength);
+            const INF = 0xffffffff;
+            const vx = new Int32Array(regionLength);
+            const vy = new Int32Array(regionLength);
+            const distSq = new Uint32Array(regionLength);
 
             for (let y = 0; y < regionHeight; y++) {
                 const sourceY = top + y;
@@ -616,8 +616,8 @@
                         distSq[idx] = 0;
                     } else {
                         let edgeD = INF;
-                        let evx = 9999;
-                        let evy = 9999;
+                        let evx = 100000;
+                        let evy = 100000;
                         if (sourceX === 0) {
                             edgeD = 1; evx = 1; evy = 0;
                         }

@@ -10,6 +10,7 @@
 - `skinAgentSession.capturePreview({ state })`：返回当前 Canvas 的 PNG Base64。
 - `skinAgentSession.validate()`：返回缺失贴图、未配置槽位和大尺寸警告。
 - `skinAgentSession.exportPackage({ format, mode })`：返回完整 `.osk` / `.zip` 归档数据。
+- `skinAgentSession.dispatch(method, params)`：分发 `skin_undo`、`skin_redo`、`skin_revert`、`skin_config_reset`、`skin_ini_get`、`skin_hitsound_list`、`skin_hitsound_apply`、`skin_hitsound_reset`、`texture_inspect`、`texture_edit`、`texture_stretch_fix`、`texture_set_blank`、`texture_reset`、`texture_create`、`texture_longbody_apply` 等语义方法。
 - `skinAgentSession.getRevision()`、`notifyExternalMutation(desc)`、`isApplying()`：维护并发版本与历史事务。
 - 写操作遇到过期 revision 必须返回 `STALE_REVISION`；批次任一操作失败时必须整体回滚。
 

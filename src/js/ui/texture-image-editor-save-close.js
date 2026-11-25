@@ -3,62 +3,114 @@
 // 由 texture-image-editor.js 按职责拆分；所有脚本共享既有经典脚本作用域。
 // ============================================================================
 
-        function refreshSavedTabTarget(savedTab) {
-            if (!savedTab || savedTab.kind !== 'texture' || !savedTab.target) {
-                return;
+        function resolveRefreshedTabTarget(tab) {
+            if (!tab || tab.kind !== 'texture' || !tab.target) {
+                return null;
             }
-            if (savedTab.target.kind === 'library') {
-                const path = savedTab.target.libraryPath || savedTab.target.base;
+            if (tab.target.kind === 'library') {
+                const path = tab.target.libraryPath || tab.target.base;
                 const source = collectExistingTextureSources().find((item) =>
                     normalizeSkinKey(item.path) === normalizeSkinKey(path)
                 );
-                if (!source) return;
-                const target = buildTextureLibraryEditorTarget(source, {
-                    paramKey: savedTab.target.libraryParamKey
-                });
-                if (!target) return;
-                savedTab.target = target;
-                savedTab.title = target.p.zhName;
-                if (getActiveTab() === savedTab) state.selected = target;
-                return;
+                if (!source) return null;
+                return buildTextureLibraryEditorTarget(source, {
+                    paramKey: tab.target.libraryParamKey
+                }) || null;
             }
-            if (!savedTab.target.p) return;
-            const p = getTextureTabParams().find((item) => item.key === savedTab.target.p.key);
-            if (!p) return;
+            if (!tab.target.p) return null;
+            const p = getTextureTabParams().find((item) => item.key === tab.target.p.key);
+            if (!p) return null;
             const target = buildEditorTarget(p);
-            if (!target || !target.selectable) return;
+            return (target && target.selectable) ? target : null;
+        }
+
+        function refreshSavedTabTarget(savedTab) {
+            const target = resolveRefreshedTabTarget(savedTab);
+            if (!target) return;
             savedTab.target = target;
+            if (target.kind === 'library' && target.p) {
+                savedTab.title = target.p.zhName;
+            }
             if (getActiveTab() === savedTab) state.selected = target;
         }
 
         function refreshTextureImageEditorAfterSkinHistory() {
             const modal = byId('textureImageEditorModal');
             if (!modal || !modal.classList.contains('active')) return false;
-            const tab = getActiveTab();
-            if (!tab || tab.kind !== 'texture' || !tab.target || !tab.target.p) {
-                syncActiveTabView({ installPreview: false });
-                return false;
+
+            const previousActiveTabId = activeTabId;
+            let refreshedAny = false;
+            const nextTabs = [];
+
+            for (const tab of tabs) {
+                if (!tab) continue;
+                if (tab.kind === 'creator' && tab.creatorState && tab.creatorState.editPath) {
+                    if (typeof hasCreatedTextureParams === 'function' &&
+                        !hasCreatedTextureParams(tab.creatorState.editPath)) {
+                        continue;
+                    }
+                    if (typeof createTextureCreatorState === 'function') {
+                        const refreshedState = createTextureCreatorState({
+                            editPath: tab.creatorState.editPath
+                        });
+                        refreshedState.paramKey = tab.creatorState.paramKey || null;
+                        refreshedState.previewSnapshot = tab.creatorState.previewSnapshot || editorBaseSnapshot;
+                        refreshedState.targetPickerOpen = tab.creatorState.targetPickerOpen;
+                        refreshedState.targetCollapsedGroups = tab.creatorState.targetCollapsedGroups;
+                        if (typeof captureTextureCreatorBaseline === 'function') {
+                            refreshedState.baseline = captureTextureCreatorBaseline(refreshedState);
+                        }
+                        tab.creatorState = refreshedState;
+                        if (typeof getTextureCreatorTabTitle === 'function') {
+                            tab.title = getTextureCreatorTabTitle(refreshedState);
+                        }
+                        refreshedAny = true;
+                    }
+                    nextTabs.push(tab);
+                    continue;
+                }
+
+                if (tab.kind !== 'texture' || !tab.target) {
+                    nextTabs.push(tab);
+                    continue;
+                }
+
+                const target = resolveRefreshedTabTarget(tab);
+                if (!target) {
+                    if (tab.state) clearEditorStateTimers(tab.state);
+                    continue;
+                }
+
+                tab.target = target;
+                if (target.kind === 'library' && target.p) {
+                    tab.title = target.p.zhName;
+                }
+                initializeTextureTab(tab, { installPreview: false });
+                if (target.p &&
+                    typeof isEditingKeyImageParam === 'function' &&
+                    isEditingKeyImageParam(target.p)) {
+                    const recipe = getStoredTextureEditRecipe(tab.target);
+                    if (recipe && typeof applyKeyImageHeightCropInputOverride === 'function') {
+                        applyKeyImageHeightCropInputOverride(tab, { currentParams: recipe.params });
+                    }
+                }
+                refreshedAny = true;
+                nextTabs.push(tab);
             }
-            if (typeof isEditingKeyImageParam !== 'function' ||
-                !isEditingKeyImageParam(tab.target.p)) {
-                syncActiveTabView({ installPreview: false });
-                return false;
+
+            tabs = nextTabs;
+            if (!getTabById(previousActiveTabId)) {
+                const fallbackTab = getTabById('texture-library') || menuTab;
+                activeTabId = fallbackTab.id;
             }
-            const p = getTextureTabParams().find((item) => item.key === tab.target.p.key);
-            const target = p ? buildEditorTarget(p) : null;
-            if (!target || !target.selectable) {
-                syncActiveTabView({ installPreview: false });
-                return false;
+            const activeTab = getActiveTab();
+            if (activeTab && activeTab.kind === 'creator' && activeTab.creatorState) {
+                textureCreatorState = activeTab.creatorState;
             }
-            tab.target = target;
-            initializeTextureTab(tab);
-            state = tab.state;
+            state = (activeTab && activeTab.kind === 'texture') ? activeTab.state : menuState;
             syncActiveTabView({ installPreview: false });
-            const recipe = getStoredTextureEditRecipe(tab.target);
-            if (recipe && typeof applyKeyImageHeightCropInputOverride === 'function') {
-                applyKeyImageHeightCropInputOverride(tab, { currentParams: recipe.params });
-            }
-            return true;
+            if (typeof renderPicker === 'function') renderPicker();
+            return refreshedAny;
         }
 
         function getTextureEditSourcePath(selected) {
@@ -107,7 +159,7 @@
             return candidate;
         }
 
-        async function resolveTextureEditSavePlan(selected) {
+        async function resolveTextureEditSavePlan(selected, options = {}) {
             const sourcePath = getTextureEditSourcePath(selected);
             if (!sourcePath) {
                 throw new Error('无法确定当前贴图路径');
@@ -147,12 +199,16 @@
                     otherReferences
                 };
             }
-            const decision = await requestLongBodyApplyScope({
-                title: '贴图被多处引用',
-                text: `“${sourcePath}”还被其他 ${otherReferences.length} 个轨道引用。是否同步替换所有引用？选择“同步替换”将直接覆盖原图；选择“独立创建”将为当前轨道独立创建贴图。`,
-                currentLabel: '独立创建',
-                allLabel: '同步替换'
-            });
+            const decision = (options && options.mode === 'overwrite')
+                ? 'all'
+                : ((options && options.mode === 'independent')
+                    ? 'current'
+                    : await requestLongBodyApplyScope({
+                        title: '贴图被多处引用',
+                        text: `“${sourcePath}”还被其他 ${otherReferences.length} 个轨道引用。是否同步替换所有引用？选择“同步替换”将直接覆盖原图；选择“独立创建”将为当前轨道独立创建贴图。`,
+                        currentLabel: '独立创建',
+                        allLabel: '同步替换'
+                    }));
             if (!decision) return null;
             if (decision === 'all') {
                 return {
@@ -238,7 +294,7 @@
                 return false;
             }
             const longBodyApplyScope = state.longBodyComposer.active
-                ? await requestLongBodyApplyScope()
+                ? ((options && (options.longBodyScope || options.scope)) || await requestLongBodyApplyScope())
                 : null;
             if (state.longBodyComposer.active && !longBodyApplyScope) return false;
             const effParam = (typeof getEffectiveParamForTarget === 'function')
@@ -270,6 +326,24 @@
             }
             if (applyMenuBtn) applyMenuBtn.disabled = true;
 
+            let recordedUndoSnapshot = null;
+            let savedRedoStack = null;
+            const recordUndoForApply = (desc) => {
+                if (typeof recordSkinUndoBeforeChange !== 'function') return;
+                const prevTop = (typeof undoStack !== 'undefined' && undoStack.length > 0)
+                    ? undoStack[undoStack.length - 1]
+                    : null;
+                const redoBefore = (typeof redoStack !== 'undefined') ? redoStack.slice() : null;
+                recordSkinUndoBeforeChange(desc, { force: true });
+                if (typeof undoStack !== 'undefined' && undoStack.length > 0) {
+                    const nextTop = undoStack[undoStack.length - 1];
+                    if (nextTop && nextTop !== prevTop) {
+                        recordedUndoSnapshot = nextTop;
+                        savedRedoStack = redoBefore;
+                    }
+                }
+            };
+
             try {
                 const committingLongBodyComposer = state.longBodyComposer.active;
                 if (editingKeyImage && !committingLongBodyComposer) {
@@ -292,8 +366,8 @@
                         rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
                     };
 
-                    let keyImageMode = 'overwrite';
-                    if (keyImageApplyScope !== 'all') {
+                    let keyImageMode = (options && options.mode) || 'overwrite';
+                    if (!options.mode && keyImageApplyScope !== 'all') {
                         const otherReferences = [];
                         const sourcePaths = new Set();
                         for (const group of groups) {
@@ -335,10 +409,7 @@
                         ? 'KeyImage + KeyImageD'
                         : (selectedKeyImageKind === 'down' ? 'KeyImageD' : 'KeyImage');
                     const scopeLabel = keyImageApplyScope === 'all' ? '全部轨道' : '当前轨道';
-                    recordSkinUndoBeforeChange(
-                        `贴图编辑: ${stateLabel}（${scopeLabel}）`,
-                        { force: true }
-                    );
+                    recordUndoForApply(`贴图编辑: ${stateLabel}（${scopeLabel}）`);
                     const prepared = await persistKeyImageEditGroups(groups, params, {
                         mode: keyImageMode,
                         scope: keyImageApplyScope
@@ -384,7 +455,7 @@
                 if (!committingLongBodyComposer) state.previewFrames = framesToSave;
                 const savePlan = committingLongBodyComposer
                     ? null
-                    : await resolveTextureEditSavePlan(state.selected);
+                    : await resolveTextureEditSavePlan(state.selected, options);
                 if (!committingLongBodyComposer && !savePlan) return false;
                 if (committingLongBodyComposer) {
                     setLongBodyProgress('正在编码 PNG...', 65, true);
@@ -430,14 +501,9 @@
                             { draw: false }
                         );
                     }
-                    if (typeof recordSkinUndoBeforeChange === 'function') {
-                        const targetZh = (state.selected && state.selected.p && state.selected.p.zhName) || savePlan.savePath;
-                        const modeZh = savePlan.mode === 'independent' ? '独立创建' : '同步替换';
-                        recordSkinUndoBeforeChange(
-                            `贴图编辑: ${targetZh}（${modeZh}）`,
-                            { force: true }
-                        );
-                    }
+                    const targetZh = (state.selected && state.selected.p && state.selected.p.zhName) || savePlan.savePath;
+                    const modeZh = savePlan.mode === 'independent' ? '独立创建' : '同步替换';
+                    recordUndoForApply(`贴图编辑: ${targetZh}（${modeZh}）`);
                     persistTextureFramesAtPath(serialized, savePlan.savePath, {
                         refresh: false,
                         showToast: false
@@ -508,10 +574,7 @@
                     // 预览期间会临时把 NoteBodyStyle 设为 1；历史快照必须记录进入编辑器前的原值，
                     // 否则撤销“一键投皮”时会把临时值一起保留下来。
                     restoreNoteBodyStyle();
-                    recordSkinUndoBeforeChange(
-                        applyingAll ? '一键投皮（全部轨道）' : '一键投皮（当前轨道）',
-                        { force: true }
-                    );
+                    recordUndoForApply(applyingAll ? '一键投皮（全部轨道）' : '一键投皮（当前轨道）');
                     setNoteBodyStyleOne(false, applyingAll);
                     const applyLabel = applyingAll ? '正在应用到全部轨道...' : '正在应用到当前轨道...';
                     setLongBodyProgress(applyLabel, 82);
@@ -559,7 +622,10 @@
             } catch (err) {
                 console.error('贴图编辑应用失败', err);
                 showToast('贴图编辑失败', err.message || '未知错误');
-                if (state.longBodyComposer.active) setNoteBodyStyleOne(false, false);
+                if (recordedUndoSnapshot && typeof rollbackLastRecordedSkinUndo === 'function') {
+                    rollbackLastRecordedSkinUndo(recordedUndoSnapshot, savedRedoStack);
+                }
+                if (state.longBodyComposer.active) restoreNoteBodyStyle();
                 if (state.selected && state.previewFrames.length > 0) {
                     installFramesToStores(state.previewFrames, state.selected, { persist: false });
                 }
@@ -711,6 +777,9 @@
                 });
                 if (decision === 'cancel') return false;
                 if (decision === 'save') {
+                    if (tab.kind === 'creator') {
+                        return createTextureFromCreator();
+                    }
                     return applySelectedTexture({
                         closeTabAfterSave: true,
                         closeEditorWhenLast: true
@@ -740,7 +809,10 @@
             commitActiveTabState();
             const dirtyTabs = tabs.filter(isTabDirty);
             if (dirtyTabs.length === 0) {
-                finalizeEditorClose({ restoreSnapshot: false });
+                const hasCreatorPreview = tabs.some(
+                    (tab) => tab.kind === 'creator' && tab.creatorState && tab.creatorState.previewSnapshot
+                );
+                finalizeEditorClose({ restoreSnapshot: hasCreatorPreview });
                 return true;
             }
 
@@ -761,10 +833,12 @@
                 const current = getTabById(dirtyTab.id);
                 if (!current) continue;
                 activateTab(current.id);
-                const saved = await applySelectedTexture({
-                    closeTabAfterSave: true,
-                    closeEditorWhenLast: false
-                });
+                const saved = current.kind === 'creator'
+                    ? await createTextureFromCreator()
+                    : await applySelectedTexture({
+                        closeTabAfterSave: true,
+                        closeEditorWhenLast: false
+                    });
                 if (!saved) return false;
             }
             finalizeEditorClose({ restoreSnapshot: false });

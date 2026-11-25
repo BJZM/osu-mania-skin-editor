@@ -125,18 +125,31 @@
             }
         }
 
+        async function cloneSkinArchiveZip(sourceZip) {
+            const cloned = new JSZip();
+            if (!sourceZip || !sourceZip.files) return cloned;
+            for (const path of Object.keys(sourceZip.files)) {
+                const entry = sourceZip.files[path];
+                if (!entry) continue;
+                if (entry.dir) {
+                    cloned.folder(path.replace(/\/+$/, ''));
+                } else {
+                    cloned.file(path, await entry.async('uint8array'));
+                }
+            }
+            return cloned;
+        }
+
         // 11. 构建最新完整皮肤包，供普通导出和 Agent 导出共用
         async function buildSkinArchiveBlob(format = 'osk', options = {}) {
             const mode = normalizeTextureExportMode(
                 typeof options === 'string' ? options : options.mode
             );
-            let zip = currentSkinZip ? currentSkinZip : new JSZip();
-            // 音效替换通过虚拟覆盖层参与导出；先复制 ZIP，避免移除低优先级
-            // 原始音效变体时破坏内存中的导入资源，保证导出后仍可撤回。
-            if (skinHitsoundReplacements.size > 0 &&
-                typeof createSkinHitsoundExportArchive === 'function') {
-                zip = await createSkinHitsoundExportArchive(zip);
-            }
+            // 始终在导出前复制 ZIP，避免移除条目或覆盖资源时破坏内存中可撤回的原始导入资源。
+            let zip = (skinHitsoundReplacements.size > 0 &&
+                typeof createSkinHitsoundExportArchive === 'function')
+                ? await createSkinHitsoundExportArchive(currentSkinZip)
+                : await cloneSkinArchiveZip(currentSkinZip);
             stripUnsafeSkinArchiveEntries(zip);
             stripTextureProjectFromArchive(zip);
             if (deletedSkinTexturePaths.size > 0) {

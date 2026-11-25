@@ -64,7 +64,17 @@
         }
 
         function isTabDirty(tab) {
-            if (!tab || tab.kind !== 'texture' || !tab.state.selected) return false;
+            if (!tab) return false;
+            if (tab.kind === 'creator') {
+                return !!(
+                    tab.creatorState &&
+                    tab.creatorState.editPath &&
+                    tab.creatorState.previewSnapshot &&
+                    typeof isTextureCreatorStateDirty === 'function' &&
+                    isTextureCreatorStateDirty(tab.creatorState)
+                );
+            }
+            if (tab.kind !== 'texture' || !tab.state.selected) return false;
             const tabState = tab.state;
             const longBodyDirty = tabState.longBodyComposer.active &&
                 !longBodyComposerStatesEqual(
