@@ -1,25 +1,21 @@
 /* ============================================================================
- * canvas-tools.css - 画布可视化选中高亮
- * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * canvas-tools.css - 画布可视化选中高亮与紧贴吸附操作工具栏
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
  * ========================================================================== */
 
-           画布可视化选中高亮与紧贴吸附操作工具栏 (Canvas Selection Docked Toolbar)
-           ========================================================================== */
-
+        /* ===== 画布可视化选中高亮与紧贴吸附操作工具栏 ===== */
         .canvas-selected-card {
             position: absolute;
-            background: rgba(24, 22, 30, 0.96);
+            background: var(--panel-bg);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            border: none;
             border-radius: 8px;
             padding: 5px 8px;
             display: flex;
             flex-direction: column;
-
-
             align-items: stretch;
             gap: 5px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
             z-index: 150;
             pointer-events: auto;
             white-space: nowrap;
@@ -34,22 +30,14 @@
             gap: 8px;
         }
 
-        .card-row-second {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            gap: 8px;
-            padding-top: 4px;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
-        }
-
+        .card-row-second,
         .card-combo-edit-row {
             display: flex;
             flex-direction: row;
             align-items: center;
             gap: 8px;
             padding-top: 4px;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            border-top: 1px solid var(--border-subtle);
         }
 
         .card-edit-label {
@@ -57,7 +45,7 @@
             min-width: 52px;
             font-size: 0.7rem;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.7);
+            color: var(--text-secondary);
             text-align: left;
         }
 
@@ -77,7 +65,7 @@
             width: 18px;
             height: 18px;
             padding: 0;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: 1px solid var(--border-medium);
             border-radius: 3px;
             cursor: pointer;
             background: transparent;
@@ -87,11 +75,7 @@
             padding: 0;
         }
 
-        .card-colour-picker::-webkit-color-swatch {
-            border: none;
-            border-radius: 2px;
-        }
-
+        .card-colour-picker::-webkit-color-swatch,
         .card-colour-picker::-moz-color-swatch {
             border: none;
             border-radius: 2px;
@@ -115,7 +99,7 @@
         .card-colour-slider::-webkit-slider-runnable-track {
             width: 100%;
             height: 4px;
-            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%);
+            background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%);
             border-radius: 2px;
             border: none !important;
         }
@@ -126,7 +110,7 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #ffffff;
+            background: var(--text-main);
             cursor: pointer;
             box-shadow: none !important;
             margin-top: -3px;
@@ -141,7 +125,7 @@
         .card-colour-slider::-moz-range-track {
             width: 100%;
             height: 4px;
-            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%);
+            background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%);
             border-radius: 2px;
             border: none !important;
         }
@@ -150,7 +134,7 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #ffffff;
+            background: var(--text-main);
             cursor: pointer;
             border: none;
             box-shadow: none;
@@ -160,7 +144,7 @@
             font-family: var(--font-clean);
             font-variant-numeric: tabular-nums;
             font-size: 0.74rem;
-            color: #ffffff;
+            color: var(--text-main);
             min-width: 24px;
             text-align: right;
             font-weight: 600;
@@ -180,15 +164,14 @@
         .card-title {
             font-size: 0.8rem;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--text-main);
             white-space: nowrap;
         }
-
 
         .card-divider {
             width: 1px;
             height: 16px;
-            background: rgba(255, 255, 255, 0.18);
+            background: var(--border-medium);
         }
 
         .card-actions {
@@ -208,7 +191,7 @@
             justify-content: center;
             gap: 3px;
             border: none;
-            background: rgba(255, 255, 255, 0.12);
+            background: var(--btn-bg);
             color: rgba(255, 255, 255, 0.9);
             transition: all 0.15s ease;
             white-space: nowrap;
@@ -221,26 +204,15 @@
             flex-shrink: 0;
         }
 
-        .card-btn:hover {
-            background: #ffffff;
-            color: #111118;
-            box-shadow: none;
-        }
-
-        .card-btn:active {
-            transform: scale(0.96);
-            background: #e2e2e8;
-        }
-
         .card-btn.active {
-            background: #ffffff;
-            color: #111118;
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
         }
 
         .card-close-btn {
             background: none;
             border: none;
-            color: rgba(255, 255, 255, 0.5);
+            color: var(--text-muted);
             font-size: 0.85rem;
             cursor: pointer;
             padding: 2px 4px;
@@ -248,19 +220,24 @@
             align-items: center;
             justify-content: center;
             border-radius: 4px;
-            transition: color 0.15s ease, background 0.15s ease;
+            transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
         }
 
         .card-close-btn:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.1);
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        .card-close-btn:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
         }
 
         /* 拖拽时的数值悬浮气泡 */
         .canvas-drag-tooltip {
             position: absolute;
             background: rgba(0, 0, 0, 0.88);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            border: none;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7);
             border-radius: 6px;
             padding: 4px 10px;
@@ -268,7 +245,7 @@
             font-variant-numeric: tabular-nums;
             font-size: 0.78rem;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--text-main);
             pointer-events: none;
             z-index: 160;
             white-space: nowrap;
@@ -278,7 +255,7 @@
         .track-drag-mode-toggle {
             display: inline-flex;
             align-items: center;
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--btn-bg-subtle);
             border: none;
             border-radius: 5px;
             padding: 2px;
@@ -288,7 +265,7 @@
         .track-mode-btn {
             background: transparent;
             border: none;
-            color: rgba(255, 255, 255, 0.65);
+            color: var(--text-secondary);
             font-size: 0.7rem;
             font-weight: 600;
             padding: 2px 7px;
@@ -301,14 +278,9 @@
             gap: 3px;
         }
 
-        .track-mode-btn:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.12);
-        }
-
         .track-mode-btn.active {
-            background: rgba(255, 255, 255, 0.28);
-            color: #ffffff;
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
             box-shadow: none;
         }
 
@@ -331,15 +303,15 @@
 
         .stepper-label {
             font-size: 0.7rem;
-            color: rgba(255, 255, 255, 0.7);
+            color: var(--text-secondary);
             font-weight: 600;
             padding-left: 2px;
         }
 
         .stepper-btn {
-            background: rgba(255, 255, 255, 0.12);
+            background: var(--btn-bg);
             border: none;
-            color: #ffffff;
+            color: var(--text-main);
             width: 18px;
             height: 18px;
             border-radius: 3px;
@@ -355,19 +327,11 @@
             line-height: 1;
         }
 
-        .stepper-btn:hover {
-            background: rgba(255, 255, 255, 0.28);
-        }
-
-        .stepper-btn:active {
-            transform: scale(0.92);
-        }
-
         .stepper-val {
             font-family: var(--font-clean);
             font-variant-numeric: tabular-nums;
             font-size: 0.76rem;
-            color: #ffffff;
+            color: var(--text-main);
             min-width: 24px;
             text-align: center;
             font-weight: 600;
@@ -400,7 +364,7 @@
 
         .chip-label {
             font-size: 0.72rem;
-            color: rgba(255, 255, 255, 0.7);
+            color: var(--text-secondary);
             white-space: nowrap;
         }
 
@@ -409,7 +373,7 @@
             background: rgba(0, 0, 0, 0.45);
             border: none;
             border-radius: 4px;
-            color: #ffffff;
+            color: var(--text-main);
             font-family: var(--font-clean);
             font-variant-numeric: tabular-nums;
             font-size: 0.8rem;
@@ -465,7 +429,6 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            position: relative;
         }
 
         .hud-glyph-img,
@@ -480,7 +443,7 @@
         .hud-glyph-default-text {
             font-size: 1.35rem;
             font-weight: bold;
-            color: #ffffff;
+            color: var(--text-main);
             font-family: var(--font-clean);
             font-variant-numeric: tabular-nums;
         }
@@ -500,13 +463,13 @@
         .hud-glyph-title {
             font-size: 0.8rem;
             font-weight: 600;
-            color: #ffffff;
+            color: var(--text-main);
         }
 
         .hud-glyph-filename {
             font-family: var(--font-clean);
             font-size: 0.72rem;
-            color: rgba(255, 255, 255, 0.55);
+            color: var(--text-muted);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -557,32 +520,9 @@
             font-size: 0.72rem;
             border-radius: 4px;
             border: none;
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--btn-bg);
             color: rgba(255, 255, 255, 0.9);
             cursor: pointer;
             transition: all 0.15s ease;
             white-space: nowrap;
         }
-
-        .hud-glyph-btn:hover {
-            background: rgba(255, 255, 255, 0.22);
-            color: #ffffff;
-        }
-
-        .hud-glyph-btn.upload {
-            background: rgba(255, 255, 255, 0.12);
-        }
-
-        .hud-glyph-btn.upload:hover {
-            background: #ffffff;
-            color: #111118;
-            box-shadow: none;
-        }
-
-        .hud-glyph-btn.upload:active {
-            transform: scale(0.96);
-            background: #e2e2e8;
-        }
-
-        /* ==========================================================================
-        /* ============================================================

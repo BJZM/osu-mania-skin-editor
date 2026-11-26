@@ -1,0 +1,406 @@
+/* ============================================================================
+ * components.css - 通用按钮、滑块、棋盘格、滚动条、弹窗遮罩与开关共享基础样式
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 共享弹窗与菜单动效 ===== */
+        @keyframes modalScaleUp {
+            from { opacity: 0; transform: scale(0.97) translateY(8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        @keyframes modalScaleDown {
+            from { opacity: 1; transform: scale(1) translateY(0); }
+            to { opacity: 0; transform: scale(0.97) translateY(8px); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes dropdownMenuFadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== 统一通用按钮规范 (Flat Minimalist Buttons) ===== */
+        .btn,
+        .btn-primary,
+        .btn-secondary,
+        .btn-danger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 15px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            background: var(--btn-bg);
+            color: rgba(255, 255, 255, 0.9);
+            transition: all 0.15s ease;
+            user-select: none;
+            white-space: nowrap;
+            text-decoration: none;
+            line-height: 1.3;
+            box-shadow: none !important;
+        }
+
+        .btn-icon {
+            background: var(--btn-bg-subtle);
+            border: none;
+            color: rgba(255, 255, 255, 0.75);
+            width: 26px;
+            height: 26px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            box-shadow: none;
+        }
+
+        /* 全站分散按钮的统一扁平化交互基线 (悬浮纯白底黑字 / 点击 scale(0.96) / 禁用 0.45) */
+        .btn,
+        .btn-primary,
+        .btn-secondary,
+        .btn-danger,
+        .btn-icon,
+        .topbar-btn,
+        .tool-btn,
+        .footer-btn,
+        .copy-raw-btn,
+        .play-pause-btn,
+        .fullscreen-btn,
+        .card-btn,
+        .stepper-btn,
+        .track-mode-btn,
+        .hud-glyph-btn,
+        .col-colour-apply-btn,
+        .col-colour-preview-btn,
+        .texture-upload-btn,
+        .texture-upload-main-btn,
+        .texture-anim-upload-btn,
+        .anim-move-btn,
+        .anim-spec-btn,
+        .key-pill,
+        .help-tab-btn,
+        .help-footer-btn,
+        .texture-export-mode-cancel,
+        .texture-image-tab-add,
+        .texture-image-save-menu-btn,
+        .texture-image-shape-btn,
+        .texture-spec-card,
+        .startup-action {
+            border: none;
+            box-shadow: none;
+        }
+
+        .btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .btn-primary:not(:disabled):not([style*="not-allowed"]):hover,
+        .btn-secondary:not(:disabled):not([style*="not-allowed"]):hover,
+        .btn-danger:not(:disabled):not([style*="not-allowed"]):hover,
+        .btn-icon:not(:disabled):not([style*="not-allowed"]):hover,
+        .topbar-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .tool-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .footer-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .copy-raw-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .play-pause-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .fullscreen-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .card-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .stepper-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .track-mode-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .hud-glyph-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .col-colour-apply-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .col-colour-preview-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .texture-upload-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .texture-upload-main-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .texture-anim-upload-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .anim-move-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .anim-spec-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .key-pill:not(:disabled):not([style*="not-allowed"]):hover,
+        .help-tab-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .help-footer-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .texture-export-mode-cancel:not(:disabled):not([style*="not-allowed"]):hover,
+        .texture-image-tab-add:not(:disabled):not([style*="not-allowed"]):hover,
+        .texture-image-save-menu-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .texture-image-shape-btn:not(:disabled):not([style*="not-allowed"]):hover,
+        .texture-spec-card:hover,
+        .startup-action:not(:disabled):hover {
+            background: var(--btn-hover-bg) !important;
+            color: var(--btn-hover-text) !important;
+            border: none;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        .btn:not(:disabled):not([style*="not-allowed"]):active,
+        .btn-primary:not(:disabled):not([style*="not-allowed"]):active,
+        .btn-secondary:not(:disabled):not([style*="not-allowed"]):active,
+        .btn-danger:not(:disabled):not([style*="not-allowed"]):active,
+        .btn-icon:not(:disabled):not([style*="not-allowed"]):active,
+        .topbar-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .tool-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .footer-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .copy-raw-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .play-pause-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .fullscreen-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .card-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .stepper-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .track-mode-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .hud-glyph-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .col-colour-apply-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .col-colour-preview-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .texture-upload-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .texture-upload-main-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .texture-anim-upload-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .anim-move-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .anim-spec-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .key-pill:not(:disabled):not([style*="not-allowed"]):active,
+        .help-tab-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .help-footer-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .texture-export-mode-cancel:not(:disabled):not([style*="not-allowed"]):active,
+        .texture-image-tab-add:not(:disabled):not([style*="not-allowed"]):active,
+        .texture-image-save-menu-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .texture-image-shape-btn:not(:disabled):not([style*="not-allowed"]):active,
+        .texture-spec-card:active,
+        .startup-action:not(:disabled):active {
+            transform: scale(0.96) !important;
+            background: var(--btn-active-bg) !important;
+            color: var(--btn-hover-text) !important;
+        }
+
+        .btn:disabled,
+        .btn[disabled],
+        .btn-primary:disabled,
+        .btn-primary[disabled],
+        .btn-secondary:disabled,
+        .btn-secondary[disabled],
+        .btn-danger:disabled,
+        .btn-danger[disabled],
+        .btn-icon:disabled,
+        .topbar-btn:disabled,
+        .tool-btn:disabled,
+        .tool-btn[style*="not-allowed"],
+        .footer-btn:disabled,
+        .footer-btn[style*="not-allowed"],
+        .anim-move-btn:disabled,
+        .texture-upload-main-btn:disabled,
+        .texture-image-save-menu-btn:disabled {
+            opacity: 0.45 !important;
+            cursor: not-allowed !important;
+            pointer-events: none !important;
+            box-shadow: none !important;
+            background: var(--btn-bg) !important;
+            color: rgba(255, 255, 255, 0.9) !important;
+            transform: none !important;
+        }
+
+        /* ===== 统一细长滚动条 ===== */
+        #diffMenu::-webkit-scrollbar,
+        .left-info-panel::-webkit-scrollbar,
+        .skin-editor-body::-webkit-scrollbar,
+        .texture-image-picker-grid::-webkit-scrollbar,
+        .texture-image-creator-target-list::-webkit-scrollbar,
+        .help-modal-body::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        .skin-editor-body::-webkit-scrollbar,
+        .texture-image-creator-target-list::-webkit-scrollbar,
+        .help-modal-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .skin-editor-body::-webkit-scrollbar-track,
+        .help-modal-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #diffMenu::-webkit-scrollbar-thumb,
+        .left-info-panel::-webkit-scrollbar-thumb,
+        .skin-editor-body::-webkit-scrollbar-thumb,
+        .texture-image-picker-grid::-webkit-scrollbar-thumb,
+        .texture-image-creator-target-list::-webkit-scrollbar-thumb,
+        .help-modal-body::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 3px;
+        }
+
+        /* ===== 统一滑块样式 (粉色进度轨道 + 白色圆点滑块) ===== */
+        .tweak-slider-item input[type="range"],
+        .slider-input-combo input[type="range"],
+        .anim-fps-control input[type="range"],
+        .texture-image-range,
+        .player-controls .progress-slider,
+        .player-controls .volume-slider {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: linear-gradient(
+                to right,
+                var(--primary) 0%,
+                var(--primary) var(--slider-pct, 0%),
+                rgba(255, 255, 255, 0.2) var(--slider-pct, 0%),
+                rgba(255, 255, 255, 0.2) 100%
+            ) !important;
+            outline: none !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+        }
+
+        .tweak-slider-item input[type="range"]::-webkit-slider-runnable-track,
+        .slider-input-combo input[type="range"]::-webkit-slider-runnable-track,
+        .anim-fps-control input[type="range"]::-webkit-slider-runnable-track,
+        .texture-image-range::-webkit-slider-runnable-track,
+        .player-controls .progress-slider::-webkit-slider-runnable-track,
+        .player-controls .volume-slider::-webkit-slider-runnable-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .tweak-slider-item input[type="range"]::-moz-range-track,
+        .slider-input-combo input[type="range"]::-moz-range-track,
+        .anim-fps-control input[type="range"]::-moz-range-track,
+        .texture-image-range::-moz-range-track,
+        .player-controls .progress-slider::-moz-range-track,
+        .player-controls .volume-slider::-moz-range-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .tweak-slider-item input[type="range"]::-webkit-slider-thumb,
+        .slider-input-combo input[type="range"]::-webkit-slider-thumb,
+        .anim-fps-control input[type="range"]::-webkit-slider-thumb,
+        .texture-image-range::-webkit-slider-thumb,
+        .player-controls .progress-slider::-webkit-slider-thumb,
+        .player-controls .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: var(--text-main) !important;
+            border: none !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            margin-top: -3px !important;
+            transition: transform 0.15s ease;
+        }
+
+        .tweak-slider-item input[type="range"]::-moz-range-thumb,
+        .slider-input-combo input[type="range"]::-moz-range-thumb,
+        .anim-fps-control input[type="range"]::-moz-range-thumb,
+        .texture-image-range::-moz-range-thumb,
+        .player-controls .progress-slider::-moz-range-thumb,
+        .player-controls .volume-slider::-moz-range-thumb {
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: var(--text-main) !important;
+            border: none !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            transition: transform 0.15s ease;
+        }
+
+        .tweak-slider-item input[type="range"]::-webkit-slider-thumb:hover,
+        .slider-input-combo input[type="range"]::-webkit-slider-thumb:hover,
+        .anim-fps-control input[type="range"]::-webkit-slider-thumb:hover,
+        .texture-image-range::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .tweak-slider-item input[type="range"]::-moz-range-thumb:hover,
+        .slider-input-combo input[type="range"]::-moz-range-thumb:hover,
+        .anim-fps-control input[type="range"]::-moz-range-thumb:hover,
+        .texture-image-range::-moz-range-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        /* ===== 统一透明棋盘格底纹 ===== */
+        .texture-upload-thumb-wrap,
+        .texture-existing-preview,
+        .anim-frame-thumb-box,
+        .texture-image-picker-preview {
+            background:
+                linear-gradient(45deg, rgba(255, 255, 255, 0.06) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(255, 255, 255, 0.06) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.06) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.06) 75%);
+            background-size: 12px 12px;
+            background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+        }
+
+        /* ===== 统一居中弹窗容器与遮罩层 ===== */
+        .texture-export-mode-modal,
+        .unsaved-exit-modal,
+        .texture-upload-modal,
+        .texture-existing-modal,
+        .anim-texture-modal,
+        .texture-image-scope-modal,
+        .texture-image-library-action-modal,
+        .help-modal {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .texture-export-mode-backdrop,
+        .unsaved-exit-backdrop,
+        .texture-upload-backdrop,
+        .texture-existing-backdrop,
+        .anim-texture-backdrop,
+        .texture-image-scope-backdrop,
+        .texture-image-library-action-backdrop,
+        .help-modal-backdrop {
+            position: absolute;
+            inset: 0;
+        }
+
+        /* ===== 统一切换开关基础样式 ===== */
+        .ios-switch,
+        .texture-image-switch,
+        .texture-image-stroke-switch {
+            position: relative;
+            display: inline-block;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+
+        .ios-switch input,
+        .texture-image-switch input,
+        .texture-image-stroke-switch input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .ios-switch input {
+            width: 0;
+            height: 0;
+        }

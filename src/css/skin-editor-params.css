@@ -1,0 +1,532 @@
+/* ============================================================================
+ * skin-editor-params.css - 参数分类区块、逐轨贴图组、参数卡片与音效列表
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 分类区块与卡片 ===== */
+        .param-category-block {
+            margin-bottom: 18px;
+        }
+
+        .param-category-title {
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .param-category-title .count-badge {
+            font-size: 0.68rem;
+            padding: 1px 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
+            color: var(--text-secondary);
+        }
+
+        /* 分类标题本身作为折叠按钮 */
+        .param-category-toggle {
+            width: 100%;
+            padding: 2px 0;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            text-align: left;
+            transition: color 0.2s ease;
+        }
+
+        .param-category-toggle:hover,
+        .param-category-toggle:focus-visible {
+            color: rgba(255, 255, 255, 0.85);
+            outline: none;
+        }
+
+        .cat-toggle-arrow {
+            width: 12px;
+            height: 12px;
+            flex-shrink: 0;
+            color: var(--primary);
+            transform: rotate(90deg);
+            transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .param-category-block.collapsed .cat-toggle-arrow {
+            transform: rotate(0deg);
+        }
+
+        .param-category-block.collapsed > .param-cards-grid {
+            display: none;
+        }
+
+        /* 高级设置折叠切换栏 (无边框纯净风格) */
+        .advanced-settings-toggle-bar {
+            margin-top: 12px;
+            margin-bottom: 6px;
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+
+        .advanced-toggle-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 2px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+            user-select: none;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .advanced-toggle-btn:hover,
+        .advanced-toggle-btn.active {
+            background: transparent;
+            color: var(--text-main);
+        }
+
+        .advanced-toggle-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .advanced-toggle-arrow {
+            width: 13px;
+            height: 13px;
+            stroke-width: 2.2;
+            color: var(--primary);
+            transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .advanced-toggle-btn.active .advanced-toggle-arrow {
+            transform: rotate(90deg);
+        }
+
+        .advanced-toggle-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+
+        .advanced-toggle-hint {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 400;
+            transition: color 0.2s ease;
+        }
+
+        .advanced-toggle-btn:hover .advanced-toggle-hint {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* 高级折叠面板展开与收起平滑动效 */
+        .fonts-advanced-category-block {
+            display: grid;
+            grid-template-rows: 0fr;
+            opacity: 0;
+            margin-bottom: 0;
+            overflow: hidden;
+            transition: grid-template-rows 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+                        opacity 0.28s ease,
+                        margin-bottom 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .fonts-advanced-category-block.expanded {
+            grid-template-rows: 1fr;
+            opacity: 1;
+            margin-bottom: 18px;
+        }
+
+        .fonts-advanced-inner {
+            min-height: 0;
+            overflow: hidden;
+            transform: translateY(-8px);
+            transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .fonts-advanced-category-block.expanded .fonts-advanced-inner {
+            transform: translateY(0);
+        }
+
+        .param-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+            gap: 10px;
+        }
+
+        /* 逐轨道贴图分组框 */
+        .per-track-texture-group {
+            grid-column: 1 / -1;
+        }
+
+        .per-track-count-badge {
+            flex-shrink: 0;
+            font-size: 0.68rem;
+            padding: 1px 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
+            color: var(--text-secondary);
+        }
+
+        .per-track-texture-rows {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .per-track-texture-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            border-radius: 7px;
+            background: rgba(0, 0, 0, 0.22);
+            position: relative;
+            transition: background 0.15s ease;
+        }
+
+        .per-track-texture-row:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .per-track-texture-row.highlight-pulse {
+            outline: 1px solid var(--primary) !important;
+            background: rgba(255, 102, 170, 0.08) !important;
+            box-shadow: none !important;
+            animation: none !important;
+        }
+
+        .per-track-label {
+            flex-shrink: 0;
+            min-width: 46px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+        }
+
+        .per-track-texture-row .texture-param-combo {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .per-track-texture-row .texture-path-input {
+            min-width: 80px;
+        }
+
+        /* 单个参数卡片 */
+        .param-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.18s ease;
+            position: relative;
+        }
+
+        .param-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+            z-index: 30;
+        }
+
+        /* 详细设置 -> 音效 */
+        .hitsound-category-title {
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+            text-transform: none;
+            letter-spacing: 0.2px;
+        }
+
+        .hitsound-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+            gap: 10px;
+        }
+
+        .hitsound-card {
+            min-width: 0;
+            gap: 9px;
+            background: rgba(255, 255, 255, 0.045);
+        }
+
+        .hitsound-card-readonly {
+            background: rgba(255, 255, 255, 0.028);
+        }
+
+        .hitsound-card-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .hitsound-card-title-area {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .hitsound-card-title {
+            color: var(--text-main);
+            font-size: 0.82rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .hitsound-key {
+            max-width: 100%;
+            padding: 1px 6px;
+            overflow: hidden;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.065);
+            border-radius: 4px;
+            font-family: var(--font-clean);
+            font-size: 0.68rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .hitsound-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            min-height: 20px;
+            padding: 2px 7px;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.065);
+            border: none;
+            border-radius: 4px;
+            font-size: 0.66rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .hitsound-meta {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+
+        .hitsound-path {
+            min-height: 28px;
+            padding: 6px 8px;
+            color: var(--text-muted);
+            background: rgba(0, 0, 0, 0.18);
+            border-radius: 5px;
+            font-family: var(--font-clean);
+            font-size: 0.69rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+
+        .hitsound-card-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .hitsound-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            min-height: 30px;
+            padding: 5px 9px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+
+        .hitsound-action-btn svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+        }
+
+        .hitsound-action-btn.is-playing {
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
+        }
+
+        .hitsound-action-btn.is-playing svg {
+            fill: currentColor;
+        }
+
+        .hitsound-empty,
+        .hitsound-query-empty {
+            color: rgba(255, 255, 255, 0.44);
+            font-size: 0.76rem;
+            line-height: 1.55;
+        }
+
+        .hitsound-empty {
+            grid-column: 1 / -1;
+            padding: 20px 12px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.025);
+            border-radius: 6px;
+        }
+
+        .hitsound-query-empty {
+            padding: 40px 16px;
+            text-align: center;
+        }
+
+        .param-card:has(.texture-upload-dropdown:hover),
+        .param-card:has(.texture-upload-menu:hover) {
+            z-index: 100 !important;
+        }
+
+        .param-card.highlight-pulse {
+            outline: 1px solid var(--primary) !important;
+            background: rgba(255, 102, 170, 0.06) !important;
+            box-shadow: none !important;
+            animation: none !important;
+        }
+
+        .hud-glyph-card.highlight-pulse {
+            outline: 1px solid var(--primary) !important;
+            background: rgba(255, 102, 170, 0.06) !important;
+            box-shadow: none !important;
+        }
+
+        .param-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+
+        .param-names {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .param-zh-name {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .param-en-name {
+            font-family: var(--font-clean);
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.06);
+            border: none;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .param-comment-pill {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 1px 5px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .param-inline-notice {
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            font-weight: 400;
+            line-height: 1.35;
+            background: none;
+            padding: 0;
+            border-radius: 0;
+        }
+
+        /* 参数标题右侧提示图标与悬浮说明气泡 */
+        .param-info-trigger {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: help;
+            user-select: none;
+            padding: 0 2px;
+            margin-left: 2px;
+            outline: none;
+        }
+
+        .param-info-icon {
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.4);
+            transition: all 0.15s ease;
+            line-height: 1;
+        }
+
+        .param-info-trigger:hover .param-info-icon,
+        .param-info-trigger:focus .param-info-icon {
+            color: var(--text-main);
+            text-shadow: none;
+            transform: none;
+        }
+
+        .param-desc-tooltip {
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: -12px;
+            min-width: 220px;
+            max-width: 320px;
+            background: var(--bg-dialog);
+            backdrop-filter: blur(14px);
+            border: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.85);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 0.72rem;
+            font-weight: normal;
+            line-height: 1.45;
+            color: var(--text-main);
+            white-space: normal;
+            word-break: break-word;
+            z-index: 100;
+            display: none;
+            pointer-events: none;
+            animation: fadeIn 0.15s ease;
+        }
+
+        .param-desc-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 15px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: var(--bg-dialog) transparent transparent transparent;
+        }
+
+        .param-info-trigger:hover .param-desc-tooltip,
+        .param-info-trigger:focus-within .param-desc-tooltip {
+            display: block;
+        }

@@ -1,0 +1,746 @@
+/* ============================================================================
+ * shell-overlays.css - 启动面板、全屏按钮、加载遮罩、通知提示与导出/退出弹窗
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 启动选择面板 (谱面 / 皮肤来源) ===== */
+        .startup-actions {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 28px;
+            box-sizing: border-box;
+            overflow: auto;
+            background: rgba(8, 7, 12, 0.48);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+        }
+
+        .startup-actions[hidden] {
+            display: none !important;
+        }
+
+        .startup-actions-content {
+            width: min(500px, 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            transition: transform 0.18s ease;
+        }
+
+        .startup-action {
+            width: 100%;
+            min-height: 86px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 20px;
+            border: none;
+            border-radius: 8px;
+            background: var(--btn-bg);
+            color: var(--text-main);
+            text-align: left;
+            cursor: pointer;
+            box-shadow: none;
+            transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+            box-sizing: border-box;
+        }
+
+        .startup-action:hover .startup-action-title,
+        .startup-action:hover .startup-action-desc,
+        .startup-action:focus-visible .startup-action-title,
+        .startup-action:focus-visible .startup-action-desc {
+            color: var(--btn-hover-text);
+        }
+
+        .startup-action:hover .startup-action-icon,
+        .startup-action:focus-visible .startup-action-icon {
+            color: var(--btn-hover-text);
+            background: rgba(17, 17, 24, 0.1);
+        }
+
+        .startup-action-separator {
+            height: 28px;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            padding: 0 28px;
+        }
+
+        .startup-action-separator span {
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(
+                to right,
+                transparent,
+                rgba(255, 255, 255, 0.28) 18%,
+                rgba(255, 255, 255, 0.28) 82%,
+                transparent
+            );
+        }
+
+        .startup-action-default {
+            margin-top: 10px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .startup-action-icon {
+            width: 46px;
+            height: 46px;
+            flex: 0 0 46px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--primary-light);
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .startup-action-skin .startup-action-icon {
+            color: var(--text-main);
+        }
+
+        .startup-action-default .startup-action-icon {
+            color: #a9d7ff;
+        }
+
+        .startup-action-icon svg {
+            width: 25px;
+            height: 25px;
+        }
+
+        .startup-action-copy {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .startup-action-title {
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .startup-action-desc {
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: var(--text-secondary);
+        }
+
+        .startup-actions.is-dragging .startup-actions-content {
+            transform: scale(1.015);
+        }
+
+        .startup-actions.is-dragging .startup-action {
+            background: rgba(255, 102, 170, 0.18);
+            box-shadow: inset 0 0 0 2px var(--border-pink);
+        }
+
+        /* 尚未选择皮肤来源时，详细设置与贴图编辑共用的提示状态 */
+        .skin-source-required-state {
+            display: none;
+            width: 100%;
+            min-height: 280px;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 36px 24px;
+            text-align: center;
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.035);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+        }
+
+        .skin-source-required-state.is-visible {
+            display: flex;
+        }
+
+        .skin-source-required-icon {
+            width: 58px;
+            height: 58px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 50%;
+        }
+
+        .skin-source-required-title {
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+
+        .skin-source-required-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 9px;
+            margin-top: 20px;
+        }
+
+        .skin-source-required-actions [hidden] {
+            display: none !important;
+        }
+
+        @media (max-width: 640px) {
+            .startup-actions {
+                align-items: flex-start;
+                padding: 12px;
+            }
+
+            .startup-action {
+                min-height: 74px;
+                padding: 12px;
+                gap: 10px;
+            }
+
+            .startup-action-separator {
+                height: 18px;
+                padding: 0 18px;
+            }
+
+            .startup-action-icon {
+                width: 38px;
+                height: 38px;
+                flex-basis: 38px;
+            }
+
+            .startup-action-icon svg {
+                width: 21px;
+                height: 21px;
+            }
+
+            .startup-action-title {
+                font-size: 0.9rem;
+            }
+
+            .startup-action-desc {
+                font-size: 0.7rem;
+            }
+
+            .skin-source-required-state {
+                min-height: 240px;
+                padding: 28px 18px;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .player-main-area:has(.startup-actions:not([hidden])) .left-info-panel {
+                display: none;
+            }
+
+            .player-main-area:has(.startup-actions:not([hidden])) .canvas-wrapper {
+                width: calc(100vw - 16px);
+                max-width: calc(100vw - 16px);
+                height: auto;
+                margin: 8px;
+            }
+        }
+
+        /* ===== 全屏悬浮按钮 ===== */
+        .fullscreen-btn {
+            position: absolute;
+            bottom: 14px;
+            right: 14px;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: rgba(20, 16, 32, 0.65);
+            border: none;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            backdrop-filter: blur(8px);
+            opacity: 0.45;
+            transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+            box-shadow: none;
+            padding: 0;
+            flex: none;
+        }
+
+        .canvas-wrapper:hover .fullscreen-btn {
+            opacity: 0.85;
+        }
+
+        .fullscreen-btn:hover {
+            opacity: 1 !important;
+        }
+
+        .fullscreen-btn svg {
+            width: 19px;
+            height: 19px;
+            transition: transform 0.2s ease;
+            pointer-events: none;
+        }
+
+        .fullscreen-btn .exit-icon {
+            display: none;
+        }
+
+        .canvas-wrapper:fullscreen .fullscreen-btn .enter-icon,
+        .canvas-wrapper:-webkit-full-screen .fullscreen-btn .enter-icon {
+            display: none;
+        }
+
+        .canvas-wrapper:fullscreen .fullscreen-btn .exit-icon,
+        .canvas-wrapper:-webkit-full-screen .fullscreen-btn .exit-icon {
+            display: block;
+        }
+
+        canvas {
+            background: #000;
+            width: 100%;
+            height: 100%;
+            display: block;
+            transition: filter 0.3s ease;
+        }
+
+        canvas.blurred {
+            filter: blur(8px) brightness(0.65);
+        }
+
+        /* ===== 画布中央加载进度遮罩 (osu! 风格) ===== */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(15, 12, 41, 0.35);
+            backdrop-filter: blur(4px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 5;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .loading-card {
+            width: 380px;
+            background: var(--panel-bg);
+            border: none;
+            border-radius: 12px;
+            padding: 24px 28px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.68);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .loading-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .loading-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+        }
+
+        .loading-percent {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 4px;
+            transition: width 0.15s ease-out;
+            box-shadow: none;
+        }
+
+        .loading-file-text {
+            font-size: 0.8rem;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: var(--font-clean);
+        }
+
+        /* ===== 右上角通知提示组件 (osu! 样式 - 适配全新紧凑现代化 UI) ===== */
+        .toast-container {
+            position: fixed;
+            top: 56px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 99999;
+            pointer-events: none;
+            max-width: calc(100vw - 32px);
+        }
+
+        .toast {
+            min-width: 200px;
+            max-width: 320px;
+            background: var(--panel-bg);
+            border: none;
+            border-left: 3px solid var(--primary);
+            border-radius: 8px;
+            padding: 8px 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px);
+            color: var(--text-main);
+            font-size: 0.78rem;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left-color: #ff4d6d;
+        }
+
+        .toast.error .toast-title {
+            color: #ff4d6d;
+        }
+
+        .toast.success {
+            border-left-color: #55e6a5;
+        }
+
+        .toast.success .toast-title {
+            color: #55e6a5;
+        }
+
+        .toast-title {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            line-height: 1.2;
+        }
+
+        .toast-title svg {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            stroke-width: 2.2;
+        }
+
+        .toast-close-btn {
+            margin-left: auto;
+            pointer-events: auto;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            transition: color 0.15s, background-color 0.15s, transform 0.15s;
+        }
+
+        .toast-close-btn:hover {
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        .toast-close-btn:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
+        }
+
+        .toast-file-list {
+            margin-top: 6px;
+            max-height: 110px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid var(--border-pink);
+            border-radius: 5px;
+            padding: 4px 8px;
+            font-family: var(--font-clean);
+            font-size: 0.68rem;
+            color: #ff9ebb;
+            white-space: pre-line;
+            word-break: break-all;
+            user-select: text;
+        }
+
+        .toast-file-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .toast-file-list::-webkit-scrollbar-thumb {
+            background: var(--border-pink);
+            border-radius: 2px;
+        }
+
+        .toast-msg {
+            color: var(--text-secondary);
+            line-height: 1.35;
+            font-size: 0.72rem;
+            word-break: break-word;
+        }
+
+        /* ===== 导出方式选择 ===== */
+        .texture-export-mode-modal {
+            z-index: 5200;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .texture-export-mode-backdrop {
+            background: rgba(6, 5, 10, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .texture-export-mode-dialog {
+            position: relative;
+            width: min(520px, calc(100vw - 32px));
+            padding: 22px;
+            border: none;
+            border-radius: 10px;
+            background: var(--bg-dialog);
+            color: var(--text-main);
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.72);
+            box-sizing: border-box;
+            animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .texture-export-mode-heading {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .texture-export-mode-icon {
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            border-radius: 8px;
+            color: #ff9ac7;
+            background: rgba(255, 102, 170, 0.13);
+        }
+
+        .texture-export-mode-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .texture-export-mode-heading h3 {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.3;
+        }
+
+        .texture-export-mode-heading p {
+            margin: 5px 0 0;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            line-height: 1.45;
+        }
+
+        .texture-export-mode-options {
+            display: grid;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .texture-export-mode-option {
+            width: 100%;
+            min-height: 76px;
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            color: var(--text-main);
+            background: var(--btn-bg);
+            text-align: left;
+            cursor: pointer;
+            transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .texture-export-mode-option-icon {
+            width: 36px;
+            height: 36px;
+            display: grid;
+            place-items: center;
+            flex: 0 0 auto;
+            border-radius: 7px;
+            color: #ff9ac7;
+            background: rgba(255, 102, 170, 0.14);
+        }
+
+        .texture-export-mode-option-icon svg {
+            width: 19px;
+            height: 19px;
+        }
+
+        .texture-export-mode-option-text {
+            min-width: 0;
+            display: grid;
+            gap: 4px;
+        }
+
+        .texture-export-mode-option-title {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.25;
+        }
+
+        .texture-export-mode-option-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .texture-export-mode-option:hover,
+        .texture-export-mode-option:focus-visible {
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+            box-shadow: none;
+            outline: none;
+        }
+
+        .texture-export-mode-option:hover .texture-export-mode-option-title,
+        .texture-export-mode-option:hover .texture-export-mode-option-desc,
+        .texture-export-mode-option:focus-visible .texture-export-mode-option-title,
+        .texture-export-mode-option:focus-visible .texture-export-mode-option-desc {
+            color: var(--btn-hover-text);
+        }
+
+        .texture-export-mode-option:hover .texture-export-mode-option-icon,
+        .texture-export-mode-option:focus-visible .texture-export-mode-option-icon {
+            color: var(--btn-hover-text);
+            background: rgba(17, 17, 24, 0.1);
+        }
+
+        .texture-export-mode-option:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
+        }
+
+        .texture-export-mode-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .texture-export-mode-cancel {
+            min-width: 76px;
+            height: 34px;
+            padding: 0 14px;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-main);
+            background: var(--btn-bg);
+            cursor: pointer;
+            font-size: 0.76rem;
+            font-weight: 600;
+            transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+        }
+
+        @media (max-width: 560px) {
+            .texture-export-mode-dialog {
+                padding: 18px;
+            }
+
+            .texture-export-mode-option {
+                min-height: 70px;
+                padding: 12px;
+            }
+        }
+
+        .unsaved-exit-modal {
+            z-index: 8000;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .unsaved-exit-backdrop {
+            background: rgba(6, 5, 10, 0.72);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .unsaved-exit-dialog {
+            position: relative;
+            width: min(460px, calc(100vw - 32px));
+            padding: 22px;
+            border: none;
+            border-radius: 10px;
+            background: var(--bg-dialog);
+            color: var(--text-main);
+            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.72);
+            box-sizing: border-box;
+            animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .unsaved-exit-dialog h3 {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.3;
+        }
+
+        .unsaved-exit-dialog p {
+            margin: 10px 0 0;
+            color: var(--text-secondary);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        .unsaved-exit-actions {
+            display: flex;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 18px;
+        }

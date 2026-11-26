@@ -1,0 +1,501 @@
+/* ============================================================================
+ * texture-image-shell.css - 贴图编辑器弹窗外壳、确认框、标签页栏
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 简单贴图编辑器外壳与子弹窗 ===== */
+        .texture-image-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2400;
+            display: none;
+            pointer-events: none;
+        }
+
+        .texture-image-modal.active,
+        .texture-image-modal.is-closing {
+            display: block;
+        }
+
+        .texture-image-modal.is-closing {
+            pointer-events: none;
+        }
+
+        .texture-image-backdrop {
+            display: none;
+        }
+
+        .texture-image-dialog {
+            position: fixed;
+            right: 24px;
+            top: 48px;
+            z-index: 2401;
+            width: min(1040px, calc(100vw - 32px));
+            max-width: calc(100vw - 32px);
+            height: 84vh;
+            min-width: min(460px, calc(100vw - 32px));
+            min-height: 380px;
+            max-height: calc(100vh - 56px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-stage);
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.78);
+            pointer-events: auto;
+            resize: both;
+            animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.15s ease;
+        }
+
+        .texture-image-modal.is-closing .texture-image-dialog {
+            animation: modalScaleDown 0.16s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+            pointer-events: none !important;
+        }
+
+        .texture-image-dialog.is-dragging {
+            user-select: none;
+            opacity: 0.88;
+            box-shadow: 0 20px 56px rgba(0, 0, 0, 0.8);
+            transition: none;
+        }
+
+        .texture-image-dialog.is-collapsed {
+            height: auto !important;
+            min-height: 0 !important;
+            resize: none !important;
+            border: none !important;
+        }
+
+        .texture-image-dialog.is-collapsed .texture-image-tabs,
+        .texture-image-dialog.is-collapsed .texture-image-body,
+        .texture-image-dialog.is-collapsed .texture-image-footer {
+            display: none !important;
+        }
+
+        .texture-image-dialog.is-skin-source-missing .texture-image-body > .texture-image-picker-view,
+        .texture-image-dialog.is-skin-source-missing .texture-image-body > .texture-image-library-view,
+        .texture-image-dialog.is-skin-source-missing .texture-image-body > .texture-image-creator-view,
+        .texture-image-dialog.is-skin-source-missing .texture-image-body > .texture-image-editor-view,
+        .texture-image-dialog.is-skin-source-missing > .texture-image-footer {
+            display: none !important;
+        }
+
+        .texture-image-dialog.is-skin-source-missing .texture-image-body {
+            display: flex;
+            align-items: stretch;
+            padding: 16px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-dialog.is-skin-source-missing .texture-image-skin-required {
+            height: 100%;
+        }
+
+        .texture-image-scope-modal {
+            z-index: 2500;
+            pointer-events: auto;
+        }
+
+        .texture-image-scope-backdrop {
+            background: rgba(0, 0, 0, 0.58);
+            backdrop-filter: blur(2px);
+        }
+
+        .texture-image-scope-dialog {
+            position: relative;
+            width: min(430px, calc(100vw - 40px));
+            padding: 22px;
+            border-radius: 10px;
+            color: var(--text-main);
+            background: var(--bg-dialog);
+            border: none;
+            box-shadow: 0 18px 48px rgba(0, 0, 0, 0.72);
+            box-sizing: border-box;
+        }
+
+        .texture-image-scope-icon {
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            color: #ff8cba;
+            background: rgba(255, 102, 170, 0.12);
+        }
+
+        .texture-image-scope-dialog h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .texture-image-scope-dialog p {
+            margin: 8px 0 0;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            line-height: 1.55;
+        }
+
+        .texture-image-scope-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .texture-image-library-action-modal {
+            z-index: 2600;
+            pointer-events: auto;
+        }
+
+        .texture-image-library-action-backdrop {
+            background: rgba(0, 0, 0, 0.62);
+            backdrop-filter: blur(3px);
+        }
+
+        .texture-image-library-action-dialog {
+            position: relative;
+            width: min(440px, calc(100vw - 40px));
+            padding: 20px;
+            color: var(--text-main);
+            background: var(--bg-dialog);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 20px 56px rgba(0, 0, 0, 0.76);
+            box-sizing: border-box;
+        }
+
+        .texture-image-library-action-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .texture-image-library-action-head h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 650;
+        }
+
+        .texture-image-library-action-head code {
+            max-width: 330px;
+            display: block;
+            margin-top: 5px;
+            overflow: hidden;
+            color: #f2a9c8;
+            font-family: var(--font-clean);
+            font-size: 0.72rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-image-library-action-close {
+            padding: 0 5px;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.35rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .texture-image-library-action-close:hover {
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        .texture-image-library-action-close:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
+        }
+
+        .texture-image-library-action-dialog > p {
+            margin: 11px 0 0;
+            color: var(--text-muted);
+            font-size: 0.76rem;
+            line-height: 1.55;
+        }
+
+        .texture-image-library-copy-field {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            margin-top: 16px;
+        }
+
+        .texture-image-library-copy-field > span {
+            color: var(--text-secondary);
+            font-size: 0.74rem;
+        }
+
+        .texture-image-library-copy-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 9px 11px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.055);
+        }
+
+        .texture-image-library-copy-input-wrap:focus-within {
+            background: rgba(255, 255, 255, 0.085);
+            box-shadow: inset 0 0 0 2px var(--primary-glow);
+        }
+
+        .texture-image-library-copy-input-wrap input {
+            min-width: 0;
+            flex: 1;
+            padding: 0;
+            color: var(--text-main);
+            background: transparent;
+            border: none;
+            outline: none;
+            font: inherit;
+            font-size: 0.82rem;
+        }
+
+        .texture-image-library-copy-input-wrap input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .texture-image-library-copy-input-wrap > span {
+            flex-shrink: 0;
+            color: var(--text-muted);
+            font-family: var(--font-clean);
+            font-size: 0.75rem;
+        }
+
+        .texture-image-library-copy-field small {
+            min-height: 1em;
+            color: #ff91b9;
+            font-size: 0.7rem;
+        }
+
+        .texture-image-library-action-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .texture-image-library-action-actions .is-danger {
+            color: var(--text-main);
+            background: var(--primary-deep);
+        }
+
+        .texture-image-library-action-actions .is-danger:hover:not(:disabled) {
+            background: var(--btn-hover-bg) !important;
+            color: var(--btn-hover-text) !important;
+        }
+
+        .texture-image-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-dialog);
+            flex-shrink: 0;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .texture-image-header:active,
+        .texture-image-dialog.is-dragging .texture-image-header {
+            cursor: grabbing;
+        }
+
+        .texture-image-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .texture-image-header .header-drag-handle {
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.35);
+            cursor: grab;
+            transition: color 0.15s ease;
+        }
+
+        .texture-image-header:hover .header-drag-handle {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .texture-image-title-group {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            min-width: 0;
+        }
+
+        .texture-image-title-icon {
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            color: #ff8cba;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .texture-image-title-group h3 {
+            margin: 0;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .texture-image-tabs {
+            min-height: 45px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(255, 255, 255, 0.015);
+            box-sizing: border-box;
+        }
+
+        .texture-image-tab-list {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1 1 auto;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .texture-image-tab-list::-webkit-scrollbar {
+            display: none;
+        }
+
+        .texture-image-tab {
+            min-width: 108px;
+            max-width: 220px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            flex: 0 1 auto;
+            padding: 0 9px 0 12px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            border-radius: 7px 7px 0 0;
+            box-sizing: border-box;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .texture-image-tab:hover {
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        .texture-image-tab:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
+        }
+
+        .texture-image-tab.is-active {
+            color: var(--text-main);
+            background: var(--bg-dark-secondary);
+            box-shadow: inset 0 2px 0 rgba(255, 102, 170, 0.72);
+        }
+
+        .texture-image-tab.is-active:hover {
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        .texture-image-tab:hover .texture-image-tab-close {
+            color: var(--btn-hover-text);
+        }
+
+        .texture-image-tab-label {
+            min-width: 0;
+            flex: 1 1 auto;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .texture-image-tab-dirty {
+            width: 6px;
+            height: 6px;
+            flex: 0 0 auto;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .texture-image-tab-close {
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            padding: 0;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            font: inherit;
+            font-size: 0.72rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .texture-image-tab-close:hover {
+            color: var(--btn-hover-text);
+            background: rgba(17, 17, 24, 0.12);
+        }
+
+        .texture-image-tab-add {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 32px;
+            padding: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            color: var(--text-secondary);
+            background: var(--btn-bg);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .texture-image-tab-add:focus-visible {
+            outline: 2px solid var(--border-pink);
+            outline-offset: 2px;
+        }
+
+        .texture-image-body {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }

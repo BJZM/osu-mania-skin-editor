@@ -1,0 +1,329 @@
+/* ============================================================================
+ * texture-image-picker.css - 贴图导入列表、全部贴图库视图与编辑模式下拉菜单
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 贴图选择与全部贴图库视图 ===== */
+        .texture-image-picker-view {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 15px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-library-view {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 16px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-picker-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding-bottom: 11px;
+        }
+
+        .texture-image-picker-title {
+            color: var(--text-main);
+            font-size: 0.86rem;
+            font-weight: 600;
+        }
+
+        .texture-image-picker-count {
+            flex-shrink: 0;
+            padding: 3px 8px;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0.7rem;
+        }
+
+        .texture-image-picker-head-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .texture-image-picker-grid {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            display: block;
+            padding-right: 4px;
+        }
+
+        .texture-image-picker-item {
+            position: relative;
+            min-width: 0;
+            min-height: 72px;
+            display: grid;
+            grid-template-columns: 58px minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 9px;
+            color: inherit;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.03);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-sizing: border-box;
+            transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+        }
+
+        .texture-image-picker-item:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .texture-image-picker-item.selected {
+            background: rgba(255, 102, 170, 0.06);
+            box-shadow: inset 2px 0 0 rgba(255, 102, 170, 0.7);
+        }
+
+        .texture-image-picker-item:disabled {
+            cursor: not-allowed;
+            opacity: 0.38;
+        }
+
+        .texture-image-picker-preview {
+            position: relative;
+            width: 56px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 6px;
+            border: none;
+            background-size: 10px 10px;
+            background-position: 0 0, 0 5px, 5px -5px, -5px 0;
+        }
+
+        .texture-image-picker-preview canvas {
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .texture-image-picker-meta {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .texture-image-picker-name,
+        .texture-image-picker-file {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-image-picker-name {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.76rem;
+            font-weight: 600;
+        }
+
+        .texture-image-picker-file {
+            color: rgba(255, 255, 255, 0.44);
+            font-size: 0.67rem;
+            font-family: var(--font-clean);
+        }
+
+        .texture-image-picker-badge {
+            align-self: start;
+            padding: 2px 5px;
+            border-radius: 5px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 0.64rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* 贴图导入列表直接复用详细设置的参数卡片结构 */
+        .texture-image-picker-grid .param-cards-grid {
+            grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+        }
+
+        .texture-image-picker-grid .param-card.texture-image-picker-item {
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+            padding: 10px 12px;
+            color: inherit;
+            text-align: left;
+            background: rgba(255, 255, 255, 0.03);
+            border: none;
+            border-radius: 8px;
+            cursor: default;
+            box-sizing: border-box;
+        }
+
+        .texture-image-picker-grid .param-card.texture-image-picker-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .texture-image-picker-grid .param-card.texture-image-picker-item.selected {
+            background: rgba(255, 102, 170, 0.06);
+            box-shadow: inset 2px 0 0 rgba(255, 102, 170, 0.7);
+        }
+
+        .texture-image-picker-grid .per-track-texture-row.texture-image-picker-item {
+            min-height: 0;
+            display: flex;
+            grid-template-columns: none;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            color: inherit;
+            text-align: left;
+            background: rgba(0, 0, 0, 0.22);
+            border: none;
+            border-radius: 7px;
+            cursor: default;
+        }
+
+        .texture-image-picker-grid .per-track-texture-row.texture-image-picker-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: none;
+            box-shadow: none;
+        }
+
+        .texture-image-picker-grid .per-track-texture-row.texture-image-picker-item.selected {
+            background: rgba(255, 102, 170, 0.08);
+            box-shadow: inset 2px 0 0 rgba(255, 102, 170, 0.7);
+        }
+
+        .texture-edit-main-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        .texture-edit-dropdown {
+            position: relative;
+            display: inline-flex;
+            flex-shrink: 0;
+        }
+
+        .param-card:has(.texture-edit-dropdown.is-open) {
+            z-index: 120 !important;
+        }
+
+        .texture-edit-main-btn .edit-mode-chevron {
+            display: none;
+            flex-shrink: 0;
+            opacity: 0.72;
+            transition: transform 0.15s ease;
+        }
+
+        .texture-edit-main-btn.has-modes .edit-mode-chevron {
+            display: block;
+        }
+
+        .texture-edit-dropdown.is-open {
+            z-index: 700;
+        }
+
+        .texture-edit-dropdown.is-open .edit-mode-chevron {
+            transform: rotate(180deg);
+        }
+
+        .texture-edit-mode-menu {
+            position: absolute;
+            z-index: 710;
+            top: 100%;
+            right: 0;
+            width: 142px;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            padding: 5px;
+            border-radius: 8px;
+            background: var(--bg-stage);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.52);
+        }
+
+        .texture-edit-dropdown.is-open .texture-edit-mode-menu {
+            display: flex;
+        }
+
+        .texture-edit-dropdown.opens-up .texture-edit-mode-menu {
+            top: auto;
+            bottom: 100%;
+        }
+
+        .texture-edit-mode-menu[hidden] {
+            display: none;
+        }
+
+        .texture-edit-mode-option {
+            width: 100%;
+            min-height: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 8px;
+            border: none;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.055);
+            color: rgba(255, 255, 255, 0.88);
+            font: inherit;
+            font-size: 0.74rem;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.14s ease, color 0.14s ease, transform 0.14s ease;
+        }
+
+        .texture-edit-mode-option:hover,
+        .texture-edit-mode-option:focus-visible {
+            outline: none;
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
+        }
+
+        .texture-edit-mode-option:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
+        }
+
+        .texture-edit-mode-option.is-general {
+            color: #9dceff;
+        }
+
+        .texture-edit-mode-option.is-general:hover,
+        .texture-edit-mode-option.is-general:focus-visible {
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
+        }
+
+        .texture-edit-mode-option.is-generation {
+            color: #ffabd0;
+        }
+
+        .texture-edit-mode-option.is-generation:hover,
+        .texture-edit-mode-option.is-generation:focus-visible {
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
+        }

@@ -1,19 +1,17 @@
 /* ============================================================================
  * player.css - 现代化全功能底栏播放器控制台
- * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
  * ========================================================================== */
 
         /* ===== 现代化全功能底栏播放器控制台 (Studio Docked Player Bar) ===== */
         .player-controls.studio-bottom-bar {
             flex-direction: column;
-
-
             gap: 6px;
             margin: 0;
             padding: 6px 24px 8px 24px;
-            background: #14121a !important;
+            background: var(--bg-stage) !important;
             backdrop-filter: blur(16px);
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid var(--border-subtle);
             border-left: none !important;
             border-right: none !important;
             border-bottom: none !important;
@@ -96,7 +94,7 @@
         .deck-divider {
             width: 1px;
             height: 20px;
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--border-subtle);
             flex-shrink: 0;
         }
 
@@ -270,24 +268,14 @@
         .tweak-label {
             font-size: 0.76rem;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.65);
+            color: var(--text-secondary);
             user-select: none;
             white-space: nowrap;
         }
 
         .tweak-slider-item input[type="range"] {
-            -webkit-appearance: none !important;
-            appearance: none !important;
             width: 70px !important;
-            height: 4px !important;
-            border-radius: 2px !important;
-            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 50%), rgba(255, 255, 255, 0.2) var(--slider-pct, 50%), rgba(255, 255, 255, 0.2) 100%) !important;
-            border: none !important;
-            outline: none !important;
-            box-shadow: none !important;
-            cursor: pointer;
-            padding: 0 !important;
-            margin: 0 !important;
+            --slider-pct: 50%;
         }
 
         #speedRange {
@@ -298,61 +286,10 @@
             --slider-pct: 80%;
         }
 
-        .tweak-slider-item input[type="range"]::-webkit-slider-runnable-track {
-            height: 4px !important;
-            border-radius: 2px !important;
-            background: transparent !important;
-            border: none !important;
-            outline: none !important;
-            box-shadow: none !important;
-        }
-
-        .tweak-slider-item input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none !important;
-            appearance: none !important;
-            width: 10px !important;
-            height: 10px !important;
-            border-radius: 50% !important;
-            background: #ffffff !important;
-            border: none !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
-            margin-top: -3px !important;
-            cursor: pointer;
-            transition: transform 0.1s ease;
-        }
-
-        .tweak-slider-item input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-        }
-
-        .tweak-slider-item input[type="range"]::-moz-range-track {
-            height: 4px !important;
-            border-radius: 2px !important;
-            background: transparent !important;
-            border: none !important;
-            outline: none !important;
-            box-shadow: none !important;
-        }
-
-        .tweak-slider-item input[type="range"]::-moz-range-thumb {
-            width: 10px !important;
-            height: 10px !important;
-            border-radius: 50% !important;
-            background: #ffffff !important;
-            border: none !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5) !important;
-            cursor: pointer;
-            transition: transform 0.1s ease;
-        }
-
-        .tweak-slider-item input[type="range"]::-moz-range-thumb:hover {
-            transform: scale(1.2);
-        }
-
         .tweak-val {
             font-size: 0.76rem;
             font-weight: 700;
-            color: #ff8cb9;
+            color: var(--primary-light);
             min-width: 32px;
             text-align: right;
             font-variant-numeric: tabular-nums;
@@ -384,7 +321,7 @@
             border: none !important;
             border-radius: 5px;
             font-size: 0.76rem;
-            color: #ffffff;
+            color: var(--text-main);
             white-space: nowrap;
             width: auto;
             box-sizing: border-box;
@@ -393,7 +330,7 @@
         }
 
         .deck-stats .stat-label {
-            color: rgba(255, 255, 255, 0.55);
+            color: var(--text-muted);
             font-size: 0.74rem;
             font-weight: 500;
             flex-shrink: 0;
@@ -401,7 +338,7 @@
         }
 
         .deck-stats .stats-value {
-            color: #ffffff;
+            color: var(--text-main);
             font-weight: 700;
             font-size: 0.78rem;
             flex-shrink: 0;
@@ -423,7 +360,7 @@
         .time-label {
             font-size: 0.8rem;
             font-weight: 600;
-            color: #ffffff;
+            color: var(--text-main);
             font-variant-numeric: tabular-nums;
             letter-spacing: 0.3px;
             font-family: var(--font-clean);
@@ -437,71 +374,9 @@
             align-items: center;
         }
 
-        /* ===== 播放器控制器内滑动条样式 (细线 + 小圆点) ===== */
-        .player-controls input[type="range"] {
-            padding: 0 !important;
-            margin: 0 !important;
-            height: 4px !important;
-            border: none !important;
-            outline: none !important;
-            box-shadow: none !important;
-            box-sizing: border-box !important;
-        }
-
-        .player-controls input[type="range"]::-webkit-slider-runnable-track {
-            height: 4px !important;
-            border-radius: 2px !important;
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: transparent !important;
-        }
-
-        .player-controls input[type="range"]::-moz-range-track {
-            height: 4px !important;
-            border-radius: 2px !important;
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: transparent !important;
-        }
-
-        /* 自定义进度滑动条 (粉色细线 + 暗色未播放背景 + 扁平圆形滑块，无描边) */
         .progress-slider {
-            -webkit-appearance: none !important;
-            appearance: none !important;
             width: 100% !important;
-            height: 4px !important;
-            border-radius: 2px !important;
-            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%) !important;
-            outline: none !important;
-            border: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            cursor: pointer !important;
-        }
-
-        .progress-slider::-webkit-slider-thumb {
-            -webkit-appearance: none !important;
-            appearance: none !important;
-            width: 10px !important;
-            height: 10px !important;
-            border-radius: 50% !important;
-            background: #ffffff !important;
-            border: none !important;
-            box-shadow: none !important;
-            cursor: pointer !important;
-            margin-top: -3px !important;
-        }
-
-        .progress-slider::-moz-range-thumb {
-            width: 10px !important;
-            height: 10px !important;
-            border-radius: 50% !important;
-            background: #ffffff !important;
-            border: none !important;
-            box-shadow: none !important;
-            cursor: pointer !important;
+            --slider-pct: 0%;
         }
 
         .progress-slider:disabled {
@@ -525,36 +400,14 @@
             padding: 0;
             border-radius: 50%;
             border: none;
-            background: rgba(255, 255, 255, 0.12);
-            color: #ffffff;
+            background: var(--btn-bg);
+            color: var(--text-main);
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             box-shadow: none;
             transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
-        }
-
-        .play-pause-btn:hover:not(:disabled) {
-            transform: none;
-            background: #ffffff;
-            color: #111118;
-            box-shadow: none;
-            filter: none;
-        }
-
-        .play-pause-btn:active:not(:disabled) {
-            transform: scale(0.96);
-            background: #e2e2e8;
-        }
-
-        .play-pause-btn:disabled {
-            background: rgba(255, 255, 255, 0.05);
-            color: rgba(255, 255, 255, 0.3);
-            border-color: transparent;
-            cursor: not-allowed;
-            box-shadow: none;
-            opacity: 0.5;
         }
 
         .play-pause-btn svg {
@@ -580,7 +433,7 @@
             margin-left: 0;
         }
 
-        /* 音量控件 (类似视频网站：粉色进度条 + 白色圆形滑块，无多余边框) */
+        /* 音量控件 */
         .volume-mixer {
             display: flex;
             flex-direction: row;
@@ -604,7 +457,7 @@
         }
 
         .volume-label {
-            color: rgba(255, 255, 255, 0.62);
+            color: var(--text-muted);
             font-size: 0.68rem;
             font-weight: 600;
             line-height: 1;
@@ -615,7 +468,7 @@
         .volume-mute-btn {
             background: transparent;
             border: none;
-            color: #ffffff;
+            color: var(--text-main);
             padding: 0;
             width: 20px;
             height: 20px;
@@ -656,46 +509,14 @@
         }
 
         .volume-slider {
-            -webkit-appearance: none !important;
-            appearance: none !important;
             flex: 1 !important;
             min-width: 0 !important;
-            height: 4px !important;
-            border-radius: 2px !important;
-            background: linear-gradient(to right, #ff66aa 0%, #ff66aa var(--slider-pct, 80%), rgba(255, 255, 255, 0.2) var(--slider-pct, 80%), rgba(255, 255, 255, 0.2) 100%) !important;
-            outline: none !important;
-            border: none !important;
-            padding: 0 !important;
-            cursor: pointer !important;
-            margin: 0 !important;
-        }
-
-        .volume-slider::-webkit-slider-thumb {
-            -webkit-appearance: none !important;
-            appearance: none !important;
-            width: 10px !important;
-            height: 10px !important;
-            border-radius: 50% !important;
-            background: #ffffff !important;
-            border: none !important;
-            cursor: pointer !important;
-            box-shadow: none !important;
-            margin-top: -3px !important;
-        }
-
-        .volume-slider::-moz-range-thumb {
-            width: 10px !important;
-            height: 10px !important;
-            border-radius: 50% !important;
-            background: #ffffff !important;
-            border: none !important;
-            cursor: pointer !important;
-            box-shadow: none !important;
+            --slider-pct: 80%;
         }
 
         .volume-percent {
             font-size: 0.7rem;
-            color: #ffffff;
+            color: var(--text-main);
             min-width: 28px;
             text-align: right;
             font-family: var(--font-clean);
@@ -734,6 +555,5 @@
             position: relative;
             box-sizing: border-box;
             overflow: hidden;
-            background: #14121a !important;
+            background: var(--bg-stage) !important;
         }
-

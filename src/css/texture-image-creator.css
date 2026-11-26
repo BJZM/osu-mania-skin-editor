@@ -1,0 +1,563 @@
+/* ============================================================================
+ * texture-image-creator.css - 纯色与几何形状贴图创建器视图
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 纯色贴图创建器 ===== */
+        .texture-image-creator-view {
+            height: 100%;
+            min-height: 0;
+            display: flex;
+            gap: 16px;
+            padding: 16px 18px;
+            box-sizing: border-box;
+        }
+
+        .texture-image-creator-preview-panel {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .texture-image-creator-controls {
+            width: 355px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .texture-image-creator-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .texture-image-creator-name-row input {
+            flex: 1;
+            min-width: 0;
+            height: 32px;
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.35);
+            color: var(--text-main);
+            padding: 0 10px;
+            font-size: 0.78rem;
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .texture-image-creator-name-row input:focus {
+            border-color: var(--primary);
+        }
+
+        .texture-image-creator-name-suffix {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-family: monospace;
+            user-select: none;
+        }
+
+        .texture-image-creator-name-error {
+            color: #ff88a3;
+            font-size: 0.69rem;
+            margin-top: 4px;
+        }
+
+        .texture-image-creator-target {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: start;
+            gap: 8px;
+            margin-bottom: 9px;
+            color: var(--text-muted);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-creator-target-label {
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            color: var(--text-secondary);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .texture-image-creator-target-picker {
+            position: relative;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .texture-image-creator-target-trigger {
+            width: 100%;
+            height: 32px;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 9px 0 10px;
+            color: var(--text-main);
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            border-radius: 6px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+            outline: none;
+            box-sizing: border-box;
+            font-family: var(--font-clean);
+            font-size: 0.73rem;
+            cursor: pointer;
+            transition: background 0.16s ease, box-shadow 0.16s ease;
+        }
+
+        .texture-image-creator-target-trigger:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.075);
+        }
+
+        .texture-image-creator-target-trigger:focus-visible {
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        .texture-image-creator-target-trigger:disabled {
+            opacity: 0.42;
+            cursor: not-allowed;
+        }
+
+        .texture-image-creator-target-trigger-copy {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex: 1;
+            text-align: left;
+        }
+
+        .texture-image-creator-target-trigger-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .texture-image-creator-target-trigger-key {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: rgba(255, 255, 255, 0.38);
+            font-size: 0.64rem;
+        }
+
+        .texture-image-creator-target-trigger-arrow {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.42);
+            transition: transform 0.18s ease, color 0.18s ease;
+        }
+
+        .texture-image-creator-target-trigger[aria-expanded="true"] .texture-image-creator-target-trigger-arrow {
+            color: var(--primary-light);
+            transform: rotate(180deg);
+        }
+
+        .texture-image-creator-target-panel {
+            max-height: 268px;
+            display: none;
+            overflow: hidden;
+            background: var(--bg-dialog);
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.52);
+        }
+
+        .texture-image-creator-target-panel.is-open {
+            display: block;
+            animation: texture-creator-target-panel-in 0.16s ease-out;
+        }
+
+        @keyframes texture-creator-target-panel-in {
+            from {
+                opacity: 0;
+                transform: translateY(-4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .texture-image-creator-target-list {
+            max-height: 268px;
+            padding: 6px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .texture-image-creator-target-group + .texture-image-creator-target-group,
+        .texture-image-creator-target-group + .texture-image-creator-target-option,
+        .texture-image-creator-target-option + .texture-image-creator-target-group {
+            margin-top: 4px;
+        }
+
+        .texture-image-creator-target-group-toggle {
+            width: 100%;
+            min-height: 30px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 7px;
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.045);
+            border: none;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 0.69rem;
+            text-align: left;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .texture-image-creator-target-group-toggle:hover,
+        .texture-image-creator-target-group-toggle:focus-visible {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.085);
+            outline: none;
+        }
+
+        .texture-image-creator-target-group-arrow {
+            width: 11px;
+            height: 11px;
+            flex-shrink: 0;
+            color: var(--primary-light);
+            transform: rotate(90deg);
+            transition: transform 0.18s ease;
+        }
+
+        .texture-image-creator-target-group.is-collapsed .texture-image-creator-target-group-arrow {
+            transform: rotate(0deg);
+        }
+
+        .texture-image-creator-target-group-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            font-weight: 600;
+        }
+
+        .texture-image-creator-target-group-count {
+            flex-shrink: 0;
+            padding: 1px 5px;
+            border-radius: 4px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.07);
+            font-size: 0.62rem;
+        }
+
+        .texture-image-creator-target-group-items {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 4px 0 1px 11px;
+        }
+
+        .texture-image-creator-target-group-items[hidden] {
+            display: none;
+        }
+
+        .texture-image-creator-target-option {
+            width: 100%;
+            min-height: 39px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 7px 5px 8px;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-family: inherit;
+            text-align: left;
+            cursor: pointer;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .texture-image-creator-target-option.is-direct {
+            margin-top: 1px;
+        }
+
+        .texture-image-creator-target-option:hover,
+        .texture-image-creator-target-option:focus-visible {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.065);
+            outline: none;
+        }
+
+        .texture-image-creator-target-option.is-selected {
+            color: var(--text-main);
+            background: rgba(255, 102, 170, 0.13);
+        }
+
+        .texture-image-creator-target-option-copy {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            flex: 1;
+        }
+
+        .texture-image-creator-target-option-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            font-size: 0.69rem;
+            font-weight: 600;
+        }
+
+        .texture-image-creator-target-option-key {
+            max-width: 128px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: rgba(255, 255, 255, 0.34);
+            font-family: var(--font-clean);
+            font-size: 0.62rem;
+        }
+
+        .texture-image-creator-target-option-check {
+            width: 13px;
+            height: 13px;
+            flex-shrink: 0;
+            color: var(--primary-light);
+            opacity: 0;
+            transform: scale(0.82);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .texture-image-creator-target-option.is-selected .texture-image-creator-target-option-check {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .texture-image-creator-target-native {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .texture-image-creator-size-grid {
+            margin-bottom: 9px;
+        }
+
+        .texture-image-creator-spec-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 9px;
+            color: var(--text-muted);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-segmented {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px;
+            border-radius: 7px;
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+        }
+
+        .texture-image-segmented label {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .texture-image-segmented input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .texture-image-segmented span {
+            min-width: 40px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 8px;
+            border-radius: 5px;
+            color: var(--text-muted);
+            font-family: var(--font-clean);
+            font-size: 0.69rem;
+            font-weight: 600;
+            box-sizing: border-box;
+            transition: color 0.15s ease, background 0.15s ease;
+        }
+
+        .texture-image-segmented input:checked + span {
+            color: var(--text-main);
+            background: rgba(255, 102, 170, 0.42);
+        }
+
+        .texture-image-creator-color-row {
+            display: grid;
+            grid-template-columns: 1fr 1.45fr;
+            gap: 8px;
+            margin-bottom: 9px;
+        }
+
+        .texture-image-creator-color,
+        .texture-image-creator-hex {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: var(--text-muted);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-creator-color input[type="color"] {
+            width: 100%;
+            height: 30px;
+            padding: 3px;
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .texture-image-creator-hex input {
+            width: 100%;
+            height: 30px;
+            padding: 0 8px;
+            color: var(--text-main);
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+            font-family: var(--font-clean);
+            font-size: 0.74rem;
+            text-transform: lowercase;
+        }
+
+        .texture-image-creator-alpha {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) 52px auto;
+            align-items: center;
+            gap: 7px;
+            color: var(--text-muted);
+            font-size: 0.69rem;
+        }
+
+        .texture-image-creator-alpha input[type="range"] {
+            width: 100%;
+        }
+
+        .texture-image-creator-alpha input[type="number"],
+        .texture-image-creator-radius input[type="number"] {
+            width: 100%;
+            height: 28px;
+            padding: 0 7px;
+            color: var(--text-main);
+            background: rgba(0, 0, 0, 0.34);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+            font-family: var(--font-clean);
+            font-size: 0.74rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .texture-image-creator-stroke-alpha {
+            margin-top: 9px;
+        }
+
+        .texture-image-shape-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+        }
+
+        .texture-image-shape-btn {
+            min-width: 0;
+            height: 66px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            padding: 4px 3px;
+            color: var(--text-secondary);
+            background: var(--btn-bg-subtle);
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            overflow: hidden;
+            box-sizing: border-box;
+            transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .texture-image-shape-btn.is-active {
+            color: var(--text-main);
+            background: rgba(255, 102, 170, 0.18);
+            box-shadow: inset 0 0 0 1.5px rgba(255, 102, 170, 0.65);
+        }
+
+        .texture-image-shape-btn canvas {
+            width: 48px;
+            height: 34px;
+            flex-shrink: 0;
+        }
+
+        .texture-image-shape-btn span {
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 0.61rem;
+            line-height: 1;
+        }
+
+        .texture-image-creator-radius {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) 52px auto;
+            align-items: center;
+            gap: 7px;
+            margin-top: 9px;
+            color: var(--text-muted);
+            font-size: 0.69rem;
+            transition: opacity 0.15s ease;
+        }
+
+        .texture-image-creator-radius input[type="range"] {
+            width: 100%;
+        }
+
+        .texture-image-creator-radius.is-disabled {
+            opacity: 0.38;
+        }
+
+        .texture-image-creator-arrow-control {
+            display: none;
+            margin-top: 9px;
+        }

@@ -1,30 +1,14 @@
 /* ============================================================================
- * help.css - 皮肤各贴图拉伸与尺寸规则指南
- * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * help.css - 皮肤各贴图拉伸与尺寸规则指南弹窗及关于弹窗
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
  * ========================================================================== */
 
-           皮肤各贴图拉伸与尺寸规则指南帮助弹窗 (Help Modal)
-           ============================================================ */
+        /* ===== 皮肤各贴图拉伸与尺寸规则指南帮助弹窗 (Help Modal) ===== */
         .help-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
             z-index: 3500;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
         .help-modal-backdrop {
-            position: absolute;
-            top: 0;
-            left: 0;
-
-
-            width: 100%;
-            height: 100%;
             background: rgba(8, 6, 16, 0.76);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
@@ -37,8 +21,8 @@
             max-width: calc(100vw - 32px);
             height: 85vh;
             max-height: 800px;
-            background: #16131d;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--bg-dialog);
+            border: none;
             border-radius: 12px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
             display: flex;
@@ -52,7 +36,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 14px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid var(--border-subtle);
             background: rgba(255, 255, 255, 0.02);
             flex-shrink: 0;
         }
@@ -63,18 +47,18 @@
             gap: 10px;
             font-size: 0.95rem;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--text-main);
             letter-spacing: 0.2px;
         }
 
         .help-modal-title svg {
-            color: #ff66aa;
+            color: var(--primary);
         }
 
         .help-modal-close-btn {
             background: transparent;
             border: none;
-            color: rgba(255, 255, 255, 0.6);
+            color: var(--text-muted);
             font-size: 1.4rem;
             line-height: 1;
             padding: 2px 6px;
@@ -84,14 +68,19 @@
         }
 
         .help-modal-close-btn:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.1);
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        .help-modal-close-btn:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
         }
 
         .help-modal-toolbar {
             padding: 10px 20px;
-            background: #14111a;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border-subtle);
             display: flex;
             flex-direction: column;
             gap: 10px;
@@ -118,9 +107,9 @@
             width: 100%;
             padding: 6px 12px 6px 32px;
             background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-subtle);
             border-radius: 6px;
-            color: #ffffff;
+            color: var(--text-main);
             font-size: 0.8rem;
             outline: none;
             transition: all 0.2s ease;
@@ -128,9 +117,9 @@
         }
 
         .help-search-box input:focus {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: #ff66aa;
-            box-shadow: 0 0 0 1px #ff66aa;
+            background: var(--btn-bg-subtle);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
         }
 
         .help-filter-tabs {
@@ -141,24 +130,19 @@
 
         .help-tab-btn {
             padding: 4px 10px;
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--btn-bg-subtle);
             border: none;
             border-radius: 5px;
-            color: rgba(255, 255, 255, 0.65);
+            color: var(--text-secondary);
             font-size: 0.74rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.16s ease;
         }
 
-        .help-tab-btn:hover {
-            background: rgba(255, 255, 255, 0.18);
-            color: #ffffff;
-        }
-
         .help-tab-btn.active {
-            background: #ffffff;
-            color: #111118;
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
             font-weight: 700;
         }
 
@@ -169,19 +153,10 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
-            background: #14121a;
+            background: var(--bg-stage);
         }
 
-        .help-modal-body::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .help-modal-body::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.18);
-            border-radius: 3px;
-        }
-
-        /* 规则卡片样式 (完全继承数字贴图与统一卡片的设计语言) */
+        /* 规则卡片样式 */
         .help-rule-card {
             background: rgba(255, 255, 255, 0.03);
             border: none;
@@ -218,17 +193,17 @@
         .help-card-title {
             font-size: 0.85rem;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--text-main);
         }
 
         .help-card-file {
             font-family: var(--font-clean);
             font-size: 0.72rem;
-            color: rgba(255, 255, 255, 0.55);
+            color: var(--text-muted);
             background: rgba(255, 255, 255, 0.04);
             padding: 1px 6px;
             border-radius: 4px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            border: none;
         }
 
         .help-badges-group {
@@ -238,26 +213,21 @@
             flex-wrap: wrap;
         }
 
-        .help-badge {
-            font-size: 0.68rem;
-            font-weight: 500;
-            padding: 2px 7px;
-            border-radius: 4px;
-            white-space: nowrap;
-            background: rgba(255, 255, 255, 0.06);
-            color: rgba(255, 255, 255, 0.75);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
+        .help-badge,
         .badge-stretch-x,
         .badge-stretch-y,
         .badge-stretch-all,
         .badge-original,
         .badge-align,
         .badge-overflow {
+            font-size: 0.68rem;
+            font-weight: 500;
+            padding: 2px 7px;
+            border-radius: 4px;
+            white-space: nowrap;
             background: rgba(255, 255, 255, 0.06);
-            color: rgba(255, 255, 255, 0.75);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+            border: none;
         }
 
         .help-card-desc {
@@ -266,7 +236,7 @@
             gap: 5px;
             font-size: 0.76rem;
             line-height: 1.5;
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--text-secondary);
         }
 
         .help-desc-item {
@@ -283,11 +253,11 @@
         }
 
         .desc-val {
-            color: rgba(255, 255, 255, 0.72);
+            color: var(--text-secondary);
         }
 
         .desc-val strong {
-            color: #ffffff;
+            color: var(--text-main);
             font-weight: 600;
         }
 
@@ -303,13 +273,13 @@
         .help-empty-search {
             text-align: center;
             padding: 40px 20px;
-            color: rgba(255, 255, 255, 0.45);
+            color: var(--text-muted);
             font-size: 0.82rem;
         }
 
         .help-modal-footer {
             padding: 12px 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid var(--border-subtle);
             background: rgba(255, 255, 255, 0.02);
             display: flex;
             align-items: center;
@@ -323,7 +293,7 @@
             align-items: center;
             gap: 6px;
             font-size: 0.72rem;
-            color: rgba(255, 255, 255, 0.5);
+            color: var(--text-muted);
         }
 
         .help-hint-icon {
@@ -332,29 +302,17 @@
 
         .help-footer-btn {
             padding: 6px 18px;
-            background: #ffffff;
+            background: var(--btn-bg);
             border: none;
             border-radius: 6px;
-            color: #111118;
+            color: rgba(255, 255, 255, 0.9);
             font-size: 0.78rem;
-            font-weight: 700;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.16s ease;
         }
 
-        .help-footer-btn:hover {
-            background: #f0f0f5;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .help-footer-btn:active {
-            transform: scale(0.97);
-        }
-
-        /* ==========================================================================
-           关于、版权与第三方许可弹窗 (About Modal)
-           ============================================================ */
+        /* ===== 关于、版权与第三方许可弹窗 (About Modal) ===== */
         .about-modal-dialog {
             width: 640px;
             height: auto;
@@ -373,13 +331,13 @@
             flex-direction: column;
             gap: 8px;
             padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid var(--border-subtle);
         }
 
         .about-app-name {
             font-size: 1.05rem;
             font-weight: 800;
-            color: #ffffff;
+            color: var(--text-main);
             letter-spacing: 0.2px;
         }
 
@@ -389,11 +347,11 @@
             flex-wrap: wrap;
             gap: 10px;
             font-size: 0.78rem;
-            color: rgba(255, 255, 255, 0.55);
+            color: var(--text-muted);
         }
 
         .about-app-meta strong {
-            color: #ff66aa;
+            color: var(--primary);
             font-weight: 700;
         }
 
@@ -401,7 +359,7 @@
             margin: 0;
             font-size: 0.82rem;
             line-height: 1.6;
-            color: rgba(255, 255, 255, 0.68);
+            color: var(--text-secondary);
         }
 
         .about-section {
@@ -414,7 +372,7 @@
             margin: 0;
             font-size: 0.82rem;
             font-weight: 700;
-            color: #ff66aa;
+            color: var(--primary);
             letter-spacing: 0.4px;
         }
 
@@ -426,7 +384,7 @@
             gap: 6px;
             font-size: 0.8rem;
             line-height: 1.55;
-            color: rgba(255, 255, 255, 0.75);
+            color: var(--text-secondary);
         }
 
         .about-list-compact {
@@ -445,7 +403,7 @@
             padding: 6px 10px;
             border-radius: 6px;
             background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border: none;
         }
 
         .about-license-tag {
@@ -456,7 +414,7 @@
             font-weight: 700;
             color: #ffb3d5;
             background: rgba(255, 102, 170, 0.12);
-            border: 1px solid rgba(255, 102, 170, 0.3);
+            border: 1px solid var(--border-pink);
         }
 
         .about-license-tag-gpl {
@@ -471,9 +429,9 @@
             border-radius: 8px;
             font-size: 0.78rem;
             line-height: 1.6;
-            color: rgba(255, 255, 255, 0.72);
+            color: var(--text-secondary);
             background: rgba(255, 102, 170, 0.06);
-            border: 1px solid rgba(255, 102, 170, 0.18);
+            border: none;
         }
 
         .about-link {

@@ -1,0 +1,465 @@
+/* ============================================================================
+ * skin-editor-controls.css - 参数输入控件、贴图上传菜单、skin.ini 文本与底栏
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== 参数控制输入部件 ===== */
+        .param-control-row {
+            display: flex;
+            align-items: center;
+            margin-top: 1px;
+        }
+
+        /* 数字滑动条与数值输入框 */
+        .slider-input-combo {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .slider-input-combo input[type="range"] {
+            flex: 1 !important;
+            --slider-pct: 0%;
+        }
+
+        .slider-input-combo input[type="number"] {
+            width: 64px;
+            height: 26px;
+            padding: 3px 6px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-subtle);
+            border-radius: 5px;
+            color: var(--text-main);
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: right;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .slider-input-combo input[type="number"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        /* 纯文本与单输入框 */
+        .param-text-input {
+            flex: 1;
+            height: 26px;
+            padding: 3px 8px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-subtle);
+            border-radius: 5px;
+            color: var(--text-main);
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.8rem;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .param-text-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        /* 下拉选择框 */
+        .param-select {
+            flex: 1;
+            height: 26px;
+            appearance: none;
+            -webkit-appearance: none;
+            padding: 3px 24px 3px 8px;
+            background-color: rgba(0, 0, 0, 0.35);
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.7)' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat !important;
+            background-position: right 8px center !important;
+            background-size: 11px !important;
+            border: 1px solid var(--border-subtle);
+            border-radius: 5px;
+            color: var(--text-main);
+            font-size: 0.78rem;
+            outline: none;
+            cursor: pointer;
+            text-align: left;
+            text-align-last: left;
+            transition: all 0.15s ease;
+        }
+
+        .param-select:hover {
+            background-color: var(--btn-bg-subtle);
+            color: var(--text-main);
+        }
+
+        .param-select:focus {
+            background-color: rgba(0, 0, 0, 0.5);
+            color: var(--text-main);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        .param-select option {
+            background-color: var(--bg-dialog);
+            color: var(--text-main);
+            padding: 6px 10px;
+            font-size: 0.78rem;
+        }
+
+        /* 颜色选择器组合 */
+        .color-picker-combo {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-combo input[type="color"] {
+            width: 28px;
+            height: 26px;
+            padding: 0;
+            border: 1px solid var(--border-subtle);
+            border-radius: 5px;
+            background: none;
+            cursor: pointer;
+        }
+
+        .color-picker-combo .color-text {
+            flex: 1;
+            height: 26px;
+            padding: 3px 6px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-subtle);
+            border-radius: 5px;
+            color: var(--text-main);
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.8rem;
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .color-picker-combo .color-text:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        /* 贴图参数预览与上传按钮 */
+        .texture-param-combo {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .texture-path-input {
+            flex: 1;
+            min-width: 100px;
+            height: 26px;
+            font-size: 0.78rem;
+            font-family: inherit;
+        }
+
+        .texture-path-input.texture-path-missing {
+            border-color: rgba(255, 196, 120, 0.55);
+            background: rgba(255, 176, 64, 0.10);
+            color: #ffdca8;
+        }
+
+        .texture-preview-box {
+            width: 38px;
+            height: 26px;
+            border-radius: 5px;
+            background: rgba(0, 0, 0, 0.35);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .texture-preview-box img,
+        .texture-preview-box canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .texture-preview-box .no-img {
+            font-size: 0.65rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .texture-upload-btn {
+            height: 26px;
+            padding: 4px 10px;
+            background: var(--btn-bg);
+            border: none;
+            border-radius: 5px;
+            color: var(--text-main);
+            font-size: 0.76rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.15s ease;
+        }
+
+        /* 可折叠贴图上传下拉组件 */
+        .texture-upload-dropdown {
+            position: relative;
+            display: inline-flex;
+            vertical-align: middle;
+            z-index: 1;
+        }
+
+        .texture-upload-dropdown:hover,
+        .texture-upload-dropdown.is-open {
+            z-index: 200;
+        }
+
+        .texture-upload-main-btn {
+            height: 26px;
+            padding: 4px 10px;
+            background: var(--btn-bg);
+            border: none;
+            border-radius: 5px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.76rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s ease;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .dropdown-chevron {
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0.7;
+            margin-left: 2px;
+            flex-shrink: 0;
+        }
+
+        .texture-upload-dropdown:hover .dropdown-chevron {
+            transform: rotate(180deg);
+            opacity: 1;
+        }
+
+        .texture-upload-dropdown::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            display: none;
+        }
+
+        .texture-upload-dropdown:hover::after,
+        .texture-upload-dropdown.is-open::after {
+            display: block;
+        }
+
+        .texture-upload-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            right: 0;
+            min-width: 170px;
+            background: var(--bg-dark-secondary) !important;
+            border: none;
+            border-radius: 6px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.95);
+            padding: 4px;
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+            z-index: 2000;
+            animation: dropdownMenuFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .texture-upload-dropdown:hover .texture-upload-menu,
+        .texture-upload-dropdown.is-open .texture-upload-menu,
+        .texture-upload-menu:hover {
+            display: flex;
+        }
+
+        .texture-upload-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 8px;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.76rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.15s ease;
+            user-select: none;
+            width: 100%;
+        }
+
+        .texture-upload-menu-item:hover,
+        .texture-upload-menu-item.item-1x:hover,
+        .texture-upload-menu-item.item-2x:hover,
+        .texture-upload-menu-item.item-existing:hover,
+        .texture-upload-menu-item.item-anim:hover {
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
+            box-shadow: none;
+        }
+
+        .texture-upload-menu-item:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
+        }
+
+        .upload-menu-tag,
+        .upload-menu-tag.tag-1x,
+        .upload-menu-tag.tag-2x,
+        .upload-menu-tag.tag-existing,
+        .upload-menu-tag.tag-anim {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.68rem;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+            flex-shrink: 0;
+            line-height: 1.3;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+            border: none;
+            transition: all 0.15s ease;
+        }
+
+        .texture-upload-menu-item:hover .upload-menu-tag {
+            background: rgba(0, 0, 0, 0.12);
+            color: var(--btn-hover-text);
+            border: none;
+        }
+
+        .upload-menu-text {
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        /* 操作小按钮（重置、画布定位） */
+        .param-action-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.4);
+            cursor: pointer;
+            padding: 3px 5px;
+            border-radius: 4px;
+            font-size: 0.76rem;
+            transition: all 0.15s ease;
+        }
+
+        .param-action-btn:hover {
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        .param-action-btn:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
+        }
+
+        .param-action-btn.locate:hover {
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        /* 原始 skin.ini 容器 */
+        .raw-ini-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .raw-ini-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+        }
+
+        .copy-raw-btn {
+            padding: 4px 12px;
+            background: var(--btn-bg);
+            border: none;
+            border-radius: 5px;
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 0.76rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: none;
+        }
+
+        #rawIniTextarea {
+            flex: 1;
+            min-height: 480px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: "Cascadia Code", "SF Mono", Consolas, monospace;
+            font-size: 0.78rem;
+            line-height: 1.5;
+            color: #a7f3d0;
+            outline: none;
+            resize: none;
+            user-select: text;
+        }
+
+        /* 弹窗底部操作栏 */
+        .skin-editor-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: var(--bg-dialog);
+            border-top: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        .status-tip {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .footer-right {
+            display: flex;
+            gap: 6px;
+        }
+
+        .footer-btn {
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            background: var(--btn-bg);
+            color: rgba(255, 255, 255, 0.9);
+            transition: all 0.15s ease;
+            user-select: none;
+            white-space: nowrap;
+            box-shadow: none;
+        }

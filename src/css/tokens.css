@@ -1,6 +1,6 @@
 /* ============================================================================
  * tokens.css - 全局设计变量、重置、滚动条与基础样式
- * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
  * ========================================================================== */
 
 :root {
@@ -11,6 +11,8 @@
             --primary-deep: #b3396d;
             --primary-glow: rgba(255, 102, 170, 0.35);
 
+            --bg-stage: #14121a;
+            --bg-dialog: #181520;
             --bg-dark: #18171c;
             --bg-dark-secondary: #222028;
             --bg-surface: rgba(34, 32, 40, 0.85);
@@ -25,6 +27,13 @@
             --border-medium: rgba(255, 255, 255, 0.14);
             --border-pink: rgba(255, 102, 170, 0.4);
 
+            /* ===== 通用扁平按钮语义变量 (Flat Minimalist Buttons) ===== */
+            --btn-bg: rgba(255, 255, 255, 0.12);
+            --btn-bg-subtle: rgba(255, 255, 255, 0.08);
+            --btn-hover-bg: #ffffff;
+            --btn-hover-text: #111118;
+            --btn-active-bg: #e2e2e8;
+
             /* ===== 现代化简洁无衬线数字与英文字体规范 (Tabular-nums / Clean Modern Sans) ===== */
             --font-clean: "Torus", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
@@ -35,7 +44,7 @@
 
         body {
             font-family: var(--font-clean);
-            background: #14121a !important;
+            background: var(--bg-stage) !important;
             color: var(--text-main);
             margin: 0;
             padding: 0;
@@ -52,13 +61,11 @@
         }
 
         /* ===== 自定义滚动条风格 (osu! 暗粉色风格) ===== */
-        /* Firefox 滚动条规范 */
         * {
             scrollbar-width: thin;
             scrollbar-color: rgba(224, 84, 139, 0.5) rgba(0, 0, 0, 0.25);
         }
 
-        /* WebKit 滚动条全局默认 (Chrome, Edge, Safari) */
         ::-webkit-scrollbar {
             width: 7px;
             height: 7px;
@@ -84,108 +91,6 @@
             background: transparent;
         }
 
-        .sidebar {
-            display: none !important;
-        }
-
-        /* 侧边栏所有主要区块防止被 flex 挤压变形 */
-        .sidebar > * {
-            flex-shrink: 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        /* 正在手动拖动调整宽度时禁用过渡，确保 1:1 响应鼠标 */
-        body.resizing-sidebar .sidebar,
-        .sidebar.resizing {
-            transition: none !important;
-        }
-
-        /* 侧边栏垂直上下滑动滚动条风格专用深度适配 */
-        .sidebar::-webkit-scrollbar {
-            width: 7px;
-        }
-
-        .sidebar::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 6px;
-            margin: 6px 0;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.18);
-            border-radius: 6px;
-            border: none;
-            transition: background 0.15s ease;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.35);
-            box-shadow: none;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb:active {
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        /* ===== 侧边栏拖拽调整宽度手柄 (Resizable Sidebar) ===== */
-        .sidebar-resizer {
-            display: none !important;
-        }
-
-        /* 纵向拖拽分割线 */
-        .sidebar-resizer::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 5px;
-            width: 2px;
-            background: transparent;
-            transition: background 0.15s ease;
-        }
-
-        /* 居中拖拽把手图标线 */
-        .resizer-handle-line {
-            width: 4px;
-            height: 38px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.25);
-            position: relative;
-            z-index: 2;
-            transition: background 0.15s ease, height 0.15s ease;
-        }
-
-        .sidebar-resizer:hover::before,
-        .sidebar-resizer.active::before {
-            background: rgba(255, 255, 255, 0.4);
-            box-shadow: none;
-        }
-
-        .sidebar-resizer:hover .resizer-handle-line,
-        .sidebar-resizer.active .resizer-handle-line {
-            background: #ffffff;
-            height: 52px;
-            box-shadow: none;
-        }
-
-        /* 拖拽过程中全局锁定光标与禁止文字选中 */
-        body.resizing-sidebar {
-            cursor: col-resize !important;
-            user-select: none !important;
-            -webkit-user-select: none !important;
-        }
-
-        body.resizing-sidebar * {
-            user-select: none !important;
-            -webkit-user-select: none !important;
-            pointer-events: none !important;
-        }
-
-        body.resizing-sidebar .sidebar-resizer {
-            pointer-events: auto !important;
-        }
-
         h1 {
             font-size: 1.5rem;
             margin: 0 0 10px 0;
@@ -208,7 +113,7 @@
         .upload-group label {
             font-size: 0.9rem;
             font-weight: bold;
-            color: #ffffff;
+            color: var(--text-main);
             letter-spacing: 0.3px;
             text-align: center;
             width: 100%;
@@ -248,20 +153,20 @@
             cursor: pointer;
             position: relative;
             transition: all 0.15s ease;
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--btn-bg-subtle);
             box-shadow: none;
         }
 
         .file-upload-wrapper:hover .file-upload-btn {
-            background: #ffffff;
-            color: #111118;
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
             box-shadow: none;
             transform: none;
         }
 
         .file-upload-wrapper:active .file-upload-btn {
-            transform: scale(0.98);
-            background: #e2e2e8;
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
         }
 
         .file-upload-btn svg {
@@ -273,7 +178,7 @@
         .file-name {
             margin-top: 6px;
             font-size: 0.8rem;
-            color: #ffffff;
+            color: var(--text-main);
             text-align: center;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -293,12 +198,12 @@
             gap: 10px;
             padding: 10px 14px;
             background: rgba(0, 0, 0, 0.25);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            border: none;
             border-radius: 10px;
             cursor: pointer;
             font-size: 0.88rem;
             font-weight: 500;
-            color: #ffffff;
+            color: var(--text-main);
             user-select: none;
             transition: all 0.2s ease;
             box-sizing: border-box;
@@ -306,8 +211,7 @@
         }
 
         .checkbox-setting-label:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(224, 84, 139, 0.5);
+            background: var(--btn-bg-subtle);
         }
 
         .checkbox-setting-label input[type="checkbox"] {
@@ -339,7 +243,7 @@
             top: 1.5px;
             width: 4px;
             height: 8px;
-            border: solid white;
+            border: solid var(--text-main);
             border-width: 0 2px 2px 0;
             transform: rotate(45deg);
         }

@@ -1,6 +1,6 @@
 /* ============================================================================
- * shell.css - 画布顶部工具栏
- * 由 src/css/style.css 按连续区块拆分；加载顺序不可随意调整。
+ * shell.css - 顶部工具栏、主舞台布局与左侧资源信息面板
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
  * ========================================================================== */
 
         /* ===== 画布顶部工具栏 (整合品牌、导入与工具) ===== */
@@ -12,9 +12,9 @@
             justify-content: space-between;
             gap: 8px;
             padding: 0 12px;
-            background: #14121a !important;
+            background: var(--bg-stage) !important;
             backdrop-filter: blur(16px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: 1px solid var(--border-subtle);
             box-sizing: border-box;
             flex-shrink: 0;
             z-index: 100;
@@ -88,7 +88,7 @@
             gap: 6px;
             height: 32px;
             padding: 0 10px;
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--btn-bg-subtle);
             border: none;
             border-radius: 6px;
             color: rgba(255, 255, 255, 0.9);
@@ -105,16 +105,6 @@
             flex-shrink: 0;
         }
 
-        .topbar-btn:hover {
-            background: #ffffff;
-            color: #111118;
-        }
-
-        .topbar-btn:active {
-            transform: scale(0.98);
-            background: #e2e2e8;
-        }
-
         .topbar-ext-tag {
             font-size: 0.68rem;
             font-weight: 700;
@@ -126,7 +116,7 @@
 
         .topbar-btn:hover .topbar-ext-tag {
             background: rgba(0, 0, 0, 0.12);
-            color: #111118;
+            color: var(--btn-hover-text);
         }
 
         .topbar-file-chip {
@@ -140,7 +130,7 @@
             background: rgba(255, 255, 255, 0.06);
             border-radius: 4px;
             border: none;
-            color: #ff8cb9;
+            color: var(--primary-light);
             font-weight: 500;
             line-height: 1.5;
         }
@@ -149,7 +139,7 @@
             display: inline-block;
         }
 
-        /* 顶部难度选择器一体化下拉菜单 (与导出皮肤样式一致) */
+        /* 顶部难度选择器一体化下拉菜单 */
         #diffDropdownWrapper {
             position: relative;
             flex: 0 0 auto;
@@ -181,15 +171,6 @@
             overflow-y: auto;
         }
 
-        #diffMenu::-webkit-scrollbar {
-            width: 5px;
-        }
-
-        #diffMenu::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 3px;
-        }
-
         .diff-badge-icon {
             display: inline-flex;
             align-items: center;
@@ -197,10 +178,10 @@
             font-size: 0.72rem;
             font-weight: 700;
             padding: 2px 6px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: var(--btn-bg-subtle);
+            border: none;
             border-radius: 5px;
-            color: #ffffff;
+            color: var(--text-main);
             min-width: 28px;
             height: 22px;
             box-sizing: border-box;
@@ -208,26 +189,24 @@
         }
 
         .dropdown-item:hover .diff-badge-icon {
-            border-color: rgba(255, 102, 170, 0.5);
-            color: #ff66aa;
+            color: var(--primary);
         }
 
         .dropdown-item.active {
             background: rgba(255, 102, 170, 0.16);
-            border: 1px solid rgba(255, 102, 170, 0.35);
+            box-shadow: inset 0 0 0 1px var(--border-pink);
         }
 
         .dropdown-item.active .title {
-            color: #ff66aa;
+            color: var(--primary);
         }
 
         .dropdown-item.active .diff-badge-icon {
-            background: #ff66aa;
-            color: #ffffff;
-            border-color: #ff66aa;
+            background: var(--primary);
+            color: var(--text-main);
         }
 
-        /* 顶部原有工具按钮优化 */
+        /* 顶部工具按钮布局 */
         .canvas-top-bar .tool-btn {
             flex: 0 0 auto;
             height: 32px;
@@ -288,7 +267,7 @@
         }
 
         .language-select-wrap:focus-within {
-            box-shadow: 0 0 0 2px rgba(255, 102, 170, 0.38);
+            box-shadow: 0 0 0 2px var(--primary-glow);
         }
 
         .language-select {
@@ -301,8 +280,8 @@
             border: none;
             border-radius: 8px;
             outline: none;
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffffff;
+            background: var(--btn-bg);
+            color: var(--text-main);
             font: inherit;
             font-size: 0.74rem;
             font-weight: 600;
@@ -314,13 +293,14 @@
 
         .language-select:hover,
         .language-select:focus-visible {
-            background: #ffffff;
-            color: #111118;
+            background: var(--btn-hover-bg);
+            color: var(--btn-hover-text);
             box-shadow: none;
         }
 
         .language-select:active {
-            transform: scale(0.97);
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
         }
 
         .language-select-chevron {
@@ -328,14 +308,14 @@
             right: 9px;
             width: 13px;
             height: 13px;
-            color: rgba(255, 255, 255, 0.62);
+            color: var(--text-muted);
             pointer-events: none;
             transition: color 0.15s ease, transform 0.15s ease;
         }
 
         .language-select-wrap:hover .language-select-chevron,
         .language-select-wrap:focus-within .language-select-chevron {
-            color: #111118;
+            color: var(--btn-hover-text);
         }
 
         .language-select-wrap:active .language-select-chevron {
@@ -343,8 +323,8 @@
         }
 
         .language-select option {
-            background: #24212b;
-            color: #ffffff;
+            background: var(--bg-dark-secondary);
+            color: var(--text-main);
         }
 
         .canvas-top-switch {
@@ -352,7 +332,7 @@
             align-items: center;
             gap: 6px;
             margin: 0;
-            background: rgba(255, 255, 255, 0.08);
+            background: var(--btn-bg-subtle);
             padding: 3px 8px;
             border-radius: 6px;
             border: none;
@@ -364,14 +344,13 @@
             margin: 0;
             font-size: 0.8rem;
             font-weight: 500;
-            color: #e2e8f0;
+            color: var(--text-secondary);
             cursor: pointer;
             display: flex;
             align-items: center;
             white-space: nowrap;
         }
 
-        
         /* ===== 主舞台区域 (左侧信息栏与画布同级水平排布，保证画布永不被遮挡) ===== */
         .player-main-area {
             display: flex;
@@ -382,7 +361,7 @@
             min-height: 0;
             position: relative;
             overflow: hidden;
-            background: #14121a !important;
+            background: var(--bg-stage) !important;
         }
 
         /* ===== 左侧资源信息面板 (纵向排列，独立占据画布左侧区域) ===== */
@@ -394,28 +373,18 @@
             overflow-y: auto;
             overflow-x: hidden;
             z-index: 10;
-            background: #14121a !important;
+            background: var(--bg-dark) !important;
             border: none;
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 0;
             padding: 14px 14px;
             display: flex;
             flex-direction: column;
             gap: 12px;
-            box-shadow: none;
+            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.35);
             box-sizing: border-box;
             user-select: none;
             scrollbar-width: thin;
             scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
-        }
-
-        .left-info-panel::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .left-info-panel::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
         }
 
         .left-panel-header {
@@ -439,15 +408,12 @@
         .info-section-tag {
             font-size: 0.74rem;
             font-weight: 700;
-            color: rgba(255, 255, 255, 0.5);
+            color: var(--text-muted);
             letter-spacing: 0.8px;
             text-transform: uppercase;
         }
 
-        .info-file-chip {
-            display: none !important;
-        }
-
+        .info-file-chip,
         .info-file-chip.loaded {
             display: none !important;
         }
@@ -455,7 +421,7 @@
         .info-main-title {
             font-size: 0.94rem;
             font-weight: 700;
-            color: #ffffff;
+            color: var(--text-main);
             line-height: 1.35;
             width: 100%;
             overflow: hidden;
@@ -465,7 +431,7 @@
 
         .info-sub-title {
             font-size: 0.82rem;
-            color: rgba(255, 255, 255, 0.65);
+            color: var(--text-secondary);
             line-height: 1.35;
             width: 100%;
             overflow: hidden;
@@ -475,7 +441,7 @@
 
         .info-meta-text {
             font-size: 0.76rem;
-            color: rgba(255, 255, 255, 0.45);
+            color: var(--text-muted);
             margin-top: 1px;
             width: 100%;
             overflow: hidden;
@@ -498,7 +464,7 @@
 
         .diff-stat-card {
             background: rgba(0, 0, 0, 0.32);
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            border: none;
             border-radius: 5px;
             padding: 6px 10px;
             display: flex;
@@ -516,7 +482,7 @@
 
         .diff-stat-lbl {
             font-size: 0.78rem;
-            color: rgba(255, 255, 255, 0.5);
+            color: var(--text-muted);
             font-weight: 500;
             flex-shrink: 0;
             font-family: var(--font-clean);
@@ -524,7 +490,7 @@
 
         .diff-stat-val {
             font-size: 0.88rem;
-            color: #ffffff;
+            color: var(--text-main);
             font-weight: 700;
             font-family: var(--font-clean);
             font-variant-numeric: tabular-nums;
@@ -576,783 +542,3 @@
             background: #000;
             z-index: 99999;
         }
-
-        /* ===== 启动选择面板 (谱面 / 皮肤来源) ===== */
-        .startup-actions {
-            position: absolute;
-            inset: 0;
-            z-index: 4;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 28px;
-            box-sizing: border-box;
-            overflow: auto;
-            background: rgba(8, 7, 12, 0.48);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-        }
-
-        .startup-actions[hidden] {
-            display: none !important;
-        }
-
-        .startup-actions-content {
-            width: min(500px, 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            transition: transform 0.18s ease;
-        }
-
-        .startup-action {
-            width: 100%;
-            min-height: 86px;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding: 16px 20px;
-            border: 1px solid rgba(255, 255, 255, 0.16);
-            border-radius: 8px;
-            background: rgba(23, 20, 31, 0.84);
-            color: #ffffff;
-            text-align: left;
-            cursor: pointer;
-            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-            transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
-            box-sizing: border-box;
-        }
-
-        .startup-action:hover {
-            transform: translateY(-2px);
-            background: rgba(35, 31, 46, 0.94);
-            border-color: rgba(255, 255, 255, 0.34);
-            box-shadow: 0 16px 38px rgba(0, 0, 0, 0.44);
-        }
-
-        .startup-action:active {
-            transform: translateY(0) scale(0.99);
-        }
-
-        .startup-action-beatmap {
-            border-color: rgba(255, 102, 170, 0.42);
-        }
-
-        .startup-action-separator {
-            height: 28px;
-            flex: 0 0 auto;
-            display: flex;
-            align-items: center;
-            padding: 0 28px;
-        }
-
-        .startup-action-separator span {
-            width: 100%;
-            height: 1px;
-            background: linear-gradient(
-                to right,
-                transparent,
-                rgba(255, 255, 255, 0.28) 18%,
-                rgba(255, 255, 255, 0.28) 82%,
-                transparent
-            );
-        }
-
-        .startup-action-skin {
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .startup-action-default {
-            margin-top: 10px;
-            border-color: rgba(255, 255, 255, 0.14);
-            background: rgba(18, 17, 24, 0.78);
-        }
-
-        .startup-action-icon {
-            width: 46px;
-            height: 46px;
-            flex: 0 0 46px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            background: rgba(255, 255, 255, 0.08);
-            color: #ff8fc0;
-        }
-
-        .startup-action-skin .startup-action-icon {
-            color: #ffffff;
-        }
-
-        .startup-action-default .startup-action-icon {
-            color: #a9d7ff;
-        }
-
-        .startup-action-icon svg {
-            width: 25px;
-            height: 25px;
-        }
-
-        .startup-action-copy {
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .startup-action-title {
-            font-size: 1rem;
-            font-weight: 700;
-            line-height: 1.3;
-        }
-
-        .startup-action-desc {
-            font-size: 0.78rem;
-            line-height: 1.45;
-            color: rgba(255, 255, 255, 0.62);
-        }
-
-        .startup-actions.is-dragging .startup-actions-content {
-            transform: scale(1.015);
-        }
-
-        .startup-actions.is-dragging .startup-action {
-            border-color: rgba(255, 102, 170, 0.68);
-        }
-
-        /* 尚未选择皮肤来源时，详细设置与贴图编辑共用的提示状态 */
-        .skin-source-required-state {
-            display: none;
-            width: 100%;
-            min-height: 280px;
-            box-sizing: border-box;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-            padding: 36px 24px;
-            text-align: center;
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.035);
-            border: none;
-            border-radius: 10px;
-            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
-        }
-
-        .skin-source-required-state.is-visible {
-            display: flex;
-        }
-
-        .skin-source-required-icon {
-            width: 58px;
-            height: 58px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 16px;
-            color: rgba(255, 255, 255, 0.65);
-            background: rgba(255, 255, 255, 0.07);
-            border-radius: 50%;
-        }
-
-        .skin-source-required-title {
-            font-size: 1rem;
-            font-weight: 700;
-            line-height: 1.45;
-        }
-
-        .skin-source-required-actions {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 9px;
-            margin-top: 20px;
-        }
-
-        .skin-source-required-actions [hidden] {
-            display: none !important;
-        }
-
-        @media (max-width: 640px) {
-            .startup-actions {
-                align-items: flex-start;
-                padding: 12px;
-            }
-
-            .startup-action {
-                min-height: 74px;
-                padding: 12px;
-                gap: 10px;
-            }
-
-            .startup-action-separator {
-                height: 18px;
-                padding: 0 18px;
-            }
-
-            .startup-action-icon {
-                width: 38px;
-                height: 38px;
-                flex-basis: 38px;
-            }
-
-            .startup-action-icon svg {
-                width: 21px;
-                height: 21px;
-            }
-
-            .startup-action-title {
-                font-size: 0.9rem;
-            }
-
-            .startup-action-desc {
-                font-size: 0.7rem;
-            }
-
-            .skin-source-required-state {
-                min-height: 240px;
-                padding: 28px 18px;
-            }
-        }
-
-        @media (max-width: 720px) {
-            .player-main-area:has(.startup-actions:not([hidden])) .left-info-panel {
-                display: none;
-            }
-
-            .player-main-area:has(.startup-actions:not([hidden])) .canvas-wrapper {
-                width: calc(100vw - 16px);
-                max-width: calc(100vw - 16px);
-                height: auto;
-                margin: 8px;
-            }
-        }
-
-        /* ===== 全屏悬浮按钮 ===== */
-        .fullscreen-btn {
-            position: absolute;
-            bottom: 14px;
-            right: 14px;
-            width: 38px;
-            height: 38px;
-            border-radius: 10px;
-            background: rgba(20, 16, 32, 0.65);
-            border: none;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 10;
-            backdrop-filter: blur(8px);
-            opacity: 0.45;
-            transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
-            box-shadow: none;
-            padding: 0;
-            flex: none;
-        }
-
-        .canvas-wrapper:hover .fullscreen-btn {
-            opacity: 0.85;
-        }
-
-        .fullscreen-btn:hover {
-            opacity: 1 !important;
-            transform: none;
-            background: #ffffff;
-            color: #111118;
-            box-shadow: none;
-        }
-
-        .fullscreen-btn:active {
-            transform: scale(0.96);
-            background: #e2e2e8;
-        }
-
-        .fullscreen-btn svg {
-            width: 19px;
-            height: 19px;
-            transition: transform 0.2s ease;
-            pointer-events: none;
-        }
-
-        .fullscreen-btn .exit-icon {
-            display: none;
-        }
-
-        .canvas-wrapper:fullscreen .fullscreen-btn .enter-icon,
-        .canvas-wrapper:-webkit-full-screen .fullscreen-btn .enter-icon {
-            display: none;
-        }
-
-        .canvas-wrapper:fullscreen .fullscreen-btn .exit-icon,
-        .canvas-wrapper:-webkit-full-screen .fullscreen-btn .exit-icon {
-            display: block;
-        }
-
-        canvas {
-            background: #000;
-            width: 100%;
-            height: 100%;
-            display: block;
-            transition: filter 0.3s ease;
-        }
-
-        canvas.blurred {
-            filter: blur(8px) brightness(0.65);
-        }
-
-        /* ===== 画布中央加载进度遮罩 (osu! 风格) ===== */
-        .loading-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: rgba(15, 12, 41, 0.35);
-            backdrop-filter: blur(4px);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.25s ease;
-            z-index: 5;
-        }
-
-        .loading-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .loading-card {
-            width: 380px;
-            background: rgba(24, 20, 37, 0.94);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 12px;
-            padding: 24px 28px;
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .loading-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .loading-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: 0.5px;
-        }
-
-        .loading-percent {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.9);
-            font-family: var(--font-clean);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .progress-bar-bg {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress-bar-fill {
-            height: 100%;
-            width: 0%;
-            background: rgba(255, 255, 255, 0.85);
-            border-radius: 4px;
-            transition: width 0.15s ease-out;
-            box-shadow: none;
-        }
-
-        .loading-file-text {
-            font-size: 0.8rem;
-            color: #ffffff;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-family: var(--font-clean);
-        }
-
-        /* ===== 右上角通知提示组件 (osu! 样式 - 适配全新紧凑现代化 UI) ===== */
-        .toast-container {
-            position: fixed;
-            top: 56px;
-            right: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            z-index: 99999;
-            pointer-events: none;
-            max-width: calc(100vw - 32px);
-        }
-
-        .toast {
-            min-width: 200px;
-            max-width: 320px;
-            background: rgba(20, 18, 28, 0.94);
-            border-left: 3px solid #ff66aa;
-            border-radius: 8px;
-            padding: 8px 12px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(16px);
-            color: #ffffff;
-            font-size: 0.78rem;
-            transform: translateX(120%);
-            opacity: 0;
-            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
-            pointer-events: none;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            box-sizing: border-box;
-        }
-
-        .toast.show {
-            transform: translateX(0);
-            opacity: 1;
-        }
-
-        .toast.error {
-            border-left-color: #ff4d6d;
-        }
-
-        .toast.error .toast-title {
-            color: #ff4d6d;
-        }
-
-        .toast.success {
-            border-left-color: #55e6a5;
-        }
-
-        .toast.success .toast-title {
-            color: #55e6a5;
-        }
-
-        .toast-title {
-            font-size: 0.76rem;
-            font-weight: 700;
-            color: #ff66aa;
-            margin-bottom: 2px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            line-height: 1.2;
-        }
-
-        .toast-title svg {
-            width: 13px;
-            height: 13px;
-            flex-shrink: 0;
-            stroke-width: 2.2;
-        }
-
-        .toast-close-btn {
-            margin-left: auto;
-            pointer-events: auto;
-            background: transparent;
-            border: none;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.95rem;
-            line-height: 1;
-            cursor: pointer;
-            padding: 2px 4px;
-            border-radius: 4px;
-            transition: color 0.15s, background-color 0.15s;
-        }
-
-        .toast-close-btn:hover {
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        .toast-file-list {
-            margin-top: 6px;
-            max-height: 110px;
-            overflow-y: auto;
-            background: rgba(0, 0, 0, 0.45);
-            border: 1px solid rgba(255, 102, 170, 0.2);
-            border-radius: 5px;
-            padding: 4px 8px;
-            font-family: var(--font-clean);
-            font-size: 0.68rem;
-            color: #ff9ebb;
-            white-space: pre-line;
-            word-break: break-all;
-            user-select: text;
-        }
-
-        .toast-file-list::-webkit-scrollbar {
-            width: 4px;
-        }
-
-        .toast-file-list::-webkit-scrollbar-thumb {
-            background: rgba(255, 102, 170, 0.4);
-            border-radius: 2px;
-        }
-
-        .toast-msg {
-            color: rgba(255, 255, 255, 0.85);
-            line-height: 1.35;
-            font-size: 0.72rem;
-            word-break: break-word;
-        }
-
-        /* ===== 导出方式选择 ===== */
-        .texture-export-mode-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 5200;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .texture-export-mode-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(6, 5, 10, 0.72);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        .texture-export-mode-dialog {
-            position: relative;
-            width: min(520px, calc(100vw - 32px));
-            padding: 22px;
-            border: none;
-            border-radius: 10px;
-            background: #181520;
-            color: #ffffff;
-            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.72);
-            box-sizing: border-box;
-            animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .texture-export-mode-heading {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-        }
-
-        .texture-export-mode-icon {
-            width: 38px;
-            height: 38px;
-            display: grid;
-            place-items: center;
-            flex: 0 0 auto;
-            border-radius: 8px;
-            color: #ff9ac7;
-            background: rgba(255, 102, 170, 0.13);
-        }
-
-        .texture-export-mode-icon svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .texture-export-mode-heading h3 {
-            margin: 0;
-            font-size: 1rem;
-            line-height: 1.3;
-        }
-
-        .texture-export-mode-heading p {
-            margin: 5px 0 0;
-            color: rgba(255, 255, 255, 0.58);
-            font-size: 0.75rem;
-            line-height: 1.45;
-        }
-
-        .texture-export-mode-options {
-            display: grid;
-            gap: 10px;
-            margin-top: 18px;
-        }
-
-        .texture-export-mode-option {
-            width: 100%;
-            min-height: 76px;
-            display: flex;
-            align-items: center;
-            gap: 13px;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.12);
-            text-align: left;
-            cursor: pointer;
-            transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
-        }
-
-        .texture-export-mode-option-icon {
-            width: 36px;
-            height: 36px;
-            display: grid;
-            place-items: center;
-            flex: 0 0 auto;
-            border-radius: 7px;
-            color: #ff9ac7;
-            background: rgba(255, 102, 170, 0.14);
-        }
-
-        .texture-export-mode-option-icon svg {
-            width: 19px;
-            height: 19px;
-        }
-
-        .texture-export-mode-option-text {
-            min-width: 0;
-            display: grid;
-            gap: 4px;
-        }
-
-        .texture-export-mode-option-title {
-            font-size: 0.84rem;
-            font-weight: 700;
-            color: #ffffff;
-            line-height: 1.25;
-        }
-
-        .texture-export-mode-option-desc {
-            font-size: 0.7rem;
-            color: rgba(255, 255, 255, 0.58);
-            line-height: 1.4;
-        }
-
-        .texture-export-mode-option:hover,
-        .texture-export-mode-option:focus-visible {
-            color: #111118;
-            background: #ffffff;
-            box-shadow: none;
-            outline: none;
-        }
-
-        .texture-export-mode-option:hover .texture-export-mode-option-title,
-        .texture-export-mode-option:hover .texture-export-mode-option-desc,
-        .texture-export-mode-option:focus-visible .texture-export-mode-option-title,
-        .texture-export-mode-option:focus-visible .texture-export-mode-option-desc {
-            color: #111118;
-        }
-
-        .texture-export-mode-option:hover .texture-export-mode-option-icon,
-        .texture-export-mode-option:focus-visible .texture-export-mode-option-icon {
-            color: #111118;
-            background: rgba(17, 17, 24, 0.1);
-        }
-
-        .texture-export-mode-option:active {
-            transform: scale(0.96);
-            background: #e2e2e8;
-        }
-
-        .texture-export-mode-actions {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 16px;
-        }
-
-        .texture-export-mode-cancel {
-            min-width: 76px;
-            height: 34px;
-            padding: 0 14px;
-            border: none;
-            border-radius: 6px;
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.12);
-            cursor: pointer;
-            font-size: 0.76rem;
-            font-weight: 600;
-            transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
-        }
-
-        .texture-export-mode-cancel:hover {
-            color: #111118;
-            background: #ffffff;
-            box-shadow: none;
-        }
-
-        .texture-export-mode-cancel:active {
-            transform: scale(0.96);
-            background: #e2e2e8;
-        }
-
-        @media (max-width: 560px) {
-            .texture-export-mode-dialog {
-                padding: 18px;
-            }
-
-            .texture-export-mode-option {
-                min-height: 70px;
-                padding: 12px;
-            }
-        }
-
-        .unsaved-exit-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 8000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-
-        .unsaved-exit-backdrop {
-            position: absolute;
-            inset: 0;
-            background: rgba(6, 5, 10, 0.72);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-        }
-
-        .unsaved-exit-dialog {
-            position: relative;
-            width: min(460px, calc(100vw - 32px));
-            padding: 22px;
-            border: none;
-            border-radius: 10px;
-            background: #181520;
-            color: #ffffff;
-            box-shadow: 0 24px 72px rgba(0, 0, 0, 0.72);
-            box-sizing: border-box;
-            animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .unsaved-exit-dialog h3 {
-            margin: 0;
-            font-size: 1rem;
-            line-height: 1.3;
-        }
-
-        .unsaved-exit-dialog p {
-            margin: 10px 0 0;
-            color: rgba(255, 255, 255, 0.72);
-            font-size: 0.82rem;
-            line-height: 1.5;
-        }
-
-        .unsaved-exit-actions {
-            display: flex;
-            justify-content: flex-end;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 18px;
-        }
-
-        /* ==========================================================================

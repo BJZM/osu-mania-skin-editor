@@ -1,0 +1,592 @@
+/* ============================================================================
+ * texture-upload.css - 轨道底色与长条连击变色管理器、贴图规格选择弹窗
+ * 由 src/css/style.css 按模块加载；顺序不可随意调整。
+ * ========================================================================== */
+
+        /* ===== Mania 轨道底色与透明度 (ColumnColour) & 长条连击变色 (ColourHold) ===== */
+        .column-colour-manager-wrapper {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            padding: 0;
+            background: transparent;
+            border: none;
+            box-sizing: border-box;
+        }
+
+        .col-colour-unified-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0;
+            background: transparent;
+            border: none;
+            box-sizing: border-box;
+        }
+
+        .col-colour-unified-label {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .unified-title {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .unified-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+
+        .col-colour-unified-controls,
+        .colour-barline-controls,
+        .colour-hold-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            flex-wrap: wrap;
+            padding: 0;
+            background: transparent;
+            border: none;
+        }
+
+        .colour-barline-controls .color-text {
+            width: 140px;
+            padding: 5px 8px;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid var(--border-medium);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.8rem;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        .colour-barline-controls .color-text:focus {
+            border-color: var(--primary);
+        }
+
+        .col-colour-picker {
+            width: 36px;
+            height: 32px;
+            padding: 2px;
+            border-radius: 6px;
+            border: none;
+            background: rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            box-sizing: border-box;
+            vertical-align: middle;
+        }
+
+        .col-colour-picker.mini {
+            width: 28px;
+            height: 26px;
+            padding: 1px;
+            border-radius: 4px;
+        }
+
+        .col-colour-slider,
+        .col-colour-slider.mini {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            flex: 1 !important;
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: linear-gradient(to right, var(--primary) 0%, var(--primary) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) var(--slider-pct, 0%), rgba(255, 255, 255, 0.2) 100%) !important;
+            outline: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            cursor: pointer !important;
+        }
+
+        .col-colour-slider {
+            min-width: 100px;
+        }
+
+        .col-colour-slider.mini {
+            min-width: 50px;
+            max-width: 70px;
+        }
+
+        .col-colour-slider::-webkit-slider-thumb,
+        .col-colour-slider.mini::-webkit-slider-thumb {
+            -webkit-appearance: none !important;
+            appearance: none !important;
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: var(--text-main) !important;
+            border: none !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            margin-top: -3px !important;
+            transition: transform 0.15s ease;
+        }
+
+        .col-colour-slider::-webkit-slider-thumb:hover,
+        .col-colour-slider.mini::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .col-colour-slider::-moz-range-thumb,
+        .col-colour-slider.mini::-moz-range-thumb {
+            width: 10px !important;
+            height: 10px !important;
+            border-radius: 50% !important;
+            background: var(--text-main) !important;
+            border: none !important;
+            box-shadow: none !important;
+            cursor: pointer !important;
+            transition: transform 0.15s ease;
+        }
+
+        .col-colour-slider::-moz-range-thumb:hover,
+        .col-colour-slider.mini::-moz-range-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .col-colour-slider::-webkit-slider-runnable-track,
+        .col-colour-slider.mini::-webkit-slider-runnable-track,
+        .col-colour-slider::-moz-range-track,
+        .col-colour-slider.mini::-moz-range-track {
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: transparent !important;
+            border: none !important;
+            outline: none !important;
+        }
+
+        .col-colour-val {
+            font-family: var(--font-clean);
+            font-variant-numeric: tabular-nums;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            min-width: 110px;
+            white-space: nowrap;
+        }
+
+        .col-colour-val.mini {
+            min-width: 24px;
+            text-align: right;
+            font-size: 0.72rem;
+        }
+
+        .col-colour-apply-btn,
+        .col-colour-preview-btn {
+            padding: 5px 12px;
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            background: var(--btn-bg);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            box-shadow: none;
+        }
+
+        .col-colour-preview-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .col-colour-grid-title {
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .col-colour-tracks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+            gap: 8px;
+        }
+
+        .col-colour-track-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            box-sizing: border-box;
+            transition: all 0.18s ease;
+        }
+
+        .col-colour-track-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        }
+
+        .col-colour-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.72rem;
+        }
+
+        .col-track-badge {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .col-ini-key {
+            font-family: var(--font-clean);
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .col-colour-card-body {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .colour-hold-manager-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            padding: 0;
+            background: transparent;
+            border: none;
+            box-sizing: border-box;
+        }
+
+        /* ===== 贴图上传规格选择弹窗与缩略图分辨率角标 ===== */
+        .texture-preview-wrap {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .thumb-badge {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 8px;
+            font-weight: 700;
+            line-height: 1;
+            padding: 2px 4px;
+            border-radius: 3px;
+            pointer-events: none;
+            letter-spacing: 0.5px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+            user-select: none;
+            z-index: 2;
+        }
+
+        .texture-preview-wrap .thumb-badge {
+            position: static;
+            box-shadow: none;
+            flex-shrink: 0;
+        }
+
+        .thumb-badge.badge-spec {
+            background: rgba(30, 41, 59, 0.92);
+            color: #94a3b8;
+            border: none;
+        }
+
+        .texture-upload-modal {
+            z-index: 3000;
+        }
+
+        .texture-upload-backdrop {
+            background: rgba(8, 6, 16, 0.72);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .texture-upload-dialog {
+            position: relative;
+            z-index: 3001;
+            width: 480px;
+            max-width: calc(100vw - 32px);
+            background: var(--bg-dialog);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 20px 56px rgba(0, 0, 0, 0.76);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: modalScaleUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .texture-upload-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .texture-upload-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .texture-upload-title svg {
+            color: var(--primary-dark);
+        }
+
+        .texture-upload-close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.4rem;
+            line-height: 1;
+            padding: 0 6px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+        }
+
+        .texture-upload-close-btn:hover {
+            color: var(--btn-hover-text);
+            background: var(--btn-hover-bg);
+        }
+
+        .texture-upload-close-btn:active {
+            transform: scale(0.96);
+            background: var(--btn-active-bg);
+        }
+
+        .texture-upload-body {
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .texture-upload-preview-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 12px;
+            background: var(--bg-surface);
+            border: none;
+            border-radius: 10px;
+        }
+
+        .texture-upload-thumb-wrap {
+            width: 68px;
+            height: 68px;
+            flex-shrink: 0;
+            border-radius: 8px;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .texture-upload-thumb-wrap img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            image-rendering: auto;
+        }
+
+        .texture-upload-info-list {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+
+        .texture-info-row {
+            display: flex;
+            align-items: baseline;
+            font-size: 0.8rem;
+            gap: 8px;
+        }
+
+        .texture-info-row .info-label {
+            color: var(--text-muted);
+            flex-shrink: 0;
+            width: 58px;
+        }
+
+        .texture-info-row .info-val {
+            color: rgba(255, 255, 255, 0.9);
+            font-family: var(--font-clean);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .texture-info-row .info-val.info-highlight {
+            color: #f472b6;
+            font-weight: 600;
+        }
+
+        .texture-upload-prompt-text {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .texture-upload-options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .texture-spec-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: var(--btn-bg-subtle);
+            border: none;
+            cursor: pointer;
+            transition: all 0.16s ease;
+            user-select: none;
+        }
+
+        .texture-spec-card:hover .spec-name,
+        .texture-spec-card:hover .spec-card-desc,
+        .texture-spec-card:hover .spec-card-file {
+            color: var(--btn-hover-text);
+        }
+
+        .texture-spec-card:hover .spec-tag {
+            background: rgba(17, 17, 24, 0.12);
+            color: var(--btn-hover-text);
+        }
+
+        .texture-spec-card:hover .spec-card-radio {
+            border-color: var(--btn-hover-text);
+        }
+
+        .texture-spec-card:hover .radio-dot {
+            background: var(--btn-hover-text);
+        }
+
+        .texture-spec-card.selected {
+            background: rgba(255, 255, 255, 0.16);
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
+        }
+
+        .texture-spec-card:focus-visible {
+            outline: 2px solid rgba(255, 255, 255, 0.7);
+            outline-offset: 2px;
+        }
+
+        .spec-card-radio {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+        }
+
+        .texture-spec-card.selected .spec-card-radio {
+            border-color: var(--text-main);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .radio-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-main);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.15s ease;
+        }
+
+        .texture-spec-card.selected .radio-dot {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .spec-card-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .spec-card-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .spec-name {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .spec-tag,
+        .spec-tag.tag-1x,
+        .spec-tag.tag-2x,
+        .spec-tag.tag-anim {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-weight: 500;
+            background: var(--btn-bg);
+            color: rgba(255, 255, 255, 0.9);
+            border: none;
+        }
+
+        .spec-card-desc {
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .spec-card-file {
+            font-size: 0.72rem;
+            font-family: var(--font-clean);
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .texture-spec-card.selected .spec-card-file {
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .texture-upload-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 12px 18px;
+            border-top: 1px solid var(--border-subtle);
+            background: rgba(255, 255, 255, 0.02);
+        }

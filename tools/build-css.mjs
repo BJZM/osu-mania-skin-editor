@@ -6,11 +6,21 @@ const cssDir = path.join(root, 'src/css');
 const outputPath = path.join(cssDir, 'style.css');
 const modules = [
   'tokens.css',
+  'components.css',
   'player.css',
   'shell.css',
+  'shell-overlays.css',
   'skin-editor.css',
+  'skin-editor-params.css',
+  'skin-editor-controls.css',
   'canvas-tools.css',
-  'texture-editor.css',
+  'texture-upload.css',
+  'texture-existing-picker.css',
+  'animation-editor.css',
+  'texture-image-shell.css',
+  'texture-image-picker.css',
+  'texture-image-creator.css',
+  'texture-image-workspace.css',
   'help.css',
   'cursor.css'
 ];
