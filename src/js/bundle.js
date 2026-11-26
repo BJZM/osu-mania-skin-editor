@@ -8336,19 +8336,29 @@ async function getBeatmapDecoder() {
 // video-transcoder.js - local LGPL FFmpeg fallback for unsupported video
 // ============================================================================
 
-        async function transcodeVideoBlobForBrowser(blob, sourcePath) {
+        async function transcodeVideoBlobForBrowser(blob, sourcePath, options = {}) {
             if (typeof showToast === 'function') {
                 showToast('视频背景', '正在后台转换为 Chromium 可播放的 WebM（已优先呈现静态曲绘与谱面）');
+            }
+            const headers = {
+                'Content-Type': 'application/octet-stream',
+                'X-Osu-Video-Transcode': '1'
+            };
+            if (
+                typeof window !== 'undefined' &&
+                window.skinEditorDesktop &&
+                typeof window.skinEditorDesktop.getVideoTranscodeToken === 'function'
+            ) {
+                const token = await window.skinEditorDesktop.getVideoTranscodeToken();
+                if (token) headers['X-Osu-Video-Transcode-Token'] = token;
             }
             const response = await fetch(
                 `/__video-transcode?source=${encodeURIComponent(String(sourcePath || ''))}`,
                 {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/octet-stream',
-                        'X-Osu-Video-Transcode': '1'
-                    },
-                    body: blob
+                    headers,
+                    body: blob,
+                    signal: options.signal
                 }
             );
             if (!response.ok) {
@@ -8518,6 +8528,11 @@ async function getBeatmapDecoder() {
             storyboardPlaybackState = null;
             if (!state) return;
 
+            if (state.videoAbortController) {
+                try { state.videoAbortController.abort(); } catch (_) {}
+                state.videoAbortController = null;
+            }
+
             if (state.video && state.video.element) {
                 const video = state.video.element;
                 try { video.pause(); } catch (_) {}
@@ -8681,7 +8696,9 @@ async function getBeatmapDecoder() {
                 revokeStoryboardUrl(current.url);
                 state.video = null;
                 state.videoLoading = true;
-                void transcodeVideoBlobForBrowser(sourceBlob, videoEvent.path)
+                const abortController = new AbortController();
+                state.videoAbortController = abortController;
+                void transcodeVideoBlobForBrowser(sourceBlob, videoEvent.path, { signal: abortController.signal })
                     .then(transcodedBlob => {
                         if (generation !== storyboardPlaybackGeneration || storyboardPlaybackState !== state) return;
                         attachStoryboardVideoElement(
@@ -8695,10 +8712,18 @@ async function getBeatmapDecoder() {
                         );
                     })
                     .catch(error => {
+                        if (
+                            (error && error.name === 'AbortError') ||
+                            generation !== storyboardPlaybackGeneration ||
+                            storyboardPlaybackState !== state
+                        ) {
+                            return;
+                        }
                         console.warn('故事板视频转码失败:', videoEvent.path, error);
                         failStoryboardVideo(state, '');
                     })
                     .finally(() => {
+                        if (state.videoAbortController === abortController) state.videoAbortController = null;
                         if (storyboardPlaybackState === state) state.videoLoading = false;
                     });
             });
@@ -8732,7 +8757,13 @@ async function getBeatmapDecoder() {
                     return;
                 }
 
-                const transcodedBlob = await transcodeVideoBlobForBrowser(sourceBlob, videoEvent.path);
+                const abortController = new AbortController();
+                state.videoAbortController = abortController;
+                const transcodedBlob = await transcodeVideoBlobForBrowser(
+                    sourceBlob,
+                    videoEvent.path,
+                    { signal: abortController.signal }
+                );
                 if (generation !== storyboardPlaybackGeneration || storyboardPlaybackState !== state) return;
                 attachStoryboardVideoElement(
                     state,
@@ -8744,9 +8775,17 @@ async function getBeatmapDecoder() {
                     null
                 );
             } catch (error) {
+                if (
+                    (error && error.name === 'AbortError') ||
+                    generation !== storyboardPlaybackGeneration ||
+                    storyboardPlaybackState !== state
+                ) {
+                    return;
+                }
                 console.warn('故事板视频加载/转码失败:', videoEvent.path, error);
                 failStoryboardVideo(state, '');
             } finally {
+                state.videoAbortController = null;
                 if (storyboardPlaybackState === state) state.videoLoading = false;
             }
         }

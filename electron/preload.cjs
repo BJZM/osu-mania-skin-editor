@@ -29,6 +29,9 @@ contextBridge.exposeInMainWorld('skinEditorDesktop', {
   allowClose() {
     ipcRenderer.send('desktop:allow-close');
   },
+  getVideoTranscodeToken() {
+    return ipcRenderer.invoke('desktop:get-video-transcode-token');
+  },
   waitForNextDownload() {
     let listener = null;
     const promise = new Promise((resolve) => {

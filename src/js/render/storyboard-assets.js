@@ -152,6 +152,11 @@
             storyboardPlaybackState = null;
             if (!state) return;
 
+            if (state.videoAbortController) {
+                try { state.videoAbortController.abort(); } catch (_) {}
+                state.videoAbortController = null;
+            }
+
             if (state.video && state.video.element) {
                 const video = state.video.element;
                 try { video.pause(); } catch (_) {}
@@ -315,7 +320,9 @@
                 revokeStoryboardUrl(current.url);
                 state.video = null;
                 state.videoLoading = true;
-                void transcodeVideoBlobForBrowser(sourceBlob, videoEvent.path)
+                const abortController = new AbortController();
+                state.videoAbortController = abortController;
+                void transcodeVideoBlobForBrowser(sourceBlob, videoEvent.path, { signal: abortController.signal })
                     .then(transcodedBlob => {
                         if (generation !== storyboardPlaybackGeneration || storyboardPlaybackState !== state) return;
                         attachStoryboardVideoElement(
@@ -329,10 +336,18 @@
                         );
                     })
                     .catch(error => {
+                        if (
+                            (error && error.name === 'AbortError') ||
+                            generation !== storyboardPlaybackGeneration ||
+                            storyboardPlaybackState !== state
+                        ) {
+                            return;
+                        }
                         console.warn('故事板视频转码失败:', videoEvent.path, error);
                         failStoryboardVideo(state, '');
                     })
                     .finally(() => {
+                        if (state.videoAbortController === abortController) state.videoAbortController = null;
                         if (storyboardPlaybackState === state) state.videoLoading = false;
                     });
             });
@@ -366,7 +381,13 @@
                     return;
                 }
 
-                const transcodedBlob = await transcodeVideoBlobForBrowser(sourceBlob, videoEvent.path);
+                const abortController = new AbortController();
+                state.videoAbortController = abortController;
+                const transcodedBlob = await transcodeVideoBlobForBrowser(
+                    sourceBlob,
+                    videoEvent.path,
+                    { signal: abortController.signal }
+                );
                 if (generation !== storyboardPlaybackGeneration || storyboardPlaybackState !== state) return;
                 attachStoryboardVideoElement(
                     state,
@@ -378,9 +399,17 @@
                     null
                 );
             } catch (error) {
+                if (
+                    (error && error.name === 'AbortError') ||
+                    generation !== storyboardPlaybackGeneration ||
+                    storyboardPlaybackState !== state
+                ) {
+                    return;
+                }
                 console.warn('故事板视频加载/转码失败:', videoEvent.path, error);
                 failStoryboardVideo(state, '');
             } finally {
+                state.videoAbortController = null;
                 if (storyboardPlaybackState === state) state.videoLoading = false;
             }
         }

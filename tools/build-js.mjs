@@ -1,10 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = process.cwd();
+const toolsDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(toolsDir, '..');
 const jsDir = path.join(root, 'src/js');
 const outputPath = path.join(jsDir, 'bundle.js');
-const checkOnly = process.argv.includes('--check');
 
 export const modules = [
   'default_skin.js',
@@ -128,47 +129,54 @@ export const modules = [
   'ui/agent-session.js'
 ];
 
-let eol = '\n';
-const bundledLines = [
-  '// ============================================================================',
-  '// bundle.js - GENERATED JAVASCRIPT BUNDLE',
-  '// Source modules and order: see tools/build-js.mjs.',
-  '// Rebuild with: npm run build:js',
-  '// ============================================================================',
-  ''
-];
-
-for (const relPath of modules) {
-  const filePath = path.join(jsDir, relPath);
-  const content = await readFile(filePath, 'utf8');
-  eol = content.includes('\r\n') ? '\r\n' : eol;
-  bundledLines.push(
-    `// --- BEGIN ${relPath} ---`,
-    content.replace(/\r?\n$/, ''),
-    `// --- END ${relPath} ---`,
+export async function runBuildJs({ checkOnly = false } = {}) {
+  let eol = '\n';
+  const bundledLines = [
+    '// ============================================================================',
+    '// bundle.js - GENERATED JAVASCRIPT BUNDLE',
+    '// Source modules and order: see tools/build-js.mjs.',
+    '// Rebuild with: npm run build:js',
+    '// ============================================================================',
     ''
-  );
-}
+  ];
 
-const bundle = bundledLines.join(eol);
-
-if (checkOnly) {
-  let existing = '';
-  try {
-    existing = await readFile(outputPath, 'utf8');
-  } catch {
-    console.error('bundle.js is missing. Run "npm run build:js".');
-    process.exit(1);
+  for (const relPath of modules) {
+    const filePath = path.join(jsDir, relPath);
+    const content = await readFile(filePath, 'utf8');
+    eol = content.includes('\r\n') ? '\r\n' : eol;
+    bundledLines.push(
+      `// --- BEGIN ${relPath} ---`,
+      content.replace(/\r?\n$/, ''),
+      `// --- END ${relPath} ---`,
+      ''
+    );
   }
 
-  if (existing !== bundle) {
-    console.error('bundle.js is out of sync with src/js modules. Run "npm run build:js".');
-    process.exit(1);
+  const bundle = bundledLines.join(eol);
+
+  if (checkOnly) {
+    let existing = '';
+    try {
+      existing = await readFile(outputPath, 'utf8');
+    } catch {
+      console.error('bundle.js is missing. Run "npm run build:js".');
+      process.exit(1);
+    }
+
+    if (existing !== bundle) {
+      console.error('bundle.js is out of sync with src/js modules. Run "npm run build:js".');
+      process.exit(1);
+    }
+
+    console.log('JS modules and generated bundle.js are in sync.');
+    process.exit(0);
   }
 
-  console.log('JS modules and generated bundle.js are in sync.');
-  process.exit(0);
+  await writeFile(outputPath, bundle, 'utf8');
+  console.log(`Built bundle.js from ${modules.length} JS modules.`);
 }
 
-await writeFile(outputPath, bundle, 'utf8');
-console.log(`Built bundle.js from ${modules.length} JS modules.`);
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  await runBuildJs({ checkOnly: process.argv.includes('--check') });
+}

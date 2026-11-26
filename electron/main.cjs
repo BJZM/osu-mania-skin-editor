@@ -3,10 +3,8 @@ const crypto = require('node:crypto');
 const http = require('node:http');
 const path = require('node:path');
 const { app, BrowserWindow, Menu, ipcMain, session, shell } = require('electron');
-const {
-  VIDEO_TRANSCODE_PATH,
-  handleVideoTranscodeRequest
-} = require('./video-transcoder.cjs');
+const { createStaticServer } = require('./static-server.cjs');
+const { abortAllVideoTranscodes } = require('./video-transcoder.cjs');
 
 // 便携版运行环境与数据目录自适应配置：
 // 1. 若运行于单文件 NSIS 便携版中，真实运行根目录位于 process.env.PORTABLE_EXECUTABLE_DIR；
@@ -42,101 +40,9 @@ function configurePortableEnvironment() {
 
 configurePortableEnvironment();
 
-const MIME_TYPES = {
-  '.css': 'text/css; charset=utf-8',
-  '.gif': 'image/gif',
-  '.html': 'text/html; charset=utf-8',
-  '.ico': 'image/x-icon',
-  '.jpeg': 'image/jpeg',
-  '.jpg': 'image/jpeg',
-  '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.md': 'text/plain; charset=utf-8',
-  '.mjs': 'text/javascript; charset=utf-8',
-  '.mp3': 'audio/mpeg',
-  '.ogg': 'audio/ogg',
-  '.osu': 'text/plain; charset=utf-8',
-  '.osz': 'application/zip',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-  '.wav': 'audio/wav',
-  '.webp': 'image/webp',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.zip': 'application/zip'
-};
-
 const AGENT_BRIDGE_PROTOCOL_VERSION = 1;
 const AGENT_BRIDGE_MAX_BODY_BYTES = 64 * 1024 * 1024;
 const AGENT_BRIDGE_REQUEST_TIMEOUT_MS = 120000;
-
-function createStaticServer(root) {
-  const resolvedRoot = path.resolve(root);
-  const packagedFFmpegDir = path.join(process.resourcesPath, 'ffmpeg-lgpl-win64', 'bin');
-
-  return http.createServer((request, response) => {
-    let url;
-    try {
-      url = new URL(request.url, 'http://127.0.0.1');
-    } catch {
-      response.writeHead(400);
-      response.end('Bad Request');
-      return;
-    }
-
-    if (url.pathname === VIDEO_TRANSCODE_PATH) {
-      void handleVideoTranscodeRequest(request, response, {
-        ffmpegDir: app.isPackaged ? packagedFFmpegDir : undefined
-      });
-      return;
-    }
-
-    let pathname;
-    try {
-      pathname = decodeURIComponent(url.pathname);
-    } catch {
-      response.writeHead(400);
-      response.end('Bad Request');
-      return;
-    }
-
-    if (pathname.endsWith('/')) pathname += 'index.html';
-
-    const filePath = path.resolve(resolvedRoot, `.${pathname}`);
-    const relative = path.relative(resolvedRoot, filePath);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
-      response.writeHead(403);
-      response.end('Forbidden');
-      return;
-    }
-
-    fs.stat(filePath, (statError, stats) => {
-      if (statError || !stats.isFile()) {
-        response.writeHead(404);
-        response.end('Not Found');
-        return;
-      }
-
-      response.writeHead(200, {
-        'Cache-Control': 'no-cache',
-        'Content-Length': stats.size,
-        'Content-Type': MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream'
-      });
-
-      if (request.method === 'HEAD') {
-        response.end();
-        return;
-      }
-
-      const stream = fs.createReadStream(filePath);
-      stream.on('error', () => {
-        if (!response.headersSent) response.writeHead(500);
-        response.end();
-      });
-      stream.pipe(response);
-    });
-  });
-}
 
 function readJsonBody(request, limit = AGENT_BRIDGE_MAX_BODY_BYTES) {
   return new Promise((resolve, reject) => {
@@ -199,7 +105,25 @@ let agentBridgeToken = null;
 let agentBridgeDiscoveryPaths = [];
 let allowMainWindowClose = false;
 let rendererCloseGuardReady = false;
+const videoTranscodeToken = crypto.randomBytes(32).toString('hex');
 const pendingAgentRequests = new Map();
+
+function rejectPendingAgentRequests(code = 'EDITOR_CLOSED', message = 'Skin editor is closing') {
+  for (const pending of pendingAgentRequests.values()) {
+    clearTimeout(pending.timer);
+    const err = new Error(message);
+    err.code = code;
+    pending.reject(err);
+  }
+  pendingAgentRequests.clear();
+}
+
+ipcMain.handle('desktop:get-video-transcode-token', (event) => {
+  if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents) {
+    return '';
+  }
+  return videoTranscodeToken;
+});
 
 ipcMain.on('desktop:close-guard-ready', (event) => {
   if (!mainWindow || event.sender !== mainWindow.webContents) return;
@@ -270,7 +194,17 @@ function createAgentBridgeServer() {
       return;
     }
 
-    const url = new URL(request.url || '/', 'http://127.0.0.1');
+    let url;
+    try {
+      url = new URL(request.url || '/', 'http://127.0.0.1');
+    } catch {
+      writeJsonResponse(response, 400, {
+        ok: false,
+        error: { code: 'INVALID_REQUEST', message: 'Invalid request URL' }
+      });
+      return;
+    }
+
     if (request.method === 'GET' && url.pathname === '/health') {
       writeJsonResponse(response, 200, {
         ok: true,
@@ -352,17 +286,19 @@ async function ensureAgentBridgeServer() {
   writeAgentBridgeDiscovery(agentBridgeServer.port);
 }
 
-function closeAgentBridgeServer() {
-  for (const pending of pendingAgentRequests.values()) {
-    clearTimeout(pending.timer);
-    const err = new Error('Skin editor is closing');
-    err.code = 'EDITOR_CLOSED';
-    pending.reject(err);
+function closeHttpServer(server) {
+  if (!server) return;
+  if (typeof server.closeAllConnections === 'function') {
+    server.closeAllConnections();
   }
-  pendingAgentRequests.clear();
+  server.close();
+}
+
+function closeAgentBridgeServer() {
+  rejectPendingAgentRequests('EDITOR_CLOSED', 'Skin editor is closing');
   removeAgentBridgeDiscovery();
   if (agentBridgeServer) {
-    agentBridgeServer.close();
+    closeHttpServer(agentBridgeServer);
     agentBridgeServer = null;
   }
 }
@@ -371,7 +307,13 @@ async function createMainWindow() {
   const iconPath = path.join(app.getAppPath(), 'assets', 'app-icon.ico');
 
   if (!staticServer) {
-    staticServer = createStaticServer(app.getAppPath());
+    const packagedFFmpegDir = path.join(process.resourcesPath, 'ffmpeg-lgpl-win64', 'bin');
+    staticServer = createStaticServer(app.getAppPath(), {
+      videoTranscodeOptions: {
+        ffmpegDir: app.isPackaged ? packagedFFmpegDir : undefined,
+        token: videoTranscodeToken
+      }
+    });
     staticServer.port = await listen(staticServer);
   }
 
@@ -399,15 +341,23 @@ async function createMainWindow() {
     event.preventDefault();
     mainWindow.webContents.send('desktop:close-requested');
   });
-  mainWindow.webContents.on('did-start-navigation', (_event, _url, _isInPlace, isMainFrame) => {
-    if (!isMainFrame) return;
+  mainWindow.webContents.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
+    if (!isMainFrame || isInPlace) return;
     allowMainWindowClose = false;
     rendererCloseGuardReady = false;
+    rejectPendingAgentRequests('EDITOR_NAVIGATING', 'Skin editor page is reloading');
+  });
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    allowMainWindowClose = false;
+    rendererCloseGuardReady = false;
+    const reason = details && details.reason ? details.reason : 'unknown';
+    rejectPendingAgentRequests('RENDERER_GONE', `Skin editor renderer exited (${reason})`);
   });
   mainWindow.on('closed', () => {
     mainWindow = null;
     allowMainWindowClose = false;
     rendererCloseGuardReady = false;
+    rejectPendingAgentRequests('EDITOR_CLOSED', 'Skin editor window closed');
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://') || url.startsWith('https://')) void shell.openExternal(url);
@@ -462,9 +412,10 @@ if (!hasSingleInstanceLock) {
   });
 
   app.on('before-quit', () => {
+    abortAllVideoTranscodes();
     closeAgentBridgeServer();
     if (staticServer) {
-      staticServer.close();
+      closeHttpServer(staticServer);
       staticServer = null;
     }
   });
