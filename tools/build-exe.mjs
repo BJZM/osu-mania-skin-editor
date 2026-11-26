@@ -77,6 +77,7 @@ async function stampExecutableResources(targetExe, iconPath, packageJson) {
     return;
   }
 
+  const numericFileVersion = String(packageJson.version || '0.0.0').split('-')[0];
   const args = [
     path.relative(root, targetExe),
     '--set-icon', path.relative(root, iconPath),
@@ -84,7 +85,7 @@ async function stampExecutableResources(targetExe, iconPath, packageJson) {
     '--set-version-string', 'ProductName', packageJson.build.productName,
     '--set-version-string', 'CompanyName', packageJson.author || 'BJZM',
     '--set-version-string', 'LegalCopyright', `Copyright (C) ${packageJson.author || 'BJZM'}`,
-    '--set-file-version', packageJson.version,
+    '--set-file-version', numericFileVersion,
     '--set-product-version', packageJson.version
   ];
 
