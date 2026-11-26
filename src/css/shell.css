@@ -373,14 +373,15 @@
             overflow-y: auto;
             overflow-x: hidden;
             z-index: 10;
-            background: var(--bg-dark) !important;
+            background: var(--bg-stage) !important;
             border: none;
+            border-right: 1px solid var(--border-subtle);
             border-radius: 0;
             padding: 14px 14px;
             display: flex;
             flex-direction: column;
             gap: 12px;
-            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.35);
+            box-shadow: none;
             box-sizing: border-box;
             user-select: none;
             scrollbar-width: thin;
@@ -408,7 +409,7 @@
         .info-section-tag {
             font-size: 0.74rem;
             font-weight: 700;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.5);
             letter-spacing: 0.8px;
             text-transform: uppercase;
         }
@@ -431,7 +432,7 @@
 
         .info-sub-title {
             font-size: 0.82rem;
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.65);
             line-height: 1.35;
             width: 100%;
             overflow: hidden;
@@ -441,7 +442,7 @@
 
         .info-meta-text {
             font-size: 0.76rem;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.45);
             margin-top: 1px;
             width: 100%;
             overflow: hidden;
@@ -464,7 +465,7 @@
 
         .diff-stat-card {
             background: rgba(0, 0, 0, 0.32);
-            border: none;
+            border: 1px solid rgba(255, 255, 255, 0.04);
             border-radius: 5px;
             padding: 6px 10px;
             display: flex;
@@ -482,7 +483,7 @@
 
         .diff-stat-lbl {
             font-size: 0.78rem;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.5);
             font-weight: 500;
             flex-shrink: 0;
             font-family: var(--font-clean);
