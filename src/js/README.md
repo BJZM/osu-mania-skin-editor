@@ -44,11 +44,11 @@ ordered according to the groups below.
 - `render/storyboard-assets.js`: storyboard image/video loading and playback lifecycle.
 - `render/storyboard.js`: storyboard command evaluation and Canvas rendering.
 - `render/storyboard-composite.js`: throttled offscreen composition for video and heavy storyboards.
-- `render/hold-note-geometry.js`: stable hold-note anchor geometry and body texture drawing.
+- `render/hold-note-geometry.js`: stable hold-note anchor geometry, body texture drawing and hold-note batch rendering.
 - `render/frame-playfield.js`: track background, column lines, barlines and judgement line.
 - `render/frame-judgement.js`: judgement animation trigger factory.
 - `render/frame-key-images.js`: key image and pressed-state drawing factory.
-- `render/frame-notes.js`: note and hold-head drawing factory.
+- `render/frame-notes.js`: note/hold-head drawing, preview dummy notes, ordered note index and hit cursor helpers.
 - `render/frame-stage-light.js`: stage-light column rendering.
 - `render/frame-lighting.js`: LightingN and LightingL effect rendering.
 - `render/frame.js`: main Canvas frame orchestration and HUD layering.
@@ -76,7 +76,10 @@ ordered according to the groups below.
 - `ui/texture-control-font-glyph.js`: font glyph preview blocks.
 - `ui/texture-control-colours.js`: per-track colour manager.
 - `ui/texture-controls.js`: category expansion helper.
-- `ui/param-render.js`: parameter panel renderer.
+- `ui/texture-solid-shape-geometry.js`: solid texture dimension validation, colour/shape normalizers and vector path/arrow drawing.
+- `ui/texture-solid-shape-factory.js`: 8-SEDT pixel-boundary stroke rasterizer and solid shape canvas factory.
+- `ui/param-render-controls.js`: parameter card builders by control type (number, boolean, select, colour, array, texture, text).
+- `ui/param-render.js`: parameter panel renderer, font glyph blocks and category sections.
 - `ui/texture-project-archive.js`: editable texture project manifest, hidden source snapshots and archive restore.
 - `ui/export.js`: texture upload entry and editable/release skin export modes.
 - `ui/history.js`: snapshots, undo and redo.
@@ -84,12 +87,19 @@ ordered according to the groups below.
 - `ui/editor-dialog.js`: editor shell and initialization coordinator.
 - `ui/animation-editor.js`: multi-frame texture editor.
 - `ui/texture-upload.js`: single texture upload flow.
+- `ui/texture-image-editor-create-state.js`: solid texture creator state, baseline dirty tracking, corner limits and preview rendering.
+- `ui/texture-image-editor-create-inputs.js`: solid texture creator form input sync and DOM event bindings.
+- `ui/texture-image-editor-create.js`: solid texture creator tab management and save controller.
+- `ui/texture-image-editor-save-close.js`: KeyImage/standard/long-body save pipelines, target refresh and single-texture reset.
+- `ui/texture-image-editor-window.js`: texture editor history/import sync, open/close lifecycle and floating window drag/docking.
 - `ui/texture-image-editor-*.js`: live texture crop, transform, long-body, history,
-  KeyImage grouping, serialization and save/close modules.
+  KeyImage grouping and serialization modules.
 - `ui/texture-image-editor.js`: texture image editor state and DOM initialization.
 - `ui/canvas-key-image-height.js`: KeyImage height baselines, magnet and persistence.
 - `ui/canvas-interactions.js`: canvas selection and drag behavior.
 - `ui/shortcuts.js`: keyboard shortcuts.
 - `ui/app-shell.js`: final startup wiring.
-- `ui/agent-session.js`: semantic Agent session, revision checks, transaction undo,
-  preview capture, validation and archive export for the local Agent Bridge.
+- `ui/agent-session-config-hitsounds.js`: Agent session config parameter patch/reset and hitsound operations.
+- `ui/agent-session-textures.js`: Agent session texture inspect, upload, edit, stretch-fix, create and long-body automation.
+- `ui/agent-session-preview-export.js`: Agent session preview capture, validation and package export.
+- `ui/agent-session.js`: semantic Agent session core, revision checks, transaction undo and local Agent Bridge dispatch.

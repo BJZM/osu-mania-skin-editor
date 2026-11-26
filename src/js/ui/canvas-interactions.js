@@ -9,6 +9,152 @@
         const keyImageHeightBaselineState = new Map();
         let keyImageHeightPersistGeneration = 0;
 
+        function hitTestCanvasInteractiveElement(mouseX, mouseY, options = {}) {
+            const includeStageEdges = options.includeStageEdges !== false;
+            // 严格分级命中检测算法（从高到低）：
+            // KeyImage 高度手柄 > 判定提示 > 连击 > 血条 > 其余 HUD > note/hold
+            // > hitposition > lightposition 手柄 > lighting > mania-stage-light > KeyImage > 轨道 (> 舞台边界)
+            let hit = null;
+            let keyImageHeightHandleHit = false;
+
+            const keyImageHandlePad = Math.max(8, 12 * (canvas.height / 480));
+            for (const item of canvasInteractiveElements) {
+                if (!item.id.startsWith('key_') || !item.keyImageHeightAdjustable ||
+                    item.keyImageResizeEdgeY == null) continue;
+                if (mouseX >= item.x && mouseX <= item.x + item.w &&
+                    Math.abs(mouseY - item.keyImageResizeEdgeY) <= keyImageHandlePad) {
+                    keyImageHeightHandleHit = true;
+                    hit = item;
+                    break;
+                }
+            }
+
+            if (!hit) {
+                for (const id of ['judgement', 'combo', 'healthDisplay']) {
+                    const item = canvasInteractiveElements.find(el => el.id === id);
+                    if (item && mouseX >= item.x && mouseX <= item.x + item.w &&
+                        mouseY >= item.y && mouseY <= item.y + item.h) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit) {
+                for (const item of canvasInteractiveElements) {
+                    if (!item.id.startsWith('hud_')) continue;
+                    const pad = 3;
+                    if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
+                        mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit && !isPlaying) {
+                let bestNote = null;
+                let minCenterDist = Infinity;
+                for (let i = canvasInteractiveElements.length - 1; i >= 0; i--) {
+                    const item = canvasInteractiveElements[i];
+                    if (!item.id.startsWith('note_') && !item.id.startsWith('hold_')) continue;
+                    if (mouseX >= item.x && mouseX <= item.x + item.w &&
+                        mouseY >= item.y && mouseY <= item.y + item.h) {
+                        const centerY = item.y + item.h / 2;
+                        const dist = Math.abs(mouseY - centerY);
+                        if (dist < minCenterDist) {
+                            minCenterDist = dist;
+                            bestNote = item;
+                        }
+                    }
+                }
+                if (bestNote) hit = bestNote;
+            }
+
+            if (!hit) {
+                const hp = canvasInteractiveElements.find(el => el.id === 'hitPosition');
+                if (hp && mouseX >= hp.x && mouseX <= hp.x + hp.w &&
+                    mouseY >= hp.y && mouseY <= hp.y + hp.h) {
+                    hit = hp;
+                }
+            }
+
+            if (!hit) {
+                const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
+                if (lp) {
+                    const lightHandleY = (lp.handleY != null) ? lp.handleY : lp.y;
+                    const lightHandleH = (lp.handleH != null) ? lp.handleH : lp.h;
+                    if (mouseX >= lp.x && mouseX <= lp.x + lp.w &&
+                        mouseY >= lightHandleY && mouseY <= lightHandleY + lightHandleH) {
+                        hit = lp;
+                    }
+                }
+            }
+
+            if (!hit) {
+                for (const item of canvasInteractiveElements) {
+                    if (item.dragType !== 'lighting_width') continue;
+                    const lwPad = (selectedCanvasElement && selectedCanvasElement.id === item.id) ? 8 : 0;
+                    if (mouseX >= item.x - lwPad && mouseX <= item.x + item.w + lwPad &&
+                        mouseY >= item.y - lwPad && mouseY <= item.y + item.h + lwPad) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit) {
+                const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
+                if (lp && lp.visibleY != null && lp.visibleH > 0 &&
+                    mouseX >= lp.x && mouseX <= lp.x + lp.w &&
+                    mouseY >= lp.visibleY && mouseY <= lp.visibleY + lp.visibleH) {
+                    hit = lp;
+                }
+            }
+
+            if (!hit) {
+                for (const item of canvasInteractiveElements) {
+                    if (!item.id.startsWith('key_')) continue;
+                    if (mouseX >= item.x && mouseX <= item.x + item.w &&
+                        mouseY >= item.y && mouseY <= item.y + item.h) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit) {
+                for (const item of canvasInteractiveElements) {
+                    if (!item.id.startsWith('track_col_')) continue;
+                    const isSelected = selectedCanvasElement && selectedCanvasElement.id === item.id;
+                    const pad = isSelected ? 12 : 6;
+                    if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
+                        mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit && includeStageEdges) {
+                const stageEdgePad = Math.max(18, Math.round(22 * (canvas.height / 480)));
+                for (const item of canvasInteractiveElements) {
+                    const isStageEdge = item.id.startsWith('stageLeft') || item.id.startsWith('stageRight');
+                    if (!isStageEdge) continue;
+                    const isSelected = selectedCanvasElement && selectedCanvasElement.id === item.id;
+                    const padX = isSelected ? Math.round(stageEdgePad * 1.35) : stageEdgePad;
+                    const padY = Math.round(stageEdgePad * 0.55);
+                    if (mouseX >= item.x - padX && mouseX <= item.x + item.w + padX &&
+                        mouseY >= item.y - padY && mouseY <= item.y + item.h + padY) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            return { hit, keyImageHeightHandleHit };
+        }
+
         function initCanvasEditorUI() {
             // 画布交互点击与拖拽监听
             if (canvas) {
@@ -20,173 +166,11 @@
                     const mouseX = (e.clientX - rect.left) * scaleX;
                     const mouseY = (e.clientY - rect.top) * scaleY;
 
-                    // 严格分级命中检测算法（从高到低）：
-                    // 判定提示 > 连击 > 血条 > note > hitposition > lightposition
-                    // > lighting > mania-stage-light > KeyImage > 轨道。
-                    let hit = null;
-                    let keyImageHeightHandleHit = false;
-
-                    // KeyImage 高度手柄属于独立编辑控件，优先于所有贴图命中，避免与 hitposition 重叠时失效。
-                    const keyImageHandlePad = Math.max(8, 12 * (canvas.height / 480));
-                    for (const item of canvasInteractiveElements) {
-                        if (!item.id.startsWith('key_') || !item.keyImageHeightAdjustable ||
-                            item.keyImageResizeEdgeY == null) continue;
-                        if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                            Math.abs(mouseY - item.keyImageResizeEdgeY) <= keyImageHandlePad) {
-                            keyImageHeightHandleHit = true;
-                            hit = item;
-                            break;
-                        }
-                    }
-
-                    // 1. 判定提示（最高）
-                    if (!hit) {
-                        const item = canvasInteractiveElements.find(el => el.id === 'judgement');
-                        if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                            hit = item;
-                        }
-                    }
-
-                    // 2. 连击
-                    if (!hit) {
-                        const item = canvasInteractiveElements.find(el => el.id === 'combo');
-                        if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                            hit = item;
-                        }
-                    }
-
-                    // 3. 血条
-                    if (!hit) {
-                        const item = canvasInteractiveElements.find(el => el.id === 'healthDisplay');
-                        if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                            hit = item;
-                        }
-                    }
-
-                    // 其余 HUD 控件保持为高层 UI，优先级位于 note 之前。
-                    if (!hit) {
-                        for (const item of canvasInteractiveElements) {
-                            if (!item.id.startsWith('hud_')) continue;
-                            const pad = 3;
-                            if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
-                                mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 4. note / hold
-                    if (!hit && !isPlaying) {
-                        let bestNote = null;
-                        let minCenterDist = Infinity;
-                        for (let i = canvasInteractiveElements.length - 1; i >= 0; i--) {
-                            const item = canvasInteractiveElements[i];
-                            if (!item.id.startsWith('note_') && !item.id.startsWith('hold_')) continue;
-                            if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                mouseY >= item.y && mouseY <= item.y + item.h) {
-                                const centerY = item.y + item.h / 2;
-                                const dist = Math.abs(mouseY - centerY);
-                                if (dist < minCenterDist) {
-                                    minCenterDist = dist;
-                                    bestNote = item;
-                                }
-                            }
-                        }
-                        if (bestNote) hit = bestNote;
-                    }
-
-                    // 5. hitposition
-                    if (!hit) {
-                        const hp = canvasInteractiveElements.find(el => el.id === 'hitPosition');
-                        const containsRect = (r) => r && mouseX >= r.x && mouseX <= r.x + r.w &&
-                            mouseY >= r.y && mouseY <= r.y + r.h;
-                        if (containsRect(hp)) hit = hp;
-                    }
-
-                    // 6. lightposition 手柄
-                    if (!hit) {
-                        const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
-                        if (lp) {
-                            const lightHandle = {
-                                x: lp.x,
-                                y: (lp.handleY != null) ? lp.handleY : lp.y,
-                                w: lp.w,
-                                h: (lp.handleH != null) ? lp.handleH : lp.h
-                            };
-                            if (mouseX >= lightHandle.x && mouseX <= lightHandle.x + lightHandle.w &&
-                                mouseY >= lightHandle.y && mouseY <= lightHandle.y + lightHandle.h) {
-                                hit = lp;
-                            }
-                        }
-                    }
-
-                    // 7. lighting (LightingN / LightingL)
-                    if (!hit) {
-                        for (const item of canvasInteractiveElements) {
-                            if (item.dragType !== 'lighting_width') continue;
-                            // 已选中时外扩一点，方便直接抓住白色高亮边框向外/向内拉伸宽度
-                            const lwPad = (selectedCanvasElement && selectedCanvasElement.id === item.id) ? 8 : 0;
-                            if (mouseX >= item.x - lwPad && mouseX <= item.x + item.w + lwPad &&
-                                mouseY >= item.y - lwPad && mouseY <= item.y + item.h + lwPad) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 8. mania-stage-light 可见光柱本体
-                    if (!hit) {
-                        const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
-                        if (lp && lp.visibleY != null && lp.visibleH > 0 &&
-                            mouseX >= lp.x && mouseX <= lp.x + lp.w &&
-                            mouseY >= lp.visibleY && mouseY <= lp.visibleY + lp.visibleH) {
-                            hit = lp;
-                        }
-                    }
-
-                    // 9. KeyImage 贴图本体
-                    if (!hit) {
-                        for (const item of canvasInteractiveElements) {
-                            if (!item.id.startsWith('key_')) continue;
-                            if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                mouseY >= item.y && mouseY <= item.y + item.h) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 10. 轨道（最低；选中轨道的边缘手柄也属于轨道层级）
-                    if (!hit) {
-                        for (const item of canvasInteractiveElements) {
-                            if (!item.id.startsWith('track_col_')) continue;
-                            const isSelected = selectedCanvasElement && selectedCanvasElement.id === item.id;
-                            const pad = isSelected ? 12 : 6;
-                            if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
-                                mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 舞台边界不在指定顺序内，放在轨道同层附近，且不会抢占任何贴图。
-                    if (!hit) {
-                        const stageEdgePad = Math.max(18, Math.round(22 * (canvas.height / 480)));
-                        for (const item of canvasInteractiveElements) {
-                            const isStageEdge = item.id.startsWith('stageLeft') || item.id.startsWith('stageRight');
-                            if (!isStageEdge) continue;
-                            const isSelected = selectedCanvasElement && selectedCanvasElement.id === item.id;
-                            const padX = isSelected ? Math.round(stageEdgePad * 1.35) : stageEdgePad;
-                            const padY = Math.round(stageEdgePad * 0.55);
-                            if (mouseX >= item.x - padX && mouseX <= item.x + item.w + padX &&
-                                mouseY >= item.y - padY && mouseY <= item.y + item.h + padY) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
+                    const { hit, keyImageHeightHandleHit } = hitTestCanvasInteractiveElement(
+                        mouseX,
+                        mouseY,
+                        { includeStageEdges: true }
+                    );
 
                     if (hit) {
                         const isDifferentElement = !selectedCanvasElement ||
@@ -490,149 +474,12 @@
                         }
                     } else {
                         // 鼠标悬停改变指针图标 (同样遵循分级检测原则)
-                        let hoverHit = null;
-                        let hoveringKeyImageHeightHandle = false;
-
-                        // KeyImage 高度手柄与 mousedown 保持一致，始终最先命中。
-                        const keyImageHandlePad = Math.max(8, 12 * (canvas.height / 480));
-                        for (const item of canvasInteractiveElements) {
-                            if (!item.id.startsWith('key_') || !item.keyImageHeightAdjustable ||
-                                item.keyImageResizeEdgeY == null) continue;
-                            if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                Math.abs(mouseY - item.keyImageResizeEdgeY) <= keyImageHandlePad) {
-                                hoverHit = item;
-                                hoveringKeyImageHeightHandle = true;
-                                break;
-                            }
-                        }
-
-                        // 与 mousedown 保持相同的高到低优先级。
-                        if (!hoverHit) {
-                            const item = canvasInteractiveElements.find(el => el.id === 'judgement');
-                            if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                                hoverHit = item;
-                            }
-                        }
-                        if (!hoverHit) {
-                            const item = canvasInteractiveElements.find(el => el.id === 'combo');
-                            if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                                hoverHit = item;
-                            }
-                        }
-                        if (!hoverHit) {
-                            const item = canvasInteractiveElements.find(el => el.id === 'healthDisplay');
-                            if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                                hoverHit = item;
-                            }
-                        }
-                        if (!hoverHit) {
-                            for (const item of canvasInteractiveElements) {
-                                if (!item.id.startsWith('hud_')) continue;
-                                const pad = 3;
-                                if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
-                                    mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
-                                    hoverHit = item;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // note / hold
-                        if (!hoverHit && !isPlaying) {
-                            let bestHover = null;
-                            let minHoverDist = Infinity;
-                            for (let i = canvasInteractiveElements.length - 1; i >= 0; i--) {
-                                const item = canvasInteractiveElements[i];
-                                if (!item.id.startsWith('note_') && !item.id.startsWith('hold_')) continue;
-                                if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                    mouseY >= item.y && mouseY <= item.y + item.h) {
-                                    const centerY = item.y + item.h / 2;
-                                    const dist = Math.abs(mouseY - centerY);
-                                    if (dist < minHoverDist) {
-                                        minHoverDist = dist;
-                                        bestHover = item;
-                                    }
-                                }
-                            }
-                            if (bestHover) {
-                                hoverHit = bestHover;
-                            }
-                        }
-
-                        // hitposition
-                        if (!hoverHit) {
-                            const hp = canvasInteractiveElements.find(el => el.id === 'hitPosition');
-                            if (hp && mouseX >= hp.x && mouseX <= hp.x + hp.w && mouseY >= hp.y && mouseY <= hp.y + hp.h) {
-                                hoverHit = hp;
-                            }
-                        }
-
-                        // lightposition 手柄
-                        if (!hoverHit) {
-                            const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
-                            if (lp) {
-                                const lightHandle = {
-                                    x: lp.x,
-                                    y: (lp.handleY != null) ? lp.handleY : lp.y,
-                                    w: lp.w,
-                                    h: (lp.handleH != null) ? lp.handleH : lp.h
-                                };
-                                if (mouseX >= lightHandle.x && mouseX <= lightHandle.x + lightHandle.w &&
-                                    mouseY >= lightHandle.y && mouseY <= lightHandle.y + lightHandle.h) {
-                                    hoverHit = lp;
-                                }
-                            }
-                        }
-
-                        // lighting
-                        if (!hoverHit) {
-                            for (const item of canvasInteractiveElements) {
-                                if (item.dragType !== 'lighting_width') continue;
-                                const lwPad = (selectedCanvasElement && selectedCanvasElement.id === item.id) ? 8 : 0;
-                                if (mouseX >= item.x - lwPad && mouseX <= item.x + item.w + lwPad &&
-                                    mouseY >= item.y - lwPad && mouseY <= item.y + item.h + lwPad) {
-                                    hoverHit = item;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // mania-stage-light 可见光柱本体
-                        if (!hoverHit) {
-                            const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
-                            if (lp) {
-                                if (lp.visibleY != null && lp.visibleH > 0 &&
-                                    mouseX >= lp.x && mouseX <= lp.x + lp.w &&
-                                    mouseY >= lp.visibleY && mouseY <= lp.visibleY + lp.visibleH) {
-                                    hoverHit = lp;
-                                }
-                            }
-                        }
-
-                        // KeyImage 贴图本体
-                        if (!hoverHit) {
-                            for (const item of canvasInteractiveElements) {
-                                if (!item.id.startsWith('key_')) continue;
-                                if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                    mouseY >= item.y && mouseY <= item.y + item.h) {
-                                    hoverHit = item;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // 轨道
-                        if (!hoverHit) {
-                            for (const item of canvasInteractiveElements) {
-                                if (!item.id.startsWith('track_col_')) continue;
-                                const pad = (selectedCanvasElement && selectedCanvasElement.id === item.id) ? 12 : 6;
-                                if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
-                                    mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
-                                    hoverHit = item;
-                                    break;
-                                }
-                            }
-                        }
+                        const {
+                            hit: hoverHit,
+                            keyImageHeightHandleHit: hoveringKeyImageHeightHandle
+                        } = hitTestCanvasInteractiveElement(mouseX, mouseY, {
+                            includeStageEdges: false
+                        });
 
                         if (hoverHit) {
                             if (hoveringKeyImageHeightHandle) {

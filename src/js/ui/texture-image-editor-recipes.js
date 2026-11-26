@@ -137,15 +137,10 @@
                         sourceFrames: item.group.sourceFrames.map(cloneFrame),
                         originalReference: item.group.reference,
                         keyImageOriginalSources: cloneKeyImageEditSources(originalSources),
-                        params: {
-                            ...params,
-                            imageTransform: cloneImageTransform(params.imageTransform),
-                            rgbAdjustment: cloneRgbAdjustment(
-                                item.group.rgbAdjustment != null
-                                    ? item.group.rgbAdjustment
-                                    : params.rgbAdjustment
-                            )
-                        },
+                        params: cloneTextureEditRecipeParams(
+                            params,
+                            item.group.rgbAdjustment != null ? item.group.rgbAdjustment : params.rgbAdjustment
+                        ),
                         outputFrames: target.frames.slice()
                     });
                 }

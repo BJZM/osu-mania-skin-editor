@@ -230,25 +230,36 @@
             }
         }
 
+        function cloneTextureEditRecipeParams(params, rgbOverride = undefined) {
+            if (!params || typeof params !== 'object') return null;
+            const rgbSource = rgbOverride !== undefined ? rgbOverride : params.rgbAdjustment;
+            return {
+                ...params,
+                imageTransform: typeof cloneImageTransform === 'function'
+                    ? cloneImageTransform(params.imageTransform)
+                    : (params.imageTransform ? { ...params.imageTransform } : null),
+                rgbAdjustment: typeof cloneRgbAdjustment === 'function'
+                    ? cloneRgbAdjustment(rgbSource)
+                    : (rgbSource ? { ...rgbSource } : null)
+            };
+        }
+
+        function cloneTextureEditRecipeEntry(recipe) {
+            if (!recipe || typeof recipe !== 'object') return null;
+            return {
+                sourceFrames: (recipe.sourceFrames || []).map((f) => cloneFrame(f)),
+                originalReference: recipe.originalReference,
+                keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
+                    ? cloneKeyImageEditSources(recipe.keyImageOriginalSources)
+                    : {},
+                params: cloneTextureEditRecipeParams(recipe.params),
+                outputFrames: (recipe.outputFrames || []).map((f) => cloneFrame(f))
+            };
+        }
+
         function cloneTextureEditRecipesForHistory(recipesMap) {
             if (!(recipesMap instanceof Map)) return null;
-            return new Map(Array.from(recipesMap.entries(), ([k, v]) => [k, {
-                sourceFrames: (v.sourceFrames || []).map((f) => cloneFrame(f)),
-                originalReference: v.originalReference,
-                keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
-                    ? cloneKeyImageEditSources(v.keyImageOriginalSources)
-                    : {},
-                params: v.params ? {
-                    ...v.params,
-                    imageTransform: typeof cloneImageTransform === 'function'
-                        ? cloneImageTransform(v.params.imageTransform)
-                        : (v.params.imageTransform ? { ...v.params.imageTransform } : null),
-                    rgbAdjustment: typeof cloneRgbAdjustment === 'function'
-                        ? cloneRgbAdjustment(v.params.rgbAdjustment)
-                        : (v.params.rgbAdjustment ? { ...v.params.rgbAdjustment } : null)
-                } : null,
-                outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
-            }]));
+            return new Map(Array.from(recipesMap.entries(), ([k, v]) => [k, cloneTextureEditRecipeEntry(v)]));
         }
 
         function createSkinSnapshot(desc = '操作') {

@@ -194,7 +194,7 @@ test('字形卡支持 1x、@2x、已有贴图导入，并可编辑、撤回和�
   await page.evaluate(() => renderPicker());
   await expect(
     page.locator('#param-card-FontGlyphComboDigit0 .texture-font-glyph-path-input')
-  ).toHaveValue('combo-0');
+  ).toHaveValue(originalCombo.explicit ? `${originalCombo.prefix}-0` : 'score-0');
 
   await page.evaluate(() => performSkinRedo());
   await page.waitForFunction((prefix) => {

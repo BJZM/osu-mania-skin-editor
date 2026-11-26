@@ -363,3 +363,36 @@
             updateRgbAdjustmentInputs();
             updateRgbAdjustmentControlAvailability();
         }
+
+        function collectOtherTrackTextureReferences(sourcePath, paramKey) {
+            if (!sourcePath || typeof collectTexturePathReferences !== 'function') return [];
+            const currentParam = paramKey && typeof getTextureTabParams === 'function'
+                ? getTextureTabParams().find((p) => p.key === paramKey)
+                : null;
+            const currentTrack = currentParam && typeof getParamTrackIndex === 'function'
+                ? getParamTrackIndex(currentParam)
+                : null;
+            if (currentTrack == null) return [];
+            const currentKind = typeof getKeyImageParamKind === 'function'
+                ? getKeyImageParamKind(currentParam)
+                : null;
+            return collectTexturePathReferences(sourcePath).filter((p) => {
+                if (p.key === paramKey) return false;
+                const track = typeof getParamTrackIndex === 'function' ? getParamTrackIndex(p) : null;
+                if (track == null) return false;
+                if (track !== currentTrack) return true;
+                const otherKind = typeof getKeyImageParamKind === 'function' ? getKeyImageParamKind(p) : null;
+                return !(currentKind && otherKind && currentKind !== otherKind);
+            });
+        }
+
+        async function requestSharedTextureReferenceDecision(displayPath, otherReferences) {
+            if (!Array.isArray(otherReferences) || otherReferences.length === 0) return 'all';
+            if (typeof requestLongBodyApplyScope !== 'function') return 'all';
+            return requestLongBodyApplyScope({
+                title: '贴图被多处引用',
+                text: `“${displayPath}”还被其他 ${otherReferences.length} 个轨道引用。是否同步替换所有引用？选择“同步替换”将直接覆盖原图；选择“独立创建”将为当前轨道独立创建贴图。`,
+                currentLabel: '独立创建',
+                allLabel: '同步替换'
+            });
+        }

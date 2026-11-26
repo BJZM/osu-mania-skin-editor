@@ -21,8 +21,9 @@
         // 必须补齐 getManiaSkinConfig 会访问到的**所有数组字段**，否则一旦把不完整的配置写回
         // maniaSkinConfigurations，getManiaSkinConfig 读 `cfg.ColumnWidth.length` 就会直接抛
         // TypeError: Cannot read properties of undefined (reading 'length')，整个 drawFrame 崩掉。
-        function createDefaultManiaSkinConfiguration(keyCount) {
-            const k = Math.max(1, keyCount | 0);
+        function createDefaultManiaSkinConfiguration(keyCount, options = {}) {
+            const minKeys = options.allowZeroKeys ? 0 : 1;
+            const k = Math.max(minKeys, keyCount | 0);
             const cw = new Array(k).fill(30);
             const clw = new Array(k + 1).fill(2);
             const cs = new Array(Math.max(0, k - 1)).fill(0);
@@ -30,9 +31,9 @@
             for (let i = 0; i < k; i++) colColours[i] = { r: 0, g: 0, b: 0, a: 255 };
             const colLight = new Array(k);
             for (let i = 0; i < k; i++) colLight[i] = { r: 255, g: 255, b: 255, a: 255 };
-            return {
+            const cfg = {
                 Keys: k,
-                SkinVersion: 2.7,
+                SkinVersion: options.skinVersion != null ? options.skinVersion : 2.7,
                 CustomColours: {},
                 ImageLookups: new Map(),
                 WidthForNoteHeightScale: 0,
@@ -57,7 +58,7 @@
                 BarLineHeight: 1.2,
                 ColourBarline: { r: 255, g: 255, b: 255, a: 255 },
                 ShowJudgementLine: true,
-                KeysUnderNotes: 0,
+                KeysUnderNotes: options.keysUnderNotes !== undefined ? options.keysUnderNotes : 0,
                 LightFramePerSecond: 60,
                 ComboBurstStyle: 1,
                 NoteBodyStyle: null,
@@ -68,9 +69,12 @@
                 SplitStages: false,
                 StageSeparation: 40,
                 FlipSettings: new Map(),
-                // 标记为「按需生成的默认配置」，便于区分真实皮肤解析出的配置
-                _isDefaultFallback: true,
             };
+            if (!options.omitDefaultFallbackFlag) {
+                // 标记为「按需生成的默认配置」，便于区分真实皮肤解析出的配置
+                cfg._isDefaultFallback = true;
+            }
+            return cfg;
         }
 
         // 取某个键位的 mania 配置；若不存在（典型：只导入了谱面、用的是内置默认皮肤），
@@ -417,6 +421,145 @@
         function buildStageLightSearchKeys(columnIndex) {
             const ci = (columnIndex == null) ? '' : String(columnIndex | 0);
             return ['StageLight' + ci, 'StageLight', 'mania-stage-light'];
+        }
+
+        // ===== 逐轨 / 通用贴图参数键名解析（唯一真源） =====
+        // 统一 NoteImage0H / HoldNoteHeadImage0 / KeyImage0D / KeyImageDown0 等写法，
+        // 供 ini-export、texture-resolve、texture-upload、app-shell 与 agent-session 共用。
+        const MANIA_TRACK_TEXTURE_META = {
+            note: { prefix: 'NoteImage', suffix: '', baseParamKey: 'NoteImage', lookup: LML.NoteImage },
+            head: { prefix: 'NoteImage', suffix: 'H', baseParamKey: 'HoldNoteHeadImage', lookup: LML.HoldNoteHeadImage },
+            body: { prefix: 'NoteImage', suffix: 'L', baseParamKey: 'HoldNoteBodyImage', lookup: LML.HoldNoteBodyImage },
+            tail: { prefix: 'NoteImage', suffix: 'T', baseParamKey: 'HoldNoteTailImage', lookup: LML.HoldNoteTailImage },
+            key: { prefix: 'KeyImage', suffix: '', baseParamKey: 'KeyImage', lookup: LML.KeyImage },
+            keydown: { prefix: 'KeyImage', suffix: 'D', baseParamKey: 'KeyImageDown', lookup: LML.KeyImageDown }
+        };
+
+        function buildTrackTextureAliases(kind, column) {
+            if (column == null) return [];
+            const col = column;
+            if (kind === 'head') return [`NoteImage${col}H`, `HoldNoteHeadImage${col}`];
+            if (kind === 'body') return [`NoteImage${col}L`, `HoldNoteBodyImage${col}`];
+            if (kind === 'tail') return [`NoteImage${col}T`, `HoldNoteTailImage${col}`];
+            if (kind === 'note') return [`NoteImage${col}`];
+            if (kind === 'keydown') return [`KeyImage${col}D`, `KeyImage${col}Down`, `KeyImageDown${col}`];
+            if (kind === 'key') return [`KeyImage${col}`];
+            return [];
+        }
+
+        function parseManiaTextureParamKey(paramKey) {
+            const raw = String(paramKey || '').trim();
+            if (!raw) return null;
+            const low = raw.toLowerCase();
+
+            const mNote = low.match(/^noteimage(\d+)([hlt])?$/);
+            if (mNote) {
+                const column = parseInt(mNote[1], 10);
+                const suffix = mNote[2] ? mNote[2].toUpperCase() : '';
+                const kind = suffix === 'H' ? 'head' : (suffix === 'L' ? 'body' : (suffix === 'T' ? 'tail' : 'note'));
+                const meta = MANIA_TRACK_TEXTURE_META[kind];
+                return {
+                    kind,
+                    column,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: `${meta.prefix}${column}${meta.suffix}`,
+                    aliases: buildTrackTextureAliases(kind, column),
+                    isIniImageKey: column >= 0 && column <= 17
+                };
+            }
+
+            const mHold = low.match(/^holdnote(head|body|tail)image(\d+)$/);
+            if (mHold) {
+                const kind = mHold[1];
+                const column = parseInt(mHold[2], 10);
+                const meta = MANIA_TRACK_TEXTURE_META[kind];
+                return {
+                    kind,
+                    column,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: `${meta.prefix}${column}${meta.suffix}`,
+                    aliases: buildTrackTextureAliases(kind, column),
+                    isIniImageKey: false
+                };
+            }
+
+            const mKey = low.match(/^keyimage(\d+)(d|down)?$/);
+            if (mKey) {
+                const column = parseInt(mKey[1], 10);
+                const downSuffix = mKey[2] || '';
+                const kind = downSuffix ? 'keydown' : 'key';
+                const meta = MANIA_TRACK_TEXTURE_META[kind];
+                return {
+                    kind,
+                    column,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: `${meta.prefix}${column}${meta.suffix}`,
+                    aliases: buildTrackTextureAliases(kind, column),
+                    isIniImageKey: (!downSuffix || downSuffix === 'd') && column >= 0 && column <= 17
+                };
+            }
+
+            const mKeyDownPrefix = low.match(/^keyimagedown(\d+)$/);
+            if (mKeyDownPrefix) {
+                const column = parseInt(mKeyDownPrefix[1], 10);
+                const meta = MANIA_TRACK_TEXTURE_META.keydown;
+                return {
+                    kind: 'keydown',
+                    column,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: `${meta.prefix}${column}${meta.suffix}`,
+                    aliases: buildTrackTextureAliases('keydown', column),
+                    isIniImageKey: false
+                };
+            }
+
+            const genericKinds = {
+                noteimage: 'note',
+                holdnoteheadimage: 'head',
+                noteimageh: 'head',
+                holdnotebodyimage: 'body',
+                noteimagel: 'body',
+                holdnotetailimage: 'tail',
+                noteimaget: 'tail',
+                keyimage: 'key',
+                keyimagedown: 'keydown',
+                keyimaged: 'keydown'
+            };
+            const genericKind = genericKinds[low];
+            if (genericKind) {
+                const meta = MANIA_TRACK_TEXTURE_META[genericKind];
+                return {
+                    kind: genericKind,
+                    column: null,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: meta.baseParamKey,
+                    aliases: [],
+                    isIniImageKey: false
+                };
+            }
+
+            return null;
+        }
+
+        function canonicalizeTrackTextureParamKey(paramKey, column) {
+            const raw = String(paramKey || '').trim();
+            if (!raw) return '';
+            const parsed = parseManiaTextureParamKey(raw);
+            if (!parsed) return raw;
+            if (parsed.column != null) {
+                return parsed.canonicalKey;
+            }
+            if (column != null && Number.isFinite(Number(column))) {
+                const normalizedColumn = Math.max(0, Math.min(17, Math.round(Number(column))));
+                const meta = MANIA_TRACK_TEXTURE_META[parsed.kind];
+                return `${meta.prefix}${normalizedColumn}${meta.suffix}`;
+            }
+            return raw;
         }
 
         // 在 mCfg.ImageLookups 中按给定顺序查找显式配置，返回 { value, matchedKey }；找不到返回 null

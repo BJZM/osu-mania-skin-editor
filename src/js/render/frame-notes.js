@@ -305,3 +305,196 @@
                 }
             };
         }
+
+        function buildPreviewDummyNotes(keys, scale48, speedFactor) {
+            const previewNotes = [];
+            for (let c = 0; c < keys; c++) {
+                const isHoldCol = (c === 1 || (keys > 4 && c === keys - 2));
+                // 预览音符间距同样基于 480 虚拟网格，需乘 scale48 才能在不同画布尺寸下保持
+                // 与真实演奏一致的相对布局（否则全屏时音符会全部挤在命中线附近）。
+                const noteDist = (120 + (c % 4) * 80) * scale48;
+                const startTime = noteDist / speedFactor;
+                if (isHoldCol) {
+                    const endTime = (noteDist + 160 * scale48) / speedFactor;
+                    previewNotes.push({
+                        column: c,
+                        isHold: true,
+                        startTime: startTime,
+                        endTime: endTime,
+                        scrollPositionStart: startTime,
+                        scrollPositionEnd: endTime,
+                        hit: false,
+                        holdHeadFrozen: false
+                    });
+                } else {
+                    previewNotes.push({
+                        column: c,
+                        isHold: false,
+                        startTime: startTime,
+                        endTime: startTime,
+                        scrollPositionStart: startTime,
+                        scrollPositionEnd: startTime,
+                        hit: false
+                    });
+                }
+            }
+            return previewNotes;
+        }
+
+        function computeFrameNotePressAndComboState({
+            notesList, keys, currentTime, isPreviewMode,
+            useIndexedNotes, notesIndex, keyPressDuration
+        }) {
+            const columnPressed = Array(keys).fill(false);
+            const columnLastReleaseTime = Array(keys).fill(-Infinity);
+            const activeHoldNotes = [];
+            let currentCombo = 0;
+            let isHoldingLN = false;
+
+            if (useIndexedNotes) {
+                const startUpper = upperBoundByStartTime(notesList, currentTime);
+                const tapLookbackStart = lowerBoundByStartTime(
+                    notesList,
+                    currentTime - keyPressDuration - STAGE_LIGHT_FADE_DURATION_MS - 1
+                );
+                for (let i = tapLookbackStart; i < startUpper; i++) {
+                    const note = notesList[i];
+                    if (note.isHold) continue;
+                    const col = note.column;
+                    if (col < 0 || col >= keys) continue;
+                    const noteEndTime = note.startTime + keyPressDuration;
+                    if (currentTime >= note.startTime && currentTime <= noteEndTime) {
+                        columnPressed[col] = true;
+                    } else if (currentTime > noteEndTime && noteEndTime > columnLastReleaseTime[col]) {
+                        columnLastReleaseTime[col] = noteEndTime;
+                    }
+                }
+
+                const holdUpper = upperBoundByStartTime(notesIndex.holds, currentTime);
+                const minHoldEndForLight = currentTime - STAGE_LIGHT_FADE_DURATION_MS - 1;
+                for (let j = holdUpper - 1; j >= 0; j--) {
+                    if (notesIndex.holdPrefixMaxEnd[j] < minHoldEndForLight) break;
+                    const note = notesIndex.holds[j];
+                    const col = note.column;
+                    if (currentTime <= note.endTime) {
+                        if (col >= 0 && col < keys) columnPressed[col] = true;
+                        activeHoldNotes.push(note);
+                        if (currentTime < note.endTime) isHoldingLN = true;
+                    } else if (col >= 0 && col < keys && note.endTime > columnLastReleaseTime[col]) {
+                        columnLastReleaseTime[col] = note.endTime;
+                    }
+                }
+                if (activeHoldNotes.length > 1) activeHoldNotes.reverse();
+                currentCombo = upperBoundFloat64(notesIndex.comboEventTimes, currentTime);
+            } else {
+                for (let i = 0; i < notesList.length; i++) {
+                    const note = notesList[i];
+                    const col = note.column;
+                    if (col < 0 || col >= keys) continue;
+                    const noteEndTime = note.isHold ? note.endTime : (note.startTime + keyPressDuration);
+                    if (currentTime >= note.startTime && currentTime <= noteEndTime) {
+                        columnPressed[col] = true;
+                    } else if (currentTime > noteEndTime && noteEndTime > columnLastReleaseTime[col]) {
+                        columnLastReleaseTime[col] = noteEndTime;
+                    }
+                }
+                if (!isPreviewMode) {
+                    for (let i = 0; i < notesList.length; i++) {
+                        const n = notesList[i];
+                        if (n.isHold) {
+                            if (currentTime >= n.startTime) {
+                                currentCombo++;
+                                if (currentTime < n.endTime) isHoldingLN = true;
+                            }
+                            if (n.ticks && n.ticks.length > 0) {
+                                for (let k = 0; k < n.ticks.length; k++) {
+                                    if (currentTime >= n.ticks[k]) {
+                                        currentCombo++;
+                                    } else {
+                                        break;
+                                    }
+                                }
+                            }
+                            if (currentTime >= n.endTime) {
+                                currentCombo++;
+                            }
+                        } else if (currentTime >= n.startTime) {
+                            currentCombo++;
+                        }
+                    }
+                } else {
+                    currentCombo = 100;
+                    isHoldingLN = false;
+                    for (let i = 0; i < notesList.length; i++) {
+                        const n = notesList[i];
+                        if (n.isHold && currentTime >= n.startTime && currentTime < n.endTime) {
+                            isHoldingLN = true;
+                        }
+                    }
+                }
+            }
+
+            return {
+                columnPressed,
+                columnLastReleaseTime,
+                activeHoldNotes,
+                currentCombo,
+                isHoldingLN
+            };
+        }
+
+        function advanceFrameNoteHitCursors({
+            notesList, currentTime, useIndexedNotes, notesIndex,
+            triggerPlaybackNoteJudgement
+        }) {
+            if (typeof scheduleManiaHitsounds === 'function') {
+                scheduleManiaHitsounds(currentTime);
+            }
+            const now = performance.now();
+            if (useIndexedNotes) {
+                if (currentTime < notesIndex.lastHitScanTime) {
+                    notesIndex.hitCursor = lowerBoundByStartTime(notesList, currentTime);
+                    notesIndex.tailHitCursor = lowerBoundByEndTime(notesIndex.holdsByEnd, currentTime);
+                }
+                const hitLimit = upperBoundByStartTime(notesList, currentTime);
+                for (let i = notesIndex.hitCursor; i < hitLimit; i++) {
+                    const note = notesList[i];
+                    if (!note.hit && currentTime >= note.startTime) {
+                        note.hit = true;
+                        // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
+                        if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
+                        // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
+                        if (!note.isHold) {
+                            triggerPlaybackNoteJudgement(now);
+                        }
+                        activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                    }
+                }
+                notesIndex.hitCursor = hitLimit;
+
+                const tailLimit = upperBoundByEndTime(notesIndex.holdsByEnd, currentTime);
+                for (let j = notesIndex.tailHitCursor; j < tailLimit; j++) {
+                    const note = notesIndex.holdsByEnd[j];
+                    if (!note.tailHit && currentTime >= note.endTime) {
+                        note.tailHit = true;
+                        if (!isPlaybackEventFresh(note.endTime, currentTime)) continue;
+                        activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                        triggerPlaybackNoteJudgement(now);
+                    }
+                }
+                notesIndex.tailHitCursor = tailLimit;
+                notesIndex.lastHitScanTime = currentTime;
+            } else {
+                for (let i = 0; i < notesList.length; i++) {
+                    const note = notesList[i];
+                    if (!note.hit && currentTime >= note.startTime) {
+                        note.hit = true;
+                        if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
+                        if (!note.isHold) {
+                            triggerPlaybackNoteJudgement(now);
+                        }
+                        activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                    }
+                }
+            }
+        }

@@ -8,43 +8,12 @@
             const low = pKey.toLowerCase();
 
             // 1. 轨道特定贴图参数判定 (NoteImage0..N, NoteImage0H, HoldNoteHeadImage0..N, KeyImage0..N 等)
-            const mNote = low.match(/^noteimage(\d+)([hlt])?$/);
-            if (mNote) {
-                const num = mNote[1];
-                const s = mNote[2] ? mNote[2].toUpperCase() : '';
-                if (s === 'H') {
-                    if (!aliases.includes(`NoteImage${num}H`)) aliases.push(`NoteImage${num}H`);
-                    if (!aliases.includes(`HoldNoteHeadImage${num}`)) aliases.push(`HoldNoteHeadImage${num}`);
-                } else if (s === 'L') {
-                    if (!aliases.includes(`NoteImage${num}L`)) aliases.push(`NoteImage${num}L`);
-                    if (!aliases.includes(`HoldNoteBodyImage${num}`)) aliases.push(`HoldNoteBodyImage${num}`);
-                } else if (s === 'T') {
-                    if (!aliases.includes(`NoteImage${num}T`)) aliases.push(`NoteImage${num}T`);
-                    if (!aliases.includes(`HoldNoteTailImage${num}`)) aliases.push(`HoldNoteTailImage${num}`);
-                } else {
-                    if (!aliases.includes(`NoteImage${num}`)) aliases.push(`NoteImage${num}`);
-                }
-                return aliases;
-            }
-
-            const mHold = low.match(/^holdnote(head|body|tail)image(\d+)$/);
-            if (mHold) {
-                const type = mHold[1];
-                const num = mHold[2];
-                const s = (type === 'head') ? 'H' : ((type === 'body') ? 'L' : 'T');
-                const typeCap = type.charAt(0).toUpperCase() + type.slice(1);
-                if (!aliases.includes(`NoteImage${num}${s}`)) aliases.push(`NoteImage${num}${s}`);
-                if (!aliases.includes(`HoldNote${typeCap}Image${num}`)) aliases.push(`HoldNote${typeCap}Image${num}`);
-                return aliases;
-            }
-
-            const mKey = low.match(/^keyimage(\d+)(d|down)?$/);
-            if (mKey) {
-                const num = mKey[1];
-                if (mKey[2]) {
-                    aliases.push(`KeyImage${num}D`, `KeyImage${num}Down`, `KeyImageDown${num}`);
-                } else {
-                    aliases.push(`KeyImage${num}`);
+            const parsedTrackKey = typeof parseManiaTextureParamKey === 'function'
+                ? parseManiaTextureParamKey(pKey)
+                : null;
+            if (parsedTrackKey && parsedTrackKey.column != null) {
+                for (const alias of parsedTrackKey.aliases) {
+                    if (!aliases.includes(alias)) aliases.push(alias);
                 }
                 return aliases;
             }

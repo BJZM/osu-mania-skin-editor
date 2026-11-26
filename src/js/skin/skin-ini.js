@@ -80,55 +80,12 @@
                 }
             }
             function createConfig(keys) {
-                const DEFAULT_COLUMN_SIZE = 30;
-                const DEFAULT_HIT_POSITION = 402;
-                const cw = new Array(keys); cw.fill(DEFAULT_COLUMN_SIZE);
-                const clw = new Array(keys + 1); clw.fill(2);
-                const cs = new Array(Math.max(0, keys - 1)); cs.fill(0);
-                const ew = new Array(keys); ew.fill(0);
-                const hlw = new Array(keys); hlw.fill(0);
-                const colLight = new Array(keys);
-                for (let i = 0; i < keys; i++) colLight[i] = { r: 255, g: 255, b: 255, a: 255 };
-                const colColours = new Array(keys);
-                for (let i = 0; i < keys; i++) colColours[i] = { r: 0, g: 0, b: 0, a: 255 };
-                return {
-                    Keys: keys,
-                    SkinVersion: globalSkinVersion,
-                    CustomColours: {},
-                    ImageLookups: new Map(),
-                    WidthForNoteHeightScale: 0,
-                    ColumnLineWidth: clw,
-                    ColumnSpacing: cs,
-                    ColumnWidth: cw,
-                    ColumnColour: colColours,
-                    ExplosionWidth: ew,
-                    ComboBreakColour: { r: 255, g: 0, b: 0 },
-                    ColourHold: { r: 255, g: 191, b: 51, a: 255 },
-                    ColourLight: colLight,
-                    GlobalColourLight: null,
-                    HoldNoteLightWidth: hlw,
-                    HitPosition: DEFAULT_HIT_POSITION,
-                    LightPosition: 413,
-                    ComboPosition: 111,
-                    ScorePosition: 300,
-                    FontCombo: null,
-                    ComboOverlap: null,
-                    FontScore: null,
-                    ScoreOverlap: null,
-                    BarLineHeight: 1.2,
-                    ColourBarline: { r: 255, g: 255, b: 255, a: 255 },
-                    ShowJudgementLine: true,
-                    KeysUnderNotes: globalKeysUnderNotes !== undefined ? globalKeysUnderNotes : 0,
-                    LightFramePerSecond: 60,
-                    NoteBodyStyle: null,
-                    NoteBodyStyles: new Array(keys).fill(null),
-                    ColumnStart: 136,
-                    ColumnRight: 19,
-                    UpsideDown: false,
-                    SplitStages: false,
-                    StageSeparation: 40,
-                    FlipSettings: new Map(),
-                };
+                return createDefaultManiaSkinConfiguration(keys, {
+                    allowZeroKeys: true,
+                    skinVersion: globalSkinVersion,
+                    keysUnderNotes: globalKeysUnderNotes,
+                    omitDefaultFallbackFlag: true
+                });
             }
 
             const output = [];

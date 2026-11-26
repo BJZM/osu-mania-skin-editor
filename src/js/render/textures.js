@@ -78,13 +78,22 @@
             return frames[idx] || frames[0];
         }
 
-        function getManiaSkinImage(keyCount, lookup, columnIndex) {
+        function findExplicitKeyInLookupMap(lookupMap, searchKeys) {
+            if (!lookupMap || !searchKeys) return null;
+            for (const sk of searchKeys) {
+                if (lookupMap.has(sk)) return lookupMap.get(sk);
+                const skLow = sk.toLowerCase();
+                if (lookupMap.has(skLow)) return lookupMap.get(skLow);
+            }
+            return null;
+        }
+
+        function resolveManiaImageLookupSpec(keyCount, lookup, columnIndex) {
             const info = imageLookupToIniPrefixSuffix(lookup);
             if (!info) return null;
 
             let customName = null;
             let explicitlySpecified = false;
-
             const cfg = getManiaConfigForKeys(keyCount);
             if (cfg && !info.fallbackOnly) {
                 const searchKeys = [];
@@ -97,15 +106,11 @@
                             if (!searchKeys.includes(ak)) searchKeys.push(ak);
                         }
                     }
-                } else if (PER_TRACK_TEXTURE_LOOKUPS.indexOf(lookup) >= 0) {
-                    // 逐轨贴图查找顺序统一取自 config.js buildPerTrackTextureSearchKeys，
-                    // 保证画布渲染与参数面板缩略图识别出完全相同的贴图。
-                    const sharedKeys = buildPerTrackTextureSearchKeys(lookup, ci);
-                    if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
-                } else if (lookup === LML.HoldNoteLightImage || lookup === LML.ExplosionImage) {
-                    // 打击特效 (LightingN / LightingL) 查找顺序统一取自
-                    // config.js buildPerTrackTextureSearchKeys（唯一真源），保证画布与面板识别一致。
-                    // stable 下这两个贴图只认全局键，所有轨道共用，不读取 LightingN0 / Lighting0N 等分轨键。
+                } else if (PER_TRACK_TEXTURE_LOOKUPS.indexOf(lookup) >= 0 ||
+                    lookup === LML.HoldNoteLightImage ||
+                    lookup === LML.ExplosionImage) {
+                    // 逐轨贴图与打击特效 (LightingN / LightingL) 查找顺序统一取自
+                    // mania-config.js buildPerTrackTextureSearchKeys（唯一真源）。
                     const sharedKeys = buildPerTrackTextureSearchKeys(lookup, ci);
                     if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
                 } else if (lookup === LML.HitTargetImage) {
@@ -117,12 +122,10 @@
                 } else if (lookup === LML.BottomStageImage) {
                     searchKeys.push('StageBottom', 'Stage_Bottom');
                 } else if (lookup === LML.LightImage) {
-                    // 按键发光贴图：查找顺序统一取自 config.js buildStageLightSearchKeys（唯一真源）
                     const sharedKeys = buildStageLightSearchKeys(ci);
                     if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
                 } else {
-                    searchKeys.push(info.prefix + ci + info.suffix);
-                    searchKeys.push(info.prefix);
+                    searchKeys.push(info.prefix + ci + info.suffix, info.prefix);
                     if (info.altKeys) {
                         for (const ak of info.altKeys) {
                             if (!searchKeys.includes(ak)) searchKeys.push(ak);
@@ -131,100 +134,81 @@
                 }
 
                 // 1. 在当前 keyCount 的 ImageLookups 中查找
-                if (cfg.ImageLookups) {
-                    for (const sk of searchKeys) {
-                        if (cfg.ImageLookups.has(sk)) {
-                            customName = cfg.ImageLookups.get(sk);
-                            explicitlySpecified = true;
-                            break;
-                        }
-                        const skLow = sk.toLowerCase();
-                        if (cfg.ImageLookups.has(skLow)) {
-                            customName = cfg.ImageLookups.get(skLow);
-                            explicitlySpecified = true;
-                            break;
-                        }
-                    }
+                const localMatch = findExplicitImageLookupValue(cfg, searchKeys);
+                if (localMatch) {
+                    customName = localMatch.value;
+                    explicitlySpecified = true;
                 }
-
-                // 检查显式 blank / none / null / _blank 等伪贴图名
-                if (explicitlySpecified && isDummyBlankName(customName)) {
-                    return null;
-                }
+                if (explicitlySpecified && isDummyBlankName(customName)) return null;
 
                 // 2. 只有真正的全局资源（如判定字样 Hit300）才允许跨 Mania keyCount 继承
                 if (info.isGlobal && !customName && maniaSkinConfigurations.size > 0) {
                     for (const otherCfg of maniaSkinConfigurations.values()) {
-                        if (!otherCfg.ImageLookups) continue;
-                        for (const sk of searchKeys) {
-                            if (otherCfg.ImageLookups.has(sk)) {
-                                customName = otherCfg.ImageLookups.get(sk);
-                                explicitlySpecified = true;
-                                break;
-                            }
-                            const skLow = sk.toLowerCase();
-                            if (otherCfg.ImageLookups.has(skLow)) {
-                                customName = otherCfg.ImageLookups.get(skLow);
-                                explicitlySpecified = true;
-                                break;
-                            }
+                        const otherMatch = findExplicitImageLookupValue(otherCfg, searchKeys);
+                        if (otherMatch) {
+                            customName = otherMatch.value;
+                            explicitlySpecified = true;
+                            break;
                         }
-                        if (customName) break;
                     }
                     if (explicitlySpecified && isDummyBlankName(customName)) return null;
                 }
 
                 // 3. 同样仅全局资源在全局 skin.ini 字典中查找
                 if (info.isGlobal && !customName && globalSkinImageLookups.size > 0) {
-                    for (const sk of searchKeys) {
-                        if (globalSkinImageLookups.has(sk)) {
-                            customName = globalSkinImageLookups.get(sk);
-                            explicitlySpecified = true;
-                            break;
-                        }
-                        const skLow = sk.toLowerCase();
-                        if (globalSkinImageLookups.has(skLow)) {
-                            customName = globalSkinImageLookups.get(skLow);
-                            explicitlySpecified = true;
-                            break;
-                        }
+                    const globalVal = findExplicitKeyInLookupMap(globalSkinImageLookups, searchKeys);
+                    if (globalVal !== null) {
+                        customName = globalVal;
+                        explicitlySpecified = true;
                     }
                     if (explicitlySpecified && isDummyBlankName(customName)) return null;
                 }
             }
 
+            if (explicitlySpecified && isDummyBlankName(customName)) return null;
+            const targetName = (explicitlySpecified && customName && customName.trim().length > 0)
+                ? customName.trim().replace(/\.(png|jpg|jpeg)$/i, '')
+                : '';
+
+            return {
+                info,
+                explicitlySpecified,
+                targetName,
+                allowNestedFallback: lookup !== LML.BottomStageImage
+            };
+        }
+
+        function getManiaSkinImage(keyCount, lookup, columnIndex) {
+            const spec = resolveManiaImageLookupSpec(keyCount, lookup, columnIndex);
+            if (!spec) return null;
+
             // 严格按照读取到的 ini 指定路径读取：
-            if (explicitlySpecified) {
-                if (isDummyBlankName(customName)) return null;
-                if (customName && customName.trim().length > 0) {
-                    const targetName = customName.trim().replace(/\.(png|jpg|jpeg)$/i, '');
-                    const allowNestedFallback = lookup !== LML.BottomStageImage;
-                    const userImg = getSkinAnimationFromStore(skinImageStore, targetName, allowNestedFallback);
-                    if (userImg) return userImg;
-                    const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName, allowNestedFallback);
-                    if (userFrames && userFrames.length > 0) return userFrames[0];
-                    // osu!stable 在皮肤缺少显式引用文件时继续使用默认皮肤资源补全。
-                    const defaultImg = getSkinAnimationFromStore(
-                        defaultSkinImageStore,
-                        targetName,
-                        allowNestedFallback
-                    );
-                    if (defaultImg) return defaultImg;
-                    const defaultFrames = getSkinAnimationFramesFromStore(
-                        defaultSkinImageStore,
-                        targetName,
-                        allowNestedFallback
-                    );
-                    if (defaultFrames && defaultFrames.length > 0) return defaultFrames[0];
-                    // 默认皮肤也不存在对应图片时才视为缺失。
-                    return null;
-                }
+            if (spec.explicitlySpecified) {
+                if (!spec.targetName) return null;
+                const userImg = getSkinAnimationFromStore(skinImageStore, spec.targetName, spec.allowNestedFallback);
+                if (userImg) return userImg;
+                const userFrames = getSkinAnimationFramesFromStore(skinImageStore, spec.targetName, spec.allowNestedFallback);
+                if (userFrames && userFrames.length > 0) return userFrames[0];
+                // osu!stable 在皮肤缺少显式引用文件时继续使用默认皮肤资源补全。
+                const defaultImg = getSkinAnimationFromStore(
+                    defaultSkinImageStore,
+                    spec.targetName,
+                    spec.allowNestedFallback
+                );
+                if (defaultImg) return defaultImg;
+                const defaultFrames = getSkinAnimationFramesFromStore(
+                    defaultSkinImageStore,
+                    spec.targetName,
+                    spec.allowNestedFallback
+                );
+                if (defaultFrames && defaultFrames.length > 0) return defaultFrames[0];
+                // 默认皮肤也不存在对应图片时才视为缺失。
                 return null;
             }
 
             let result = null;
-            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, info);
-            if (info.isGlobal && (lookup === LML.Hit300g || lookup === LML.Hit300 || lookup === LML.Hit200 ||
+            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, spec.info);
+            if (spec.info.isGlobal && (lookup === LML.Hit300g || lookup === LML.Hit300 || lookup === LML.Hit200 ||
                 lookup === LML.Hit100 || lookup === LML.Hit50 || lookup === LML.Hit0)) {
                 const defNames = [];
                 if (lookup === LML.Hit300g) defNames.push('mania-hit300g', 'mania-hit300g-0', 'hit300g', 'hit300k', 'mania-hit300', 'hit300');
@@ -239,112 +223,43 @@
             }
 
             for (const cand of candidates) {
-                result = getSkinAnimation(cand, lookup !== LML.BottomStageImage);
+                result = getSkinAnimation(cand, spec.allowNestedFallback);
                 if (result) break;
             }
             return result;
         }
 
         function getManiaSkinAnimationFrames(keyCount, lookup, columnIndex) {
-            const info = imageLookupToIniPrefixSuffix(lookup);
-            if (!info) return null;
-
-            let customName = null;
-            let explicitlySpecified = false;
-            const cfg = getManiaConfigForKeys(keyCount);
-            if (cfg && !info.fallbackOnly) {
-                const searchKeys = [];
-                const ci = (columnIndex == null) ? '' : String(columnIndex | 0);
-                if (lookup === LML.HoldNoteLightImage || lookup === LML.ExplosionImage) {
-                    // 打击特效 (LightingN / LightingL) 查找顺序统一取自
-                    // config.js buildPerTrackTextureSearchKeys（唯一真源），保证动画帧与静态贴图识别一致。
-                    // stable 下这两个贴图只认全局键，所有轨道共用，不读取 LightingN0 / Lighting0N 等分轨键。
-                    const sharedKeys = buildPerTrackTextureSearchKeys(lookup, ci);
-                    if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
-                } else if (lookup === LML.LightImage) {
-                    // 按键发光贴图：与 getStageLightFrames / getManiaSkinImage 共用同一份查找顺序
-                    const sharedKeys = buildStageLightSearchKeys(ci);
-                    if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
-                } else if (PER_TRACK_TEXTURE_LOOKUPS.indexOf(lookup) >= 0) {
-                    // 与 getManiaSkinImage 共用同一份逐轨查找顺序，避免静态贴图能找到、动画帧却找不到
-                    const sharedKeys = buildPerTrackTextureSearchKeys(lookup, ci);
-                    if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
-                } else {
-                    searchKeys.push(info.prefix + ci + info.suffix, info.prefix);
-                    if (info.altKeys) {
-                        for (const ak of info.altKeys) {
-                            if (!searchKeys.includes(ak)) searchKeys.push(ak);
-                        }
-                    }
-                }
-
-                if (cfg.ImageLookups) {
-                    for (const sk of searchKeys) {
-                        if (cfg.ImageLookups.has(sk)) { customName = cfg.ImageLookups.get(sk); explicitlySpecified = true; break; }
-                        const skLow = sk.toLowerCase();
-                        if (cfg.ImageLookups.has(skLow)) { customName = cfg.ImageLookups.get(skLow); explicitlySpecified = true; break; }
-                    }
-                }
-
-                // 检查显式 blank / none / null / _blank 等伪贴图名
-                if (explicitlySpecified && isDummyBlankName(customName)) return null;
-
-                if (info.isGlobal && !customName && maniaSkinConfigurations.size > 0) {
-                    for (const otherCfg of maniaSkinConfigurations.values()) {
-                        if (!otherCfg.ImageLookups) continue;
-                        for (const sk of searchKeys) {
-                            if (otherCfg.ImageLookups.has(sk)) { customName = otherCfg.ImageLookups.get(sk); explicitlySpecified = true; break; }
-                            const skLow = sk.toLowerCase();
-                            if (otherCfg.ImageLookups.has(skLow)) { customName = otherCfg.ImageLookups.get(skLow); explicitlySpecified = true; break; }
-                        }
-                        if (customName) break;
-                    }
-                    if (explicitlySpecified && isDummyBlankName(customName)) return null;
-                }
-
-                if (info.isGlobal && !customName && globalSkinImageLookups.size > 0) {
-                    for (const sk of searchKeys) {
-                        if (globalSkinImageLookups.has(sk)) { customName = globalSkinImageLookups.get(sk); explicitlySpecified = true; break; }
-                        const skLow = sk.toLowerCase();
-                        if (globalSkinImageLookups.has(skLow)) { customName = globalSkinImageLookups.get(skLow); explicitlySpecified = true; break; }
-                    }
-                    if (explicitlySpecified && isDummyBlankName(customName)) return null;
-                }
-            }
+            const spec = resolveManiaImageLookupSpec(keyCount, lookup, columnIndex);
+            if (!spec) return null;
 
             // 严格按照读取到的 ini 指定路径读取：
-            if (explicitlySpecified) {
-                if (isDummyBlankName(customName)) return null;
-                if (customName && customName.trim().length > 0) {
-                    const targetName = customName.trim().replace(/\.(png|jpg|jpeg)$/i, '');
-                    const allowNestedFallback = lookup !== LML.BottomStageImage;
-                    const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName, allowNestedFallback);
-                    if (userFrames && userFrames.length > 0) return userFrames;
-                    const userSingle = getSkinAnimationFromStore(skinImageStore, targetName, allowNestedFallback);
-                    if (userSingle) return [userSingle];
-                    // 与 stable 一致：显式文件缺失时回退到默认皮肤中的同名资源。
-                    const defaultFrames = getSkinAnimationFramesFromStore(
-                        defaultSkinImageStore,
-                        targetName,
-                        allowNestedFallback
-                    );
-                    if (defaultFrames && defaultFrames.length > 0) return defaultFrames;
-                    const defaultSingle = getSkinAnimationFromStore(
-                        defaultSkinImageStore,
-                        targetName,
-                        allowNestedFallback
-                    );
-                    if (defaultSingle) return [defaultSingle];
-                    // 默认皮肤也不存在对应图片时才视为缺失。
-                    return null;
-                }
+            if (spec.explicitlySpecified) {
+                if (!spec.targetName) return null;
+                const userFrames = getSkinAnimationFramesFromStore(skinImageStore, spec.targetName, spec.allowNestedFallback);
+                if (userFrames && userFrames.length > 0) return userFrames;
+                const userSingle = getSkinAnimationFromStore(skinImageStore, spec.targetName, spec.allowNestedFallback);
+                if (userSingle) return [userSingle];
+                // 与 stable 一致：显式文件缺失时回退到默认皮肤中的同名资源。
+                const defaultFrames = getSkinAnimationFramesFromStore(
+                    defaultSkinImageStore,
+                    spec.targetName,
+                    spec.allowNestedFallback
+                );
+                if (defaultFrames && defaultFrames.length > 0) return defaultFrames;
+                const defaultSingle = getSkinAnimationFromStore(
+                    defaultSkinImageStore,
+                    spec.targetName,
+                    spec.allowNestedFallback
+                );
+                if (defaultSingle) return [defaultSingle];
+                // 默认皮肤也不存在对应图片时才视为缺失。
                 return null;
             }
 
-            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, info);
-
+            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, spec.info);
             for (const cand of candidates) {
-                const frames = getSkinAnimationFrames(cand, lookup !== LML.BottomStageImage);
+                const frames = getSkinAnimationFrames(cand, spec.allowNestedFallback);
                 if (frames && frames.length > 0) return frames;
             }
             const single = getManiaSkinImage(keyCount, lookup, columnIndex);

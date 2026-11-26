@@ -128,62 +128,36 @@
                         return false;
                     }
 
-                    const mTrackNote = pKey.match(/^(NoteImage|HoldNoteHeadImage|HoldNoteBodyImage|HoldNoteTailImage|KeyImageDown|KeyImage)(\d+)([HLTD])?$/i);
-                    if (mTrackNote) {
+                    const parsedTrackKey = typeof parseManiaTextureParamKey === 'function'
+                        ? parseManiaTextureParamKey(pKey)
+                        : null;
+                    const lookupNoteType = {
+                        [LML.NoteImage]: 'note',
+                        [LML.HoldNoteHeadImage]: 'head',
+                        [LML.HoldNoteBodyImage]: 'body',
+                        [LML.HoldNoteTailImage]: 'tail',
+                        [LML.KeyImage]: 'key',
+                        [LML.KeyImageDown]: 'keydown'
+                    }[targetKey] || null;
+                    if (parsedTrackKey && parsedTrackKey.column != null) {
                         isTrackNote = true;
-                        if (trackCol == null) trackCol = parseInt(mTrackNote[2], 10);
-                        const prefixLow = mTrackNote[1].toLowerCase();
-                        const suffix = (mTrackNote[3] || '').toUpperCase();
-                        if (prefixLow.startsWith('holdnotehead') || suffix === 'H') noteType = 'head';
-                        else if (prefixLow.startsWith('holdnotebody') || suffix === 'L') noteType = 'body';
-                        else if (prefixLow.startsWith('holdnotetail') || suffix === 'T') noteType = 'tail';
-                        else if (prefixLow.startsWith('keyimagedown') || suffix === 'D') noteType = 'keydown';
-                        else if (prefixLow.startsWith('keyimage')) noteType = 'key';
-                        else noteType = 'note';
-                    } else if (trackCol != null) {
-                        if (targetKey === LML.NoteImage || pKey.startsWith('NoteImage')) {
-                            isTrackNote = true;
-                            noteType = 'note';
-                        } else if (targetKey === LML.HoldNoteHeadImage || pKey.startsWith('HoldNoteHeadImage')) {
-                            isTrackNote = true;
-                            noteType = 'head';
-                        } else if (targetKey === LML.HoldNoteBodyImage || pKey.startsWith('HoldNoteBodyImage')) {
-                            isTrackNote = true;
-                            noteType = 'body';
-                        } else if (targetKey === LML.HoldNoteTailImage || pKey.startsWith('HoldNoteTailImage')) {
-                            isTrackNote = true;
-                            noteType = 'tail';
-                        } else if (targetKey === LML.KeyImage || pKey.startsWith('KeyImage')) {
-                            isTrackNote = true;
-                            noteType = 'key';
-                        } else if (targetKey === LML.KeyImageDown || pKey.startsWith('KeyImageDown')) {
-                            isTrackNote = true;
-                            noteType = 'keydown';
-                        }
+                        if (trackCol == null) trackCol = parsedTrackKey.column;
+                        noteType = parsedTrackKey.kind;
+                    } else if (trackCol != null && (lookupNoteType || parsedTrackKey)) {
+                        isTrackNote = true;
+                        noteType = lookupNoteType || parsedTrackKey.kind;
                     }
 
                     let canonicalParamKey = pKey;
                     let paramAliases = [pKey];
 
-                    if (isTrackNote && trackCol != null) {
-                        if (noteType === 'note') {
-                            canonicalParamKey = `NoteImage${trackCol}`;
-                            paramAliases = [`NoteImage${trackCol}`];
-                        } else if (noteType === 'head') {
-                            canonicalParamKey = `NoteImage${trackCol}H`;
-                            paramAliases = [`NoteImage${trackCol}H`, `HoldNoteHeadImage${trackCol}`];
-                        } else if (noteType === 'body') {
-                            canonicalParamKey = `NoteImage${trackCol}L`;
-                            paramAliases = [`NoteImage${trackCol}L`, `HoldNoteBodyImage${trackCol}`];
-                        } else if (noteType === 'tail') {
-                            canonicalParamKey = `NoteImage${trackCol}T`;
-                            paramAliases = [`NoteImage${trackCol}T`, `HoldNoteTailImage${trackCol}`];
-                        } else if (noteType === 'key') {
-                            canonicalParamKey = `KeyImage${trackCol}`;
-                            paramAliases = [`KeyImage${trackCol}`];
-                        } else if (noteType === 'keydown') {
-                            canonicalParamKey = `KeyImage${trackCol}D`;
-                            paramAliases = [`KeyImage${trackCol}D`, `KeyImageDown${trackCol}`, `KeyImage${trackCol}Down`];
+                    if (isTrackNote && trackCol != null && typeof MANIA_TRACK_TEXTURE_META !== 'undefined') {
+                        const meta = MANIA_TRACK_TEXTURE_META[noteType];
+                        if (meta) {
+                            canonicalParamKey = `${meta.prefix}${trackCol}${meta.suffix}`;
+                            paramAliases = typeof buildTrackTextureAliases === 'function'
+                                ? buildTrackTextureAliases(noteType, trackCol)
+                                : [canonicalParamKey];
                         }
                     }
 

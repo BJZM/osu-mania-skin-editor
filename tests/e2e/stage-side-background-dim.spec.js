@@ -48,7 +48,7 @@ test('背景暗化不会改变舞台左右侧图的亮度', async ({ page }) => 
       return new Promise((resolve, reject) => {
         rawImage.onload = () => {
           const processedImage = processSkinImage(rawImage, fileName);
-          if (processedImage.complete) {
+          if (!(processedImage instanceof HTMLImageElement) || processedImage.complete) {
             resolve(processedImage);
             return;
           }

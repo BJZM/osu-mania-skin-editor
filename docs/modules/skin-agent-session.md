@@ -36,6 +36,7 @@
 - `texture-resolve`
 - `export-skin`
 - `skin-assets`
+- 内部拆分子文件：`ui/agent-session-config-hitsounds.js`（参数与音效）、`ui/agent-session-textures.js`（贴图查询与编辑自动化）、`ui/agent-session-preview-export.js`（预览、校验与导出）、`ui/agent-session.js`（会话核心与桥接）
 
 ## 副作用 / 外部资源
 

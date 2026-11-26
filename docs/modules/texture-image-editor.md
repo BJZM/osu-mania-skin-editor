@@ -56,6 +56,7 @@
 - `texture-rgb-adjustment`：对输出帧应用通道调整。
 - `texture-library-tab`：管理常驻贴图库标签、复制命名和删除确认。
 - `font-glyph-textures`：提供数字与连击数字的虚拟贴图参数和路径解析。
+- 内部子模块拆分：`texture-image-editor-create-state.js` / `texture-image-editor-create-inputs.js` / `texture-image-editor-create.js`（纯色创建器状态、表单与保存）；`texture-image-editor-save-close.js`（KeyImage / 普通贴图 / 一键投皮保存管线）；`texture-image-editor-window.js`（历史/导入同步与窗口拖拽关闭）。
 
 ## 副作用 / 外部资源
 

@@ -2628,55 +2628,12 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
                 }
             }
             function createConfig(keys) {
-                const DEFAULT_COLUMN_SIZE = 30;
-                const DEFAULT_HIT_POSITION = 402;
-                const cw = new Array(keys); cw.fill(DEFAULT_COLUMN_SIZE);
-                const clw = new Array(keys + 1); clw.fill(2);
-                const cs = new Array(Math.max(0, keys - 1)); cs.fill(0);
-                const ew = new Array(keys); ew.fill(0);
-                const hlw = new Array(keys); hlw.fill(0);
-                const colLight = new Array(keys);
-                for (let i = 0; i < keys; i++) colLight[i] = { r: 255, g: 255, b: 255, a: 255 };
-                const colColours = new Array(keys);
-                for (let i = 0; i < keys; i++) colColours[i] = { r: 0, g: 0, b: 0, a: 255 };
-                return {
-                    Keys: keys,
-                    SkinVersion: globalSkinVersion,
-                    CustomColours: {},
-                    ImageLookups: new Map(),
-                    WidthForNoteHeightScale: 0,
-                    ColumnLineWidth: clw,
-                    ColumnSpacing: cs,
-                    ColumnWidth: cw,
-                    ColumnColour: colColours,
-                    ExplosionWidth: ew,
-                    ComboBreakColour: { r: 255, g: 0, b: 0 },
-                    ColourHold: { r: 255, g: 191, b: 51, a: 255 },
-                    ColourLight: colLight,
-                    GlobalColourLight: null,
-                    HoldNoteLightWidth: hlw,
-                    HitPosition: DEFAULT_HIT_POSITION,
-                    LightPosition: 413,
-                    ComboPosition: 111,
-                    ScorePosition: 300,
-                    FontCombo: null,
-                    ComboOverlap: null,
-                    FontScore: null,
-                    ScoreOverlap: null,
-                    BarLineHeight: 1.2,
-                    ColourBarline: { r: 255, g: 255, b: 255, a: 255 },
-                    ShowJudgementLine: true,
-                    KeysUnderNotes: globalKeysUnderNotes !== undefined ? globalKeysUnderNotes : 0,
-                    LightFramePerSecond: 60,
-                    NoteBodyStyle: null,
-                    NoteBodyStyles: new Array(keys).fill(null),
-                    ColumnStart: 136,
-                    ColumnRight: 19,
-                    UpsideDown: false,
-                    SplitStages: false,
-                    StageSeparation: 40,
-                    FlipSettings: new Map(),
-                };
+                return createDefaultManiaSkinConfiguration(keys, {
+                    allowZeroKeys: true,
+                    skinVersion: globalSkinVersion,
+                    keysUnderNotes: globalKeysUnderNotes,
+                    omitDefaultFallbackFlag: true
+                });
             }
 
             const output = [];
@@ -3085,8 +3042,9 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
         // 必须补齐 getManiaSkinConfig 会访问到的**所有数组字段**，否则一旦把不完整的配置写回
         // maniaSkinConfigurations，getManiaSkinConfig 读 `cfg.ColumnWidth.length` 就会直接抛
         // TypeError: Cannot read properties of undefined (reading 'length')，整个 drawFrame 崩掉。
-        function createDefaultManiaSkinConfiguration(keyCount) {
-            const k = Math.max(1, keyCount | 0);
+        function createDefaultManiaSkinConfiguration(keyCount, options = {}) {
+            const minKeys = options.allowZeroKeys ? 0 : 1;
+            const k = Math.max(minKeys, keyCount | 0);
             const cw = new Array(k).fill(30);
             const clw = new Array(k + 1).fill(2);
             const cs = new Array(Math.max(0, k - 1)).fill(0);
@@ -3094,9 +3052,9 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
             for (let i = 0; i < k; i++) colColours[i] = { r: 0, g: 0, b: 0, a: 255 };
             const colLight = new Array(k);
             for (let i = 0; i < k; i++) colLight[i] = { r: 255, g: 255, b: 255, a: 255 };
-            return {
+            const cfg = {
                 Keys: k,
-                SkinVersion: 2.7,
+                SkinVersion: options.skinVersion != null ? options.skinVersion : 2.7,
                 CustomColours: {},
                 ImageLookups: new Map(),
                 WidthForNoteHeightScale: 0,
@@ -3121,7 +3079,7 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
                 BarLineHeight: 1.2,
                 ColourBarline: { r: 255, g: 255, b: 255, a: 255 },
                 ShowJudgementLine: true,
-                KeysUnderNotes: 0,
+                KeysUnderNotes: options.keysUnderNotes !== undefined ? options.keysUnderNotes : 0,
                 LightFramePerSecond: 60,
                 ComboBurstStyle: 1,
                 NoteBodyStyle: null,
@@ -3132,9 +3090,12 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
                 SplitStages: false,
                 StageSeparation: 40,
                 FlipSettings: new Map(),
-                // 标记为「按需生成的默认配置」，便于区分真实皮肤解析出的配置
-                _isDefaultFallback: true,
             };
+            if (!options.omitDefaultFallbackFlag) {
+                // 标记为「按需生成的默认配置」，便于区分真实皮肤解析出的配置
+                cfg._isDefaultFallback = true;
+            }
+            return cfg;
         }
 
         // 取某个键位的 mania 配置；若不存在（典型：只导入了谱面、用的是内置默认皮肤），
@@ -3481,6 +3442,145 @@ window.DEFAULT_SKIN_HITSOUND_ASSETS = [
         function buildStageLightSearchKeys(columnIndex) {
             const ci = (columnIndex == null) ? '' : String(columnIndex | 0);
             return ['StageLight' + ci, 'StageLight', 'mania-stage-light'];
+        }
+
+        // ===== 逐轨 / 通用贴图参数键名解析（唯一真源） =====
+        // 统一 NoteImage0H / HoldNoteHeadImage0 / KeyImage0D / KeyImageDown0 等写法，
+        // 供 ini-export、texture-resolve、texture-upload、app-shell 与 agent-session 共用。
+        const MANIA_TRACK_TEXTURE_META = {
+            note: { prefix: 'NoteImage', suffix: '', baseParamKey: 'NoteImage', lookup: LML.NoteImage },
+            head: { prefix: 'NoteImage', suffix: 'H', baseParamKey: 'HoldNoteHeadImage', lookup: LML.HoldNoteHeadImage },
+            body: { prefix: 'NoteImage', suffix: 'L', baseParamKey: 'HoldNoteBodyImage', lookup: LML.HoldNoteBodyImage },
+            tail: { prefix: 'NoteImage', suffix: 'T', baseParamKey: 'HoldNoteTailImage', lookup: LML.HoldNoteTailImage },
+            key: { prefix: 'KeyImage', suffix: '', baseParamKey: 'KeyImage', lookup: LML.KeyImage },
+            keydown: { prefix: 'KeyImage', suffix: 'D', baseParamKey: 'KeyImageDown', lookup: LML.KeyImageDown }
+        };
+
+        function buildTrackTextureAliases(kind, column) {
+            if (column == null) return [];
+            const col = column;
+            if (kind === 'head') return [`NoteImage${col}H`, `HoldNoteHeadImage${col}`];
+            if (kind === 'body') return [`NoteImage${col}L`, `HoldNoteBodyImage${col}`];
+            if (kind === 'tail') return [`NoteImage${col}T`, `HoldNoteTailImage${col}`];
+            if (kind === 'note') return [`NoteImage${col}`];
+            if (kind === 'keydown') return [`KeyImage${col}D`, `KeyImage${col}Down`, `KeyImageDown${col}`];
+            if (kind === 'key') return [`KeyImage${col}`];
+            return [];
+        }
+
+        function parseManiaTextureParamKey(paramKey) {
+            const raw = String(paramKey || '').trim();
+            if (!raw) return null;
+            const low = raw.toLowerCase();
+
+            const mNote = low.match(/^noteimage(\d+)([hlt])?$/);
+            if (mNote) {
+                const column = parseInt(mNote[1], 10);
+                const suffix = mNote[2] ? mNote[2].toUpperCase() : '';
+                const kind = suffix === 'H' ? 'head' : (suffix === 'L' ? 'body' : (suffix === 'T' ? 'tail' : 'note'));
+                const meta = MANIA_TRACK_TEXTURE_META[kind];
+                return {
+                    kind,
+                    column,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: `${meta.prefix}${column}${meta.suffix}`,
+                    aliases: buildTrackTextureAliases(kind, column),
+                    isIniImageKey: column >= 0 && column <= 17
+                };
+            }
+
+            const mHold = low.match(/^holdnote(head|body|tail)image(\d+)$/);
+            if (mHold) {
+                const kind = mHold[1];
+                const column = parseInt(mHold[2], 10);
+                const meta = MANIA_TRACK_TEXTURE_META[kind];
+                return {
+                    kind,
+                    column,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: `${meta.prefix}${column}${meta.suffix}`,
+                    aliases: buildTrackTextureAliases(kind, column),
+                    isIniImageKey: false
+                };
+            }
+
+            const mKey = low.match(/^keyimage(\d+)(d|down)?$/);
+            if (mKey) {
+                const column = parseInt(mKey[1], 10);
+                const downSuffix = mKey[2] || '';
+                const kind = downSuffix ? 'keydown' : 'key';
+                const meta = MANIA_TRACK_TEXTURE_META[kind];
+                return {
+                    kind,
+                    column,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: `${meta.prefix}${column}${meta.suffix}`,
+                    aliases: buildTrackTextureAliases(kind, column),
+                    isIniImageKey: (!downSuffix || downSuffix === 'd') && column >= 0 && column <= 17
+                };
+            }
+
+            const mKeyDownPrefix = low.match(/^keyimagedown(\d+)$/);
+            if (mKeyDownPrefix) {
+                const column = parseInt(mKeyDownPrefix[1], 10);
+                const meta = MANIA_TRACK_TEXTURE_META.keydown;
+                return {
+                    kind: 'keydown',
+                    column,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: `${meta.prefix}${column}${meta.suffix}`,
+                    aliases: buildTrackTextureAliases('keydown', column),
+                    isIniImageKey: false
+                };
+            }
+
+            const genericKinds = {
+                noteimage: 'note',
+                holdnoteheadimage: 'head',
+                noteimageh: 'head',
+                holdnotebodyimage: 'body',
+                noteimagel: 'body',
+                holdnotetailimage: 'tail',
+                noteimaget: 'tail',
+                keyimage: 'key',
+                keyimagedown: 'keydown',
+                keyimaged: 'keydown'
+            };
+            const genericKind = genericKinds[low];
+            if (genericKind) {
+                const meta = MANIA_TRACK_TEXTURE_META[genericKind];
+                return {
+                    kind: genericKind,
+                    column: null,
+                    baseParamKey: meta.baseParamKey,
+                    lookup: meta.lookup,
+                    canonicalKey: meta.baseParamKey,
+                    aliases: [],
+                    isIniImageKey: false
+                };
+            }
+
+            return null;
+        }
+
+        function canonicalizeTrackTextureParamKey(paramKey, column) {
+            const raw = String(paramKey || '').trim();
+            if (!raw) return '';
+            const parsed = parseManiaTextureParamKey(raw);
+            if (!parsed) return raw;
+            if (parsed.column != null) {
+                return parsed.canonicalKey;
+            }
+            if (column != null && Number.isFinite(Number(column))) {
+                const normalizedColumn = Math.max(0, Math.min(17, Math.round(Number(column))));
+                const meta = MANIA_TRACK_TEXTURE_META[parsed.kind];
+                return `${meta.prefix}${normalizedColumn}${meta.suffix}`;
+            }
+            return raw;
         }
 
         // 在 mCfg.ImageLookups 中按给定顺序查找显式配置，返回 { value, matchedKey }；找不到返回 null
@@ -7336,13 +7436,22 @@ async function getBeatmapDecoder() {
             return frames[idx] || frames[0];
         }
 
-        function getManiaSkinImage(keyCount, lookup, columnIndex) {
+        function findExplicitKeyInLookupMap(lookupMap, searchKeys) {
+            if (!lookupMap || !searchKeys) return null;
+            for (const sk of searchKeys) {
+                if (lookupMap.has(sk)) return lookupMap.get(sk);
+                const skLow = sk.toLowerCase();
+                if (lookupMap.has(skLow)) return lookupMap.get(skLow);
+            }
+            return null;
+        }
+
+        function resolveManiaImageLookupSpec(keyCount, lookup, columnIndex) {
             const info = imageLookupToIniPrefixSuffix(lookup);
             if (!info) return null;
 
             let customName = null;
             let explicitlySpecified = false;
-
             const cfg = getManiaConfigForKeys(keyCount);
             if (cfg && !info.fallbackOnly) {
                 const searchKeys = [];
@@ -7355,15 +7464,11 @@ async function getBeatmapDecoder() {
                             if (!searchKeys.includes(ak)) searchKeys.push(ak);
                         }
                     }
-                } else if (PER_TRACK_TEXTURE_LOOKUPS.indexOf(lookup) >= 0) {
-                    // 逐轨贴图查找顺序统一取自 config.js buildPerTrackTextureSearchKeys，
-                    // 保证画布渲染与参数面板缩略图识别出完全相同的贴图。
-                    const sharedKeys = buildPerTrackTextureSearchKeys(lookup, ci);
-                    if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
-                } else if (lookup === LML.HoldNoteLightImage || lookup === LML.ExplosionImage) {
-                    // 打击特效 (LightingN / LightingL) 查找顺序统一取自
-                    // config.js buildPerTrackTextureSearchKeys（唯一真源），保证画布与面板识别一致。
-                    // stable 下这两个贴图只认全局键，所有轨道共用，不读取 LightingN0 / Lighting0N 等分轨键。
+                } else if (PER_TRACK_TEXTURE_LOOKUPS.indexOf(lookup) >= 0 ||
+                    lookup === LML.HoldNoteLightImage ||
+                    lookup === LML.ExplosionImage) {
+                    // 逐轨贴图与打击特效 (LightingN / LightingL) 查找顺序统一取自
+                    // mania-config.js buildPerTrackTextureSearchKeys（唯一真源）。
                     const sharedKeys = buildPerTrackTextureSearchKeys(lookup, ci);
                     if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
                 } else if (lookup === LML.HitTargetImage) {
@@ -7375,12 +7480,10 @@ async function getBeatmapDecoder() {
                 } else if (lookup === LML.BottomStageImage) {
                     searchKeys.push('StageBottom', 'Stage_Bottom');
                 } else if (lookup === LML.LightImage) {
-                    // 按键发光贴图：查找顺序统一取自 config.js buildStageLightSearchKeys（唯一真源）
                     const sharedKeys = buildStageLightSearchKeys(ci);
                     if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
                 } else {
-                    searchKeys.push(info.prefix + ci + info.suffix);
-                    searchKeys.push(info.prefix);
+                    searchKeys.push(info.prefix + ci + info.suffix, info.prefix);
                     if (info.altKeys) {
                         for (const ak of info.altKeys) {
                             if (!searchKeys.includes(ak)) searchKeys.push(ak);
@@ -7389,100 +7492,81 @@ async function getBeatmapDecoder() {
                 }
 
                 // 1. 在当前 keyCount 的 ImageLookups 中查找
-                if (cfg.ImageLookups) {
-                    for (const sk of searchKeys) {
-                        if (cfg.ImageLookups.has(sk)) {
-                            customName = cfg.ImageLookups.get(sk);
-                            explicitlySpecified = true;
-                            break;
-                        }
-                        const skLow = sk.toLowerCase();
-                        if (cfg.ImageLookups.has(skLow)) {
-                            customName = cfg.ImageLookups.get(skLow);
-                            explicitlySpecified = true;
-                            break;
-                        }
-                    }
+                const localMatch = findExplicitImageLookupValue(cfg, searchKeys);
+                if (localMatch) {
+                    customName = localMatch.value;
+                    explicitlySpecified = true;
                 }
-
-                // 检查显式 blank / none / null / _blank 等伪贴图名
-                if (explicitlySpecified && isDummyBlankName(customName)) {
-                    return null;
-                }
+                if (explicitlySpecified && isDummyBlankName(customName)) return null;
 
                 // 2. 只有真正的全局资源（如判定字样 Hit300）才允许跨 Mania keyCount 继承
                 if (info.isGlobal && !customName && maniaSkinConfigurations.size > 0) {
                     for (const otherCfg of maniaSkinConfigurations.values()) {
-                        if (!otherCfg.ImageLookups) continue;
-                        for (const sk of searchKeys) {
-                            if (otherCfg.ImageLookups.has(sk)) {
-                                customName = otherCfg.ImageLookups.get(sk);
-                                explicitlySpecified = true;
-                                break;
-                            }
-                            const skLow = sk.toLowerCase();
-                            if (otherCfg.ImageLookups.has(skLow)) {
-                                customName = otherCfg.ImageLookups.get(skLow);
-                                explicitlySpecified = true;
-                                break;
-                            }
+                        const otherMatch = findExplicitImageLookupValue(otherCfg, searchKeys);
+                        if (otherMatch) {
+                            customName = otherMatch.value;
+                            explicitlySpecified = true;
+                            break;
                         }
-                        if (customName) break;
                     }
                     if (explicitlySpecified && isDummyBlankName(customName)) return null;
                 }
 
                 // 3. 同样仅全局资源在全局 skin.ini 字典中查找
                 if (info.isGlobal && !customName && globalSkinImageLookups.size > 0) {
-                    for (const sk of searchKeys) {
-                        if (globalSkinImageLookups.has(sk)) {
-                            customName = globalSkinImageLookups.get(sk);
-                            explicitlySpecified = true;
-                            break;
-                        }
-                        const skLow = sk.toLowerCase();
-                        if (globalSkinImageLookups.has(skLow)) {
-                            customName = globalSkinImageLookups.get(skLow);
-                            explicitlySpecified = true;
-                            break;
-                        }
+                    const globalVal = findExplicitKeyInLookupMap(globalSkinImageLookups, searchKeys);
+                    if (globalVal !== null) {
+                        customName = globalVal;
+                        explicitlySpecified = true;
                     }
                     if (explicitlySpecified && isDummyBlankName(customName)) return null;
                 }
             }
 
+            if (explicitlySpecified && isDummyBlankName(customName)) return null;
+            const targetName = (explicitlySpecified && customName && customName.trim().length > 0)
+                ? customName.trim().replace(/\.(png|jpg|jpeg)$/i, '')
+                : '';
+
+            return {
+                info,
+                explicitlySpecified,
+                targetName,
+                allowNestedFallback: lookup !== LML.BottomStageImage
+            };
+        }
+
+        function getManiaSkinImage(keyCount, lookup, columnIndex) {
+            const spec = resolveManiaImageLookupSpec(keyCount, lookup, columnIndex);
+            if (!spec) return null;
+
             // 严格按照读取到的 ini 指定路径读取：
-            if (explicitlySpecified) {
-                if (isDummyBlankName(customName)) return null;
-                if (customName && customName.trim().length > 0) {
-                    const targetName = customName.trim().replace(/\.(png|jpg|jpeg)$/i, '');
-                    const allowNestedFallback = lookup !== LML.BottomStageImage;
-                    const userImg = getSkinAnimationFromStore(skinImageStore, targetName, allowNestedFallback);
-                    if (userImg) return userImg;
-                    const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName, allowNestedFallback);
-                    if (userFrames && userFrames.length > 0) return userFrames[0];
-                    // osu!stable 在皮肤缺少显式引用文件时继续使用默认皮肤资源补全。
-                    const defaultImg = getSkinAnimationFromStore(
-                        defaultSkinImageStore,
-                        targetName,
-                        allowNestedFallback
-                    );
-                    if (defaultImg) return defaultImg;
-                    const defaultFrames = getSkinAnimationFramesFromStore(
-                        defaultSkinImageStore,
-                        targetName,
-                        allowNestedFallback
-                    );
-                    if (defaultFrames && defaultFrames.length > 0) return defaultFrames[0];
-                    // 默认皮肤也不存在对应图片时才视为缺失。
-                    return null;
-                }
+            if (spec.explicitlySpecified) {
+                if (!spec.targetName) return null;
+                const userImg = getSkinAnimationFromStore(skinImageStore, spec.targetName, spec.allowNestedFallback);
+                if (userImg) return userImg;
+                const userFrames = getSkinAnimationFramesFromStore(skinImageStore, spec.targetName, spec.allowNestedFallback);
+                if (userFrames && userFrames.length > 0) return userFrames[0];
+                // osu!stable 在皮肤缺少显式引用文件时继续使用默认皮肤资源补全。
+                const defaultImg = getSkinAnimationFromStore(
+                    defaultSkinImageStore,
+                    spec.targetName,
+                    spec.allowNestedFallback
+                );
+                if (defaultImg) return defaultImg;
+                const defaultFrames = getSkinAnimationFramesFromStore(
+                    defaultSkinImageStore,
+                    spec.targetName,
+                    spec.allowNestedFallback
+                );
+                if (defaultFrames && defaultFrames.length > 0) return defaultFrames[0];
+                // 默认皮肤也不存在对应图片时才视为缺失。
                 return null;
             }
 
             let result = null;
-            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, info);
-            if (info.isGlobal && (lookup === LML.Hit300g || lookup === LML.Hit300 || lookup === LML.Hit200 ||
+            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, spec.info);
+            if (spec.info.isGlobal && (lookup === LML.Hit300g || lookup === LML.Hit300 || lookup === LML.Hit200 ||
                 lookup === LML.Hit100 || lookup === LML.Hit50 || lookup === LML.Hit0)) {
                 const defNames = [];
                 if (lookup === LML.Hit300g) defNames.push('mania-hit300g', 'mania-hit300g-0', 'hit300g', 'hit300k', 'mania-hit300', 'hit300');
@@ -7497,112 +7581,43 @@ async function getBeatmapDecoder() {
             }
 
             for (const cand of candidates) {
-                result = getSkinAnimation(cand, lookup !== LML.BottomStageImage);
+                result = getSkinAnimation(cand, spec.allowNestedFallback);
                 if (result) break;
             }
             return result;
         }
 
         function getManiaSkinAnimationFrames(keyCount, lookup, columnIndex) {
-            const info = imageLookupToIniPrefixSuffix(lookup);
-            if (!info) return null;
-
-            let customName = null;
-            let explicitlySpecified = false;
-            const cfg = getManiaConfigForKeys(keyCount);
-            if (cfg && !info.fallbackOnly) {
-                const searchKeys = [];
-                const ci = (columnIndex == null) ? '' : String(columnIndex | 0);
-                if (lookup === LML.HoldNoteLightImage || lookup === LML.ExplosionImage) {
-                    // 打击特效 (LightingN / LightingL) 查找顺序统一取自
-                    // config.js buildPerTrackTextureSearchKeys（唯一真源），保证动画帧与静态贴图识别一致。
-                    // stable 下这两个贴图只认全局键，所有轨道共用，不读取 LightingN0 / Lighting0N 等分轨键。
-                    const sharedKeys = buildPerTrackTextureSearchKeys(lookup, ci);
-                    if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
-                } else if (lookup === LML.LightImage) {
-                    // 按键发光贴图：与 getStageLightFrames / getManiaSkinImage 共用同一份查找顺序
-                    const sharedKeys = buildStageLightSearchKeys(ci);
-                    if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
-                } else if (PER_TRACK_TEXTURE_LOOKUPS.indexOf(lookup) >= 0) {
-                    // 与 getManiaSkinImage 共用同一份逐轨查找顺序，避免静态贴图能找到、动画帧却找不到
-                    const sharedKeys = buildPerTrackTextureSearchKeys(lookup, ci);
-                    if (sharedKeys) for (const sk of sharedKeys) searchKeys.push(sk);
-                } else {
-                    searchKeys.push(info.prefix + ci + info.suffix, info.prefix);
-                    if (info.altKeys) {
-                        for (const ak of info.altKeys) {
-                            if (!searchKeys.includes(ak)) searchKeys.push(ak);
-                        }
-                    }
-                }
-
-                if (cfg.ImageLookups) {
-                    for (const sk of searchKeys) {
-                        if (cfg.ImageLookups.has(sk)) { customName = cfg.ImageLookups.get(sk); explicitlySpecified = true; break; }
-                        const skLow = sk.toLowerCase();
-                        if (cfg.ImageLookups.has(skLow)) { customName = cfg.ImageLookups.get(skLow); explicitlySpecified = true; break; }
-                    }
-                }
-
-                // 检查显式 blank / none / null / _blank 等伪贴图名
-                if (explicitlySpecified && isDummyBlankName(customName)) return null;
-
-                if (info.isGlobal && !customName && maniaSkinConfigurations.size > 0) {
-                    for (const otherCfg of maniaSkinConfigurations.values()) {
-                        if (!otherCfg.ImageLookups) continue;
-                        for (const sk of searchKeys) {
-                            if (otherCfg.ImageLookups.has(sk)) { customName = otherCfg.ImageLookups.get(sk); explicitlySpecified = true; break; }
-                            const skLow = sk.toLowerCase();
-                            if (otherCfg.ImageLookups.has(skLow)) { customName = otherCfg.ImageLookups.get(skLow); explicitlySpecified = true; break; }
-                        }
-                        if (customName) break;
-                    }
-                    if (explicitlySpecified && isDummyBlankName(customName)) return null;
-                }
-
-                if (info.isGlobal && !customName && globalSkinImageLookups.size > 0) {
-                    for (const sk of searchKeys) {
-                        if (globalSkinImageLookups.has(sk)) { customName = globalSkinImageLookups.get(sk); explicitlySpecified = true; break; }
-                        const skLow = sk.toLowerCase();
-                        if (globalSkinImageLookups.has(skLow)) { customName = globalSkinImageLookups.get(skLow); explicitlySpecified = true; break; }
-                    }
-                    if (explicitlySpecified && isDummyBlankName(customName)) return null;
-                }
-            }
+            const spec = resolveManiaImageLookupSpec(keyCount, lookup, columnIndex);
+            if (!spec) return null;
 
             // 严格按照读取到的 ini 指定路径读取：
-            if (explicitlySpecified) {
-                if (isDummyBlankName(customName)) return null;
-                if (customName && customName.trim().length > 0) {
-                    const targetName = customName.trim().replace(/\.(png|jpg|jpeg)$/i, '');
-                    const allowNestedFallback = lookup !== LML.BottomStageImage;
-                    const userFrames = getSkinAnimationFramesFromStore(skinImageStore, targetName, allowNestedFallback);
-                    if (userFrames && userFrames.length > 0) return userFrames;
-                    const userSingle = getSkinAnimationFromStore(skinImageStore, targetName, allowNestedFallback);
-                    if (userSingle) return [userSingle];
-                    // 与 stable 一致：显式文件缺失时回退到默认皮肤中的同名资源。
-                    const defaultFrames = getSkinAnimationFramesFromStore(
-                        defaultSkinImageStore,
-                        targetName,
-                        allowNestedFallback
-                    );
-                    if (defaultFrames && defaultFrames.length > 0) return defaultFrames;
-                    const defaultSingle = getSkinAnimationFromStore(
-                        defaultSkinImageStore,
-                        targetName,
-                        allowNestedFallback
-                    );
-                    if (defaultSingle) return [defaultSingle];
-                    // 默认皮肤也不存在对应图片时才视为缺失。
-                    return null;
-                }
+            if (spec.explicitlySpecified) {
+                if (!spec.targetName) return null;
+                const userFrames = getSkinAnimationFramesFromStore(skinImageStore, spec.targetName, spec.allowNestedFallback);
+                if (userFrames && userFrames.length > 0) return userFrames;
+                const userSingle = getSkinAnimationFromStore(skinImageStore, spec.targetName, spec.allowNestedFallback);
+                if (userSingle) return [userSingle];
+                // 与 stable 一致：显式文件缺失时回退到默认皮肤中的同名资源。
+                const defaultFrames = getSkinAnimationFramesFromStore(
+                    defaultSkinImageStore,
+                    spec.targetName,
+                    spec.allowNestedFallback
+                );
+                if (defaultFrames && defaultFrames.length > 0) return defaultFrames;
+                const defaultSingle = getSkinAnimationFromStore(
+                    defaultSkinImageStore,
+                    spec.targetName,
+                    spec.allowNestedFallback
+                );
+                if (defaultSingle) return [defaultSingle];
+                // 默认皮肤也不存在对应图片时才视为缺失。
                 return null;
             }
 
-            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, info);
-
+            const candidates = getDefaultTextureFilenameCandidates(keyCount, lookup, columnIndex, spec.info);
             for (const cand of candidates) {
-                const frames = getSkinAnimationFrames(cand, lookup !== LML.BottomStageImage);
+                const frames = getSkinAnimationFrames(cand, spec.allowNestedFallback);
                 if (frames && frames.length > 0) return frames;
             }
             const single = getManiaSkinImage(keyCount, lookup, columnIndex);
@@ -9768,9 +9783,19 @@ async function getBeatmapDecoder() {
 
 // --- BEGIN render/hold-note-geometry.js ---
 // ============================================================================
-// hold-note-geometry.js - osu!stable 长条几何与身体贴图绘制
+// hold-note-geometry.js - osu!stable 长条几何、身体贴图与长条批绘制
 // 从 render/frame.js 按帧内职责拆分；共享数据通过 context 显式传入。
 // ============================================================================
+
+        // 后台节流或页面卡顿恢复后，不能把已经错过的整段时间集中补播。
+        const PLAYBACK_EVENT_MAX_LATENESS_MS = 100;
+
+        function isPlaybackEventFresh(eventTime, currentTime) {
+            const lateness = Number(currentTime) - Number(eventTime);
+            return Number.isFinite(lateness) &&
+                lateness >= 0 &&
+                lateness <= PLAYBACK_EVENT_MAX_LATENESS_MS;
+        }
 
         function getStableHoldHeadAnchorY(note, currentScrollPosition, currentTime, hitPos, speedFactor) {
             if (currentTime < note.startTime) {
@@ -9847,6 +9872,189 @@ async function getBeatmapDecoder() {
             }
 
             targetCtx.restore();
+        }
+
+        function createHoldNotesRenderer(context) {
+            const {
+                notesList, earlyVisibleHolds, visStartIdx, visEndIdx,
+                useIndexedNotes, isPreviewMode, colWidths, colXCache,
+                hitPos, currentScrollPosition, speedFactor, canvas,
+                canvasEditMode, activeNoteElements, currentTime,
+                resolveAnimatedNoteImage, keys, scale48, rectTop,
+                widthForNoteHeightScalePx, colNoteBodyStyles,
+                holdBodyTextureNames, holdTailTextureNames,
+                triggerPlaybackNoteJudgement
+            } = context;
+
+            const startIdx = (visStartIdx != null) ? visStartIdx : 0;
+            const endIdx = (visEndIdx != null) ? visEndIdx : notesList.length;
+            const holdPreCullPad = Math.max(400, 400 * scale48);
+
+            const renderHoldNoteItem = (note) => {
+                if (!note.isHold) return;
+                if (currentTime >= note.endTime) {
+                    if (!useIndexedNotes && !note.tailHit) {
+                        note.tailHit = true;
+                        if (!isPlaybackEventFresh(note.endTime, currentTime)) return;
+                        const now = performance.now();
+                        activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                        if (!isPreviewMode) {
+                            triggerPlaybackNoteJudgement(now);
+                        }
+                    }
+                    return;
+                }
+
+                const headAnchorYPre = getStableHoldHeadAnchorY(
+                    note, currentScrollPosition, currentTime, hitPos, speedFactor
+                );
+                const tailAnchorYPre = getStableHoldTailAnchorY(
+                    note, currentScrollPosition, hitPos, speedFactor
+                );
+                note.holdHeadFrozen = currentTime >= note.startTime;
+                if (headAnchorYPre < -100 || tailAnchorYPre > canvas.height + holdPreCullPad) return;
+
+                const col = note.column;
+                const w = colWidths[col];
+                const colX = colXCache[col];
+
+                const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, col, note.startTime);
+                const holdTailImg = resolveAnimatedNoteImage(LML.HoldNoteTailImage, col, note.endTime);
+
+                const headDrawHeight = holdHeadImg
+                    ? getManiaNoteDrawHeight(keys, col, holdHeadImg, w, scale48, widthForNoteHeightScalePx)
+                    : Math.round(20 * scale48);
+                const tailDrawHeight = holdTailImg
+                    ? getManiaNoteDrawHeight(keys, col, holdTailImg, w, scale48, widthForNoteHeightScalePx)
+                    : Math.round(20 * scale48);
+
+                const holdGeometry = getStableHoldNoteGeometry(
+                    note, currentScrollPosition, currentTime, hitPos, speedFactor,
+                    headDrawHeight, tailDrawHeight
+                );
+                note.holdHeadFrozen = holdGeometry.headFrozen;
+
+                const {
+                    headAnchorY,
+                    headTopY,
+                    headCenterY,
+                    tailAnchorY: tailBottomY,
+                    tailTopY,
+                    bodyTopY: bodyTop,
+                    bodyBottomY: bodyBottom,
+                    bodyHeight
+                } = holdGeometry;
+
+                const wholeTop = Math.min(headTopY, tailTopY, bodyTop);
+                const wholeBottom = Math.max(headAnchorY, tailBottomY, bodyBottom);
+                if (wholeBottom < -100 || wholeTop > canvas.height + 100) return;
+
+                // 5a. 身体 (近端位于头部中心，长度只由头尾下端锚点决定)
+                if (bodyHeight > 0.5) {
+                    const holdBodyImg = resolveAnimatedNoteImage(LML.HoldNoteBodyImage, col);
+                    if (canvasEditMode && bodyHeight > 4 && bodyTop < canvas.height && bodyBottom > 0 && bodyTop <= hitPos + 25) {
+                        activeNoteElements.push({
+                            id: `hold_body_${col}`,
+                            noteInstanceKey: `hold_body_${col}_${note.startTime}`,
+                            name: `第 ${col + 1} 轨长条身`,
+                            paramKey: `NoteImage${col}L`,
+                            fallbackParamKey: 'HoldNoteBodyImage',
+                            category: 'Mania',
+                            x: colX,
+                            y: rectTop(bodyTop, bodyHeight),
+                            w: w,
+                            h: bodyHeight,
+                            isTexture: true,
+                            textureName: holdBodyTextureNames ? holdBodyTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, col),
+                            textureKey: LML.HoldNoteBodyImage,
+                            colIndex: col,
+                            dragAxis: null,
+                            valFormatter: () => `第 ${col + 1} 轨长条身`
+                        });
+                    }
+
+                    if (holdBodyImg) {
+                        let style = colNoteBodyStyles[col];
+                        if (style === undefined) {
+                            const nbsRes = getManiaSkinConfig(keys, LML.NoteBodyStyle, col);
+                            style = (nbsRes && nbsRes.value != null) ? nbsRes.value : NOTE_BODY_STYLE.RepeatFromTail;
+                            colNoteBodyStyles[col] = style;
+                        }
+                        drawStableHoldBodyTexture(ctx, holdBodyImg, style, colX, w, bodyTop, bodyHeight);
+                    } else {
+                        const inset = 5;
+                        const bx = colX + inset;
+                        const bw = w - inset * 2;
+                        const grad = ctx.createLinearGradient(bx, bodyTop, bx, bodyBottom);
+                        const baseColor = col % 2 === 0 ? '0, 229, 255' : '255, 255, 255';
+                        grad.addColorStop(0, `rgba(${baseColor}, 0.55)`);
+                        grad.addColorStop(1, `rgba(${baseColor}, 0.75)`);
+                        ctx.fillStyle = grad;
+                        roundRect(ctx, bx, bodyTop, bw, bodyHeight, 4);
+                        ctx.fill();
+
+                        ctx.save();
+                        ctx.globalAlpha = 0.35;
+                        ctx.fillStyle = `rgba(255,255,255,0.85)`;
+                        ctx.fillRect(bx + bw * 0.35, bodyTop + 2, bw * 0.3, bodyHeight);
+                        ctx.restore();
+                    }
+                }
+
+                // 5b. 尾巴 (到达头部中点即停止渲染)
+                if (tailBottomY > -tailDrawHeight * 2 && tailTopY < canvas.height + tailDrawHeight * 2) {
+                    if (canvasEditMode && tailBottomY <= hitPos + 25) {
+                        activeNoteElements.push({
+                            id: `hold_tail_${col}`,
+                            noteInstanceKey: `hold_tail_${col}_${note.startTime}`,
+                            name: `第 ${col + 1} 轨长条尾`,
+                            paramKey: `NoteImage${col}T`,
+                            fallbackParamKey: 'HoldNoteTailImage',
+                            category: 'Mania',
+                            x: colX,
+                            y: rectTop(tailTopY, tailDrawHeight),
+                            w: w,
+                            h: tailDrawHeight,
+                            isTexture: true,
+                            textureName: holdTailTextureNames ? holdTailTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteTailImage, col),
+                            textureKey: LML.HoldNoteTailImage,
+                            colIndex: col,
+                            dragAxis: null,
+                            valFormatter: () => `第 ${col + 1} 轨长条尾`
+                        });
+                    }
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.rect(0, 0, canvas.width, Math.max(0, headCenterY));
+                    ctx.clip();
+
+                    if (holdTailImg) {
+                        ctx.save();
+                        ctx.translate(colX, tailBottomY);
+                        ctx.scale(1, -1);
+                        ctx.drawImage(holdTailImg, 0, 0, w, tailDrawHeight);
+                        ctx.restore();
+                    } else {
+                        ctx.fillStyle = col % 2 === 0 ? '#00b8d4' : '#cccccc';
+                        const rh = tailDrawHeight;
+                        roundRect(ctx, colX + 4, tailTopY, w - 8, rh, 4);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            };
+
+            return () => {
+                if (earlyVisibleHolds && earlyVisibleHolds.length > 0) {
+                    for (let i = 0; i < earlyVisibleHolds.length; i++) {
+                        renderHoldNoteItem(earlyVisibleHolds[i]);
+                    }
+                }
+                for (let i = startIdx; i < endIdx; i++) {
+                    renderHoldNoteItem(notesList[i]);
+                }
+            };
         }
 // --- END render/hold-note-geometry.js ---
 
@@ -10308,6 +10516,199 @@ async function getBeatmapDecoder() {
                     drawNoteItem(notesList[i]);
                 }
             };
+        }
+
+        function buildPreviewDummyNotes(keys, scale48, speedFactor) {
+            const previewNotes = [];
+            for (let c = 0; c < keys; c++) {
+                const isHoldCol = (c === 1 || (keys > 4 && c === keys - 2));
+                // 预览音符间距同样基于 480 虚拟网格，需乘 scale48 才能在不同画布尺寸下保持
+                // 与真实演奏一致的相对布局（否则全屏时音符会全部挤在命中线附近）。
+                const noteDist = (120 + (c % 4) * 80) * scale48;
+                const startTime = noteDist / speedFactor;
+                if (isHoldCol) {
+                    const endTime = (noteDist + 160 * scale48) / speedFactor;
+                    previewNotes.push({
+                        column: c,
+                        isHold: true,
+                        startTime: startTime,
+                        endTime: endTime,
+                        scrollPositionStart: startTime,
+                        scrollPositionEnd: endTime,
+                        hit: false,
+                        holdHeadFrozen: false
+                    });
+                } else {
+                    previewNotes.push({
+                        column: c,
+                        isHold: false,
+                        startTime: startTime,
+                        endTime: startTime,
+                        scrollPositionStart: startTime,
+                        scrollPositionEnd: startTime,
+                        hit: false
+                    });
+                }
+            }
+            return previewNotes;
+        }
+
+        function computeFrameNotePressAndComboState({
+            notesList, keys, currentTime, isPreviewMode,
+            useIndexedNotes, notesIndex, keyPressDuration
+        }) {
+            const columnPressed = Array(keys).fill(false);
+            const columnLastReleaseTime = Array(keys).fill(-Infinity);
+            const activeHoldNotes = [];
+            let currentCombo = 0;
+            let isHoldingLN = false;
+
+            if (useIndexedNotes) {
+                const startUpper = upperBoundByStartTime(notesList, currentTime);
+                const tapLookbackStart = lowerBoundByStartTime(
+                    notesList,
+                    currentTime - keyPressDuration - STAGE_LIGHT_FADE_DURATION_MS - 1
+                );
+                for (let i = tapLookbackStart; i < startUpper; i++) {
+                    const note = notesList[i];
+                    if (note.isHold) continue;
+                    const col = note.column;
+                    if (col < 0 || col >= keys) continue;
+                    const noteEndTime = note.startTime + keyPressDuration;
+                    if (currentTime >= note.startTime && currentTime <= noteEndTime) {
+                        columnPressed[col] = true;
+                    } else if (currentTime > noteEndTime && noteEndTime > columnLastReleaseTime[col]) {
+                        columnLastReleaseTime[col] = noteEndTime;
+                    }
+                }
+
+                const holdUpper = upperBoundByStartTime(notesIndex.holds, currentTime);
+                const minHoldEndForLight = currentTime - STAGE_LIGHT_FADE_DURATION_MS - 1;
+                for (let j = holdUpper - 1; j >= 0; j--) {
+                    if (notesIndex.holdPrefixMaxEnd[j] < minHoldEndForLight) break;
+                    const note = notesIndex.holds[j];
+                    const col = note.column;
+                    if (currentTime <= note.endTime) {
+                        if (col >= 0 && col < keys) columnPressed[col] = true;
+                        activeHoldNotes.push(note);
+                        if (currentTime < note.endTime) isHoldingLN = true;
+                    } else if (col >= 0 && col < keys && note.endTime > columnLastReleaseTime[col]) {
+                        columnLastReleaseTime[col] = note.endTime;
+                    }
+                }
+                if (activeHoldNotes.length > 1) activeHoldNotes.reverse();
+                currentCombo = upperBoundFloat64(notesIndex.comboEventTimes, currentTime);
+            } else {
+                for (let i = 0; i < notesList.length; i++) {
+                    const note = notesList[i];
+                    const col = note.column;
+                    if (col < 0 || col >= keys) continue;
+                    const noteEndTime = note.isHold ? note.endTime : (note.startTime + keyPressDuration);
+                    if (currentTime >= note.startTime && currentTime <= noteEndTime) {
+                        columnPressed[col] = true;
+                    } else if (currentTime > noteEndTime && noteEndTime > columnLastReleaseTime[col]) {
+                        columnLastReleaseTime[col] = noteEndTime;
+                    }
+                }
+                if (!isPreviewMode) {
+                    for (let i = 0; i < notesList.length; i++) {
+                        const n = notesList[i];
+                        if (n.isHold) {
+                            if (currentTime >= n.startTime) {
+                                currentCombo++;
+                                if (currentTime < n.endTime) isHoldingLN = true;
+                            }
+                            if (n.ticks && n.ticks.length > 0) {
+                                for (let k = 0; k < n.ticks.length; k++) {
+                                    if (currentTime >= n.ticks[k]) {
+                                        currentCombo++;
+                                    } else {
+                                        break;
+                                    }
+                                }
+                            }
+                            if (currentTime >= n.endTime) {
+                                currentCombo++;
+                            }
+                        } else if (currentTime >= n.startTime) {
+                            currentCombo++;
+                        }
+                    }
+                } else {
+                    currentCombo = 100;
+                    isHoldingLN = false;
+                    for (let i = 0; i < notesList.length; i++) {
+                        const n = notesList[i];
+                        if (n.isHold && currentTime >= n.startTime && currentTime < n.endTime) {
+                            isHoldingLN = true;
+                        }
+                    }
+                }
+            }
+
+            return {
+                columnPressed,
+                columnLastReleaseTime,
+                activeHoldNotes,
+                currentCombo,
+                isHoldingLN
+            };
+        }
+
+        function advanceFrameNoteHitCursors({
+            notesList, currentTime, useIndexedNotes, notesIndex,
+            triggerPlaybackNoteJudgement
+        }) {
+            if (typeof scheduleManiaHitsounds === 'function') {
+                scheduleManiaHitsounds(currentTime);
+            }
+            const now = performance.now();
+            if (useIndexedNotes) {
+                if (currentTime < notesIndex.lastHitScanTime) {
+                    notesIndex.hitCursor = lowerBoundByStartTime(notesList, currentTime);
+                    notesIndex.tailHitCursor = lowerBoundByEndTime(notesIndex.holdsByEnd, currentTime);
+                }
+                const hitLimit = upperBoundByStartTime(notesList, currentTime);
+                for (let i = notesIndex.hitCursor; i < hitLimit; i++) {
+                    const note = notesList[i];
+                    if (!note.hit && currentTime >= note.startTime) {
+                        note.hit = true;
+                        // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
+                        if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
+                        // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
+                        if (!note.isHold) {
+                            triggerPlaybackNoteJudgement(now);
+                        }
+                        activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                    }
+                }
+                notesIndex.hitCursor = hitLimit;
+
+                const tailLimit = upperBoundByEndTime(notesIndex.holdsByEnd, currentTime);
+                for (let j = notesIndex.tailHitCursor; j < tailLimit; j++) {
+                    const note = notesIndex.holdsByEnd[j];
+                    if (!note.tailHit && currentTime >= note.endTime) {
+                        note.tailHit = true;
+                        if (!isPlaybackEventFresh(note.endTime, currentTime)) continue;
+                        activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                        triggerPlaybackNoteJudgement(now);
+                    }
+                }
+                notesIndex.tailHitCursor = tailLimit;
+                notesIndex.lastHitScanTime = currentTime;
+            } else {
+                for (let i = 0; i < notesList.length; i++) {
+                    const note = notesList[i];
+                    if (!note.hit && currentTime >= note.startTime) {
+                        note.hit = true;
+                        if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
+                        if (!note.isHold) {
+                            triggerPlaybackNoteJudgement(now);
+                        }
+                        activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
+                    }
+                }
+            }
         }
 // --- END render/frame-notes.js ---
 
@@ -10891,98 +11292,9 @@ async function getBeatmapDecoder() {
 // --- BEGIN render/frame.js ---
 // ============================================================================
 // frame.js - 主 Canvas 帧绘制：背景、轨道、音符、长条与特效
-// 依赖：render/textures.js、render/combo.js、core/state.js
+// 依赖：render/textures.js、render/combo.js、render/hold-note-geometry.js、
+//       render/frame-notes.js、core/state.js
 // ============================================================================
-
-        // 后台节流或页面卡顿恢复后，不能把已经错过的整段时间集中补播。
-        const PLAYBACK_EVENT_MAX_LATENESS_MS = 100;
-
-        function isPlaybackEventFresh(eventTime, currentTime) {
-            const lateness = Number(currentTime) - Number(eventTime);
-            return Number.isFinite(lateness) &&
-                lateness >= 0 &&
-                lateness <= PLAYBACK_EVENT_MAX_LATENESS_MS;
-        }
-
-        // osu!stable 长条时间锚点：
-        // - 头部贴图下端在 startTime 对应位置；按住后固定在判定线。
-        // - 尾部贴图下端在 endTime 对应位置。
-        function getStableHoldHeadAnchorY(note, currentScrollPosition, currentTime, hitPos, speedFactor) {
-            if (currentTime < note.startTime) {
-                return hitPos - (note.scrollPositionStart - currentScrollPosition) * speedFactor;
-            }
-            return hitPos;
-        }
-
-        function getStableHoldTailAnchorY(note, currentScrollPosition, hitPos, speedFactor) {
-            return hitPos - (note.scrollPositionEnd - currentScrollPosition) * speedFactor;
-        }
-
-        // 身体长度只等于头尾两个下端锚点之间的距离，不包含头部半高，也不受尾巴顶端影响。
-        // 身体近端位于头部贴图中心，因此远端自然为“尾端锚点 - 头部半高”。
-        function getStableHoldNoteGeometry(note, currentScrollPosition, currentTime, hitPos, speedFactor, headHeight, tailHeight) {
-            const headAnchorY = getStableHoldHeadAnchorY(
-                note, currentScrollPosition, currentTime, hitPos, speedFactor
-            );
-            const tailAnchorY = getStableHoldTailAnchorY(
-                note, currentScrollPosition, hitPos, speedFactor
-            );
-            const headTopY = headAnchorY - headHeight;
-            const headCenterY = headAnchorY - headHeight / 2;
-            const tailTopY = tailAnchorY - tailHeight;
-            const bodyBottomY = headCenterY;
-            const bodyLength = Math.max(0, headAnchorY - tailAnchorY);
-            const bodyTopY = bodyBottomY - bodyLength;
-
-            return {
-                headAnchorY,
-                headTopY,
-                headCenterY,
-                tailAnchorY,
-                tailTopY,
-                bodyTopY,
-                bodyBottomY,
-                bodyLength,
-                bodyHeight: Math.max(0, bodyBottomY - bodyTopY),
-                headFrozen: currentTime >= note.startTime
-            };
-        }
-
-        // NoteBodyStyle 只负责身体矩形内部的贴图取样方式，不改变身体矩形本身。
-        function drawStableHoldBodyTexture(targetCtx, image, style, x, width, bodyTopY, bodyHeight) {
-            if (!image || width <= 0 || bodyHeight <= 0.5) return;
-
-            const nativeW = image.width || 1;
-            const nativeH = image.height || 1;
-            const scaledNativeH = Math.max(1, nativeH * (width / nativeW));
-            const bodyBottomY = bodyTopY + bodyHeight;
-
-            targetCtx.save();
-            targetCtx.beginPath();
-            targetCtx.rect(x, bodyTopY, width, bodyHeight);
-            targetCtx.clip();
-
-            if (style === NOTE_BODY_STYLE.Stretch) {
-                targetCtx.drawImage(image, x, bodyTopY, width, bodyHeight);
-            } else if (style === NOTE_BODY_STYLE.RepeatTopAndBottom) {
-                for (let y = bodyTopY; y < bodyBottomY; y += scaledNativeH) {
-                    targetCtx.drawImage(image, x, y, width, scaledNativeH);
-                }
-                for (let y = bodyBottomY; y > bodyTopY; y -= scaledNativeH) {
-                    targetCtx.drawImage(image, x, y - scaledNativeH, width, scaledNativeH);
-                }
-            } else if (style === NOTE_BODY_STYLE.RepeatFromHead) {
-                for (let y = bodyBottomY; y > bodyTopY; y -= scaledNativeH) {
-                    targetCtx.drawImage(image, x, y - scaledNativeH, width, scaledNativeH);
-                }
-            } else {
-                for (let y = bodyTopY; y < bodyBottomY; y += scaledNativeH) {
-                    targetCtx.drawImage(image, x, y, width, scaledNativeH);
-                }
-            }
-
-            targetCtx.restore();
-        }
 
         function drawFrame() {
             // 纯皮肤预览（无谱面）时若渲染了多帧贴图，需要在函数末尾保持 rAF 循环，动画才会真正播放。
@@ -11214,100 +11526,29 @@ async function getBeatmapDecoder() {
                 };
 
                 if (isPreviewMode) {
-                    notesList = [];
-                    for (let c = 0; c < keys; c++) {
-                        const isHoldCol = (c === 1 || (keys > 4 && c === keys - 2));
-                        // 预览音符间距同样基于 480 虚拟网格，需乘 scale48 才能在不同画布尺寸下保持
-                        // 与真实演奏一致的相对布局（否则全屏时音符会全部挤在命中线附近）。
-                        const noteDist = (120 + (c % 4) * 80) * scale48;
-                        const startTime = (noteDist / speedFactor);
-                        if (isHoldCol) {
-                            const endTime = ((noteDist + 160 * scale48) / speedFactor);
-                            notesList.push({
-                                column: c,
-                                isHold: true,
-                                startTime: startTime,
-                                endTime: endTime,
-                                scrollPositionStart: startTime,
-                                scrollPositionEnd: endTime,
-                                hit: false,
-                                holdHeadFrozen: false
-                            });
-                        } else {
-                            notesList.push({
-                                column: c,
-                                isHold: false,
-                                startTime: startTime,
-                                endTime: startTime,
-                                scrollPositionStart: startTime,
-                                scrollPositionEnd: startTime,
-                                hit: false
-                            });
-                        }
-                    }
+                    notesList = buildPreviewDummyNotes(keys, scale48, speedFactor);
                 }
 
-                let columnPressed = Array(keys).fill(false);
-                let columnLastReleaseTime = Array(keys).fill(-Infinity);
                 const KEY_PRESS_DURATION = 90; // 单键音符贴图触碰判定线后的按键高亮时长(ms)
                 const notesIndex = (!isPreviewMode && notesList.length > 0 && typeof getOrBuildNotesRenderIndex === 'function')
                     ? getOrBuildNotesRenderIndex(notesList)
                     : null;
                 const useIndexedNotes = !!(notesIndex && notesIndex.sorted);
-                const activeHoldNotes = [];
-                let currentCombo = 0;
-                let isHoldingLN = false;
-
-                if (useIndexedNotes) {
-                    const startUpper = upperBoundByStartTime(notesList, currentTime);
-                    const tapLookbackStart = lowerBoundByStartTime(
-                        notesList,
-                        currentTime - KEY_PRESS_DURATION - STAGE_LIGHT_FADE_DURATION_MS - 1
-                    );
-                    for (let i = tapLookbackStart; i < startUpper; i++) {
-                        const note = notesList[i];
-                        if (note.isHold) continue;
-                        const col = note.column;
-                        if (col < 0 || col >= keys) continue;
-                        const noteEndTime = note.startTime + KEY_PRESS_DURATION;
-                        if (currentTime >= note.startTime && currentTime <= noteEndTime) {
-                            columnPressed[col] = true;
-                        } else if (currentTime > noteEndTime && noteEndTime > columnLastReleaseTime[col]) {
-                            columnLastReleaseTime[col] = noteEndTime;
-                        }
-                    }
-
-                    const holdUpper = upperBoundByStartTime(notesIndex.holds, currentTime);
-                    const minHoldEndForLight = currentTime - STAGE_LIGHT_FADE_DURATION_MS - 1;
-                    for (let j = holdUpper - 1; j >= 0; j--) {
-                        if (notesIndex.holdPrefixMaxEnd[j] < minHoldEndForLight) break;
-                        const note = notesIndex.holds[j];
-                        const col = note.column;
-                        if (currentTime <= note.endTime) {
-                            if (col >= 0 && col < keys) columnPressed[col] = true;
-                            activeHoldNotes.push(note);
-                            if (currentTime < note.endTime) isHoldingLN = true;
-                        } else if (col >= 0 && col < keys && note.endTime > columnLastReleaseTime[col]) {
-                            columnLastReleaseTime[col] = note.endTime;
-                        }
-                    }
-                    if (activeHoldNotes.length > 1) activeHoldNotes.reverse();
-                    currentCombo = upperBoundFloat64(notesIndex.comboEventTimes, currentTime);
-                } else {
-                    for (let i = 0; i < notesList.length; i++) {
-                        let note = notesList[i];
-                        const col = note.column;
-                        if (col < 0 || col >= keys) continue;
-                        const noteEndTime = note.isHold ? note.endTime : (note.startTime + KEY_PRESS_DURATION);
-                        if (currentTime >= note.startTime && currentTime <= noteEndTime) {
-                            columnPressed[col] = true;
-                        } else if (currentTime > noteEndTime) {
-                            if (noteEndTime > columnLastReleaseTime[col]) {
-                                columnLastReleaseTime[col] = noteEndTime;
-                            }
-                        }
-                    }
-                }
+                let {
+                    columnPressed,
+                    columnLastReleaseTime,
+                    activeHoldNotes,
+                    currentCombo,
+                    isHoldingLN
+                } = computeFrameNotePressAndComboState({
+                    notesList,
+                    keys,
+                    currentTime,
+                    isPreviewMode,
+                    useIndexedNotes,
+                    notesIndex,
+                    keyPressDuration: KEY_PRESS_DURATION
+                });
 
                 let currentX = startX;
                 const colXCache = [];
@@ -11349,44 +11590,6 @@ async function getBeatmapDecoder() {
                     stageLightFps, stageLightFadeDuration: STAGE_LIGHT_FADE_DURATION,
                     scale768, rectTop
                 });
-                // ---- 计算连击数与长按状态 ----
-                if (!useIndexedNotes) {
-                    if (!isPreviewMode) {
-                        for (let i = 0; i < notesList.length; i++) {
-                            const n = notesList[i];
-                            if (n.isHold) {
-                                if (currentTime >= n.startTime) {
-                                    currentCombo++;
-                                    if (currentTime < n.endTime) isHoldingLN = true;
-                                }
-                                // 对齐 std 模式 Slider 的 Tick 连击逻辑：长按过程中每经过一个 Tick，Combo 持续递增
-                                if (n.ticks && n.ticks.length > 0) {
-                                    for (let k = 0; k < n.ticks.length; k++) {
-                                        if (currentTime >= n.ticks[k]) {
-                                            currentCombo++;
-                                        } else {
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (currentTime >= n.endTime) {
-                                    currentCombo++;
-                                }
-                            } else {
-                                if (currentTime >= n.startTime) currentCombo++;
-                            }
-                        }
-                    } else {
-                        currentCombo = 100;
-                        isHoldingLN = false;
-                        for (let i = 0; i < notesList.length; i++) {
-                            const n = notesList[i];
-                            if (n.isHold && currentTime >= n.startTime && currentTime < n.endTime) {
-                                isHoldingLN = true;
-                            }
-                        }
-                    }
-                }
 
                 if (performance.now() < testHoldingUntil) {
                     isHoldingLN = true;
@@ -11473,58 +11676,13 @@ async function getBeatmapDecoder() {
                 };
 
                 if (!isPreviewMode) {
-                    if (typeof scheduleManiaHitsounds === 'function') {
-                        scheduleManiaHitsounds(currentTime);
-                    }
-                    const now = performance.now();
-                    if (useIndexedNotes) {
-                        if (currentTime < notesIndex.lastHitScanTime) {
-                            notesIndex.hitCursor = lowerBoundByStartTime(notesList, currentTime);
-                            notesIndex.tailHitCursor = lowerBoundByEndTime(notesIndex.holdsByEnd, currentTime);
-                        }
-                        const hitLimit = upperBoundByStartTime(notesList, currentTime);
-                        for (let i = notesIndex.hitCursor; i < hitLimit; i++) {
-                            const note = notesList[i];
-                            if (!note.hit && currentTime >= note.startTime) {
-                                note.hit = true;
-                                // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
-                                if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
-                                // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
-                                if (!note.isHold) {
-                                    triggerPlaybackNoteJudgement(now);
-                                }
-                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
-                            }
-                        }
-                        notesIndex.hitCursor = hitLimit;
-
-                        const tailLimit = upperBoundByEndTime(notesIndex.holdsByEnd, currentTime);
-                        for (let j = notesIndex.tailHitCursor; j < tailLimit; j++) {
-                            const note = notesIndex.holdsByEnd[j];
-                            if (!note.tailHit && currentTime >= note.endTime) {
-                                note.tailHit = true;
-                                if (!isPlaybackEventFresh(note.endTime, currentTime)) continue;
-                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
-                                triggerPlaybackNoteJudgement(now);
-                            }
-                        }
-                        notesIndex.tailHitCursor = tailLimit;
-                        notesIndex.lastHitScanTime = currentTime;
-                    } else {
-                        for (let i = 0; i < notesList.length; i++) {
-                            let note = notesList[i];
-                            if (!note.hit && currentTime >= note.startTime) {
-                                note.hit = true;
-                                // 隐藏期间错过的 note 仍保持已处理状态，但不补播瞬时反馈。
-                                if (!isPlaybackEventFresh(note.startTime, currentTime)) continue;
-                                // 单键音符触碰判定线时显示判定；长条音符按下时仅触发打击特效，松开(endTime)时才触发判定提示
-                                if (!note.isHold) {
-                                    triggerPlaybackNoteJudgement(now);
-                                }
-                                activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
-                            }
-                        }
-                    }
+                    advanceFrameNoteHitCursors({
+                        notesList,
+                        currentTime,
+                        useIndexedNotes,
+                        notesIndex,
+                        triggerPlaybackNoteJudgement
+                    });
                 }
 
                 // ---- 5. 录制长条身体与长条尾巴的绘制批次（与 Note 共用层级） ----
@@ -11573,166 +11731,16 @@ async function getBeatmapDecoder() {
                     if (earlyVisibleHolds.length > 1) earlyVisibleHolds.reverse();
                 }
 
-                const holdPreCullPad = Math.max(400, 400 * scale48);
-                const renderHoldNoteItem = (note) => {
-                    if (!note.isHold) return;
-                    if (currentTime >= note.endTime) {
-                        if (!useIndexedNotes && !note.tailHit) {
-                            note.tailHit = true;
-                            if (!isPlaybackEventFresh(note.endTime, currentTime)) return;
-                            const now = performance.now();
-                            activeExplosions.push({ column: note.column, hitTime: effectAnimClockMs, duration: 200 });
-                            if (!isPreviewMode) {
-                                triggerPlaybackNoteJudgement(now);
-                            }
-                        }
-                        return;
-                    }
-
-                    const headAnchorYPre = getStableHoldHeadAnchorY(
-                        note, currentScrollPosition, currentTime, hitPos, speedFactor
-                    );
-                    const tailAnchorYPre = getStableHoldTailAnchorY(
-                        note, currentScrollPosition, hitPos, speedFactor
-                    );
-                    note.holdHeadFrozen = currentTime >= note.startTime;
-                    if (headAnchorYPre < -100 || tailAnchorYPre > canvas.height + holdPreCullPad) return;
-
-                    const col = note.column;
-                    const w = colWidths[col];
-                    const colX = colXCache[col];
-
-                    const holdHeadImg = resolveAnimatedNoteImage(LML.HoldNoteHeadImage, col, note.startTime);
-                    const holdTailImg = resolveAnimatedNoteImage(LML.HoldNoteTailImage, col, note.endTime);
-
-                    const headDrawHeight = holdHeadImg ? getManiaNoteDrawHeight(keys, col, holdHeadImg, w, scale48, widthForNoteHeightScalePx) : Math.round(20 * scale48);
-                    const tailDrawHeight = holdTailImg ? getManiaNoteDrawHeight(keys, col, holdTailImg, w, scale48, widthForNoteHeightScalePx) : Math.round(20 * scale48);
-
-                    const holdGeometry = getStableHoldNoteGeometry(
-                        note, currentScrollPosition, currentTime, hitPos, speedFactor,
-                        headDrawHeight, tailDrawHeight
-                    );
-                    note.holdHeadFrozen = holdGeometry.headFrozen;
-
-                    const {
-                        headAnchorY,
-                        headTopY,
-                        headCenterY,
-                        tailAnchorY: tailBottomY,
-                        tailTopY,
-                        bodyTopY: bodyTop,
-                        bodyBottomY: bodyBottom,
-                        bodyHeight
-                    } = holdGeometry;
-
-                    const wholeTop = Math.min(headTopY, tailTopY, bodyTop);
-                    const wholeBottom = Math.max(headAnchorY, tailBottomY, bodyBottom);
-                    if (wholeBottom < -100 || wholeTop > canvas.height + 100) return;
-
-                    // 5a. 身体 (近端位于头部中心，长度只由头尾下端锚点决定)
-                    if (bodyHeight > 0.5) {
-                        const holdBodyImg = resolveAnimatedNoteImage(LML.HoldNoteBodyImage, col);
-                        if (canvasEditMode && bodyHeight > 4 && bodyTop < canvas.height && bodyBottom > 0 && bodyTop <= hitPos + 25) {
-                            activeNoteElements.push({
-                                id: `hold_body_${col}`,
-                                noteInstanceKey: `hold_body_${col}_${note.startTime}`,
-                                name: `第 ${col + 1} 轨长条身`,
-                                paramKey: `NoteImage${col}L`,
-                                fallbackParamKey: 'HoldNoteBodyImage',
-                                category: 'Mania',
-                                x: colX,
-                                y: rectTop(bodyTop, bodyHeight),
-                                w: w,
-                                h: bodyHeight,
-                                isTexture: true,
-                                textureName: holdBodyTextureNames ? holdBodyTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteBodyImage, col),
-                                textureKey: LML.HoldNoteBodyImage,
-                                colIndex: col,
-                                dragAxis: null,
-                                valFormatter: () => `第 ${col + 1} 轨长条身`
-                            });
-                        }
-
-                        if (holdBodyImg) {
-                            let style = colNoteBodyStyles[col];
-                            if (style === undefined) {
-                                const nbsRes = getManiaSkinConfig(keys, LML.NoteBodyStyle, col);
-                                style = (nbsRes && nbsRes.value != null) ? nbsRes.value : NOTE_BODY_STYLE.RepeatFromTail;
-                                colNoteBodyStyles[col] = style;
-                            }
-                            drawStableHoldBodyTexture(ctx, holdBodyImg, style, colX, w, bodyTop, bodyHeight);
-                        } else {
-                            const inset = 5;
-                            const bx = colX + inset;
-                            const bw = w - inset * 2;
-                            const grad = ctx.createLinearGradient(bx, bodyTop, bx, bodyBottom);
-                            const baseColor = col % 2 === 0 ? '0, 229, 255' : '255, 255, 255';
-                            grad.addColorStop(0, `rgba(${baseColor}, 0.55)`);
-                            grad.addColorStop(1, `rgba(${baseColor}, 0.75)`);
-                            ctx.fillStyle = grad;
-                            roundRect(ctx, bx, bodyTop, bw, bodyHeight, 4);
-                            ctx.fill();
-
-                            ctx.save();
-                            ctx.globalAlpha = 0.35;
-                            ctx.fillStyle = `rgba(255,255,255,0.85)`;
-                            ctx.fillRect(bx + bw * 0.35, bodyTop + 2, bw * 0.3, bodyHeight);
-                            ctx.restore();
-                        }
-                    }
-
-                    // 5b. 尾巴 (到达头部中点即停止渲染)
-                    if (tailBottomY > -tailDrawHeight * 2 && tailTopY < canvas.height + tailDrawHeight * 2) {
-                        if (canvasEditMode && tailBottomY <= hitPos + 25) {
-                            activeNoteElements.push({
-                                id: `hold_tail_${col}`,
-                                noteInstanceKey: `hold_tail_${col}_${note.startTime}`,
-                                name: `第 ${col + 1} 轨长条尾`,
-                                paramKey: `NoteImage${col}T`,
-                                fallbackParamKey: 'HoldNoteTailImage',
-                                category: 'Mania',
-                                x: colX,
-                                y: rectTop(tailTopY, tailDrawHeight),
-                                w: w,
-                                h: tailDrawHeight,
-                                isTexture: true,
-                                textureName: holdTailTextureNames ? holdTailTextureNames[col] : getManiaNoteTextureName(keys, LML.HoldNoteTailImage, col),
-                                textureKey: LML.HoldNoteTailImage,
-                                colIndex: col,
-                                dragAxis: null,
-                                valFormatter: () => `第 ${col + 1} 轨长条尾`
-                            });
-                        }
-
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.rect(0, 0, canvas.width, Math.max(0, headCenterY));
-                        ctx.clip();
-
-                        if (holdTailImg) {
-                            ctx.save();
-                            ctx.translate(colX, tailBottomY);
-                            ctx.scale(1, -1);
-                            ctx.drawImage(holdTailImg, 0, 0, w, tailDrawHeight);
-                            ctx.restore();
-                        } else {
-                            ctx.fillStyle = col % 2 === 0 ? '#00b8d4' : '#cccccc';
-                            const rh = tailDrawHeight;
-                            roundRect(ctx, colX + 4, tailTopY, w - 8, rh, 4);
-                            ctx.fill();
-                        }
-                        ctx.restore();
-                    }
-                };
-
-                const renderHoldNotes = () => {
-                    for (let i = 0; i < earlyVisibleHolds.length; i++) {
-                        renderHoldNoteItem(earlyVisibleHolds[i]);
-                    }
-                    for (let i = visStartIdx; i < visEndIdx; i++) {
-                        renderHoldNoteItem(notesList[i]);
-                    }
-                };
+                const renderHoldNotes = createHoldNotesRenderer({
+                    notesList, earlyVisibleHolds, visStartIdx, visEndIdx,
+                    useIndexedNotes, isPreviewMode, colWidths, colXCache,
+                    hitPos, currentScrollPosition, speedFactor, canvas,
+                    canvasEditMode, activeNoteElements, currentTime,
+                    resolveAnimatedNoteImage, keys, scale48, rectTop,
+                    widthForNoteHeightScalePx, colNoteBodyStyles,
+                    holdBodyTextureNames, holdTailTextureNames,
+                    triggerPlaybackNoteJudgement
+                });
 
                 // ---- 6 & 7. 渲染按键 KeyImage 与 Note ----
                 // 依据 skin.ini 中的 KeysUnderNotes 参数决定图层层叠顺序：
@@ -15921,35 +15929,31 @@ void primeDefaultSkin();
 // 依赖：skin/parameter-schema.js、skin/mania-config.js
 // ============================================================================
 
+        const CANONICAL_STATIC_IMAGE_KEYS = {
+            stageleft: 'StageLeft',
+            stageright: 'StageRight',
+            stagebottom: 'StageBottom',
+            stagehint: 'StageHint',
+            stagelight: 'StageLight',
+            lightingn: 'LightingN',
+            lightingl: 'LightingL',
+            warningarrow: 'WarningArrow',
+            hit300g: 'Hit300g',
+            hit300: 'Hit300',
+            hit200: 'Hit200',
+            hit100: 'Hit100',
+            hit50: 'Hit50',
+            hit0: 'Hit0'
+        };
+
         function canonicalizeImageKey(key) {
             const name = String(key || '');
             if (isOfficialManiaImageKey(name)) return name;
-            const column = '(?:1[0-7]|[0-9])';
-            const patterns = [
-                [new RegExp('^keyimage(' + column + ')d$', 'i'), function (match) { return 'KeyImage' + match[1] + 'D'; }],
-                [new RegExp('^keyimage(' + column + ')$', 'i'), function (match) { return 'KeyImage' + match[1]; }],
-                [new RegExp('^noteimage(' + column + ')([hlt])$', 'i'), function (match) { return 'NoteImage' + match[1] + match[2].toUpperCase(); }],
-                [new RegExp('^noteimage(' + column + ')$', 'i'), function (match) { return 'NoteImage' + match[1]; }],
-                [/^stageleft$/i, function () { return 'StageLeft'; }],
-                [/^stageright$/i, function () { return 'StageRight'; }],
-                [/^stagebottom$/i, function () { return 'StageBottom'; }],
-                [/^stagehint$/i, function () { return 'StageHint'; }],
-                [/^stagelight$/i, function () { return 'StageLight'; }],
-                [/^lightingn$/i, function () { return 'LightingN'; }],
-                [/^lightingl$/i, function () { return 'LightingL'; }],
-                [/^warningarrow$/i, function () { return 'WarningArrow'; }],
-                [/^hit300g$/i, function () { return 'Hit300g'; }],
-                [/^hit300$/i, function () { return 'Hit300'; }],
-                [/^hit200$/i, function () { return 'Hit200'; }],
-                [/^hit100$/i, function () { return 'Hit100'; }],
-                [/^hit50$/i, function () { return 'Hit50'; }],
-                [/^hit0$/i, function () { return 'Hit0'; }]
-            ];
-            for (const entry of patterns) {
-                const match = name.match(entry[0]);
-                if (match) return entry[1](match);
-            }
-            return null;
+            const parsed = typeof parseManiaTextureParamKey === 'function'
+                ? parseManiaTextureParamKey(name)
+                : null;
+            if (parsed && parsed.isIniImageKey) return parsed.canonicalKey;
+            return CANONICAL_STATIC_IMAGE_KEYS[name.toLowerCase()] || null;
         }
 
         function splitIniExportKeyVal(line) {
@@ -16938,43 +16942,12 @@ void primeDefaultSkin();
             const low = pKey.toLowerCase();
 
             // 1. 轨道特定贴图参数判定 (NoteImage0..N, NoteImage0H, HoldNoteHeadImage0..N, KeyImage0..N 等)
-            const mNote = low.match(/^noteimage(\d+)([hlt])?$/);
-            if (mNote) {
-                const num = mNote[1];
-                const s = mNote[2] ? mNote[2].toUpperCase() : '';
-                if (s === 'H') {
-                    if (!aliases.includes(`NoteImage${num}H`)) aliases.push(`NoteImage${num}H`);
-                    if (!aliases.includes(`HoldNoteHeadImage${num}`)) aliases.push(`HoldNoteHeadImage${num}`);
-                } else if (s === 'L') {
-                    if (!aliases.includes(`NoteImage${num}L`)) aliases.push(`NoteImage${num}L`);
-                    if (!aliases.includes(`HoldNoteBodyImage${num}`)) aliases.push(`HoldNoteBodyImage${num}`);
-                } else if (s === 'T') {
-                    if (!aliases.includes(`NoteImage${num}T`)) aliases.push(`NoteImage${num}T`);
-                    if (!aliases.includes(`HoldNoteTailImage${num}`)) aliases.push(`HoldNoteTailImage${num}`);
-                } else {
-                    if (!aliases.includes(`NoteImage${num}`)) aliases.push(`NoteImage${num}`);
-                }
-                return aliases;
-            }
-
-            const mHold = low.match(/^holdnote(head|body|tail)image(\d+)$/);
-            if (mHold) {
-                const type = mHold[1];
-                const num = mHold[2];
-                const s = (type === 'head') ? 'H' : ((type === 'body') ? 'L' : 'T');
-                const typeCap = type.charAt(0).toUpperCase() + type.slice(1);
-                if (!aliases.includes(`NoteImage${num}${s}`)) aliases.push(`NoteImage${num}${s}`);
-                if (!aliases.includes(`HoldNote${typeCap}Image${num}`)) aliases.push(`HoldNote${typeCap}Image${num}`);
-                return aliases;
-            }
-
-            const mKey = low.match(/^keyimage(\d+)(d|down)?$/);
-            if (mKey) {
-                const num = mKey[1];
-                if (mKey[2]) {
-                    aliases.push(`KeyImage${num}D`, `KeyImage${num}Down`, `KeyImageDown${num}`);
-                } else {
-                    aliases.push(`KeyImage${num}`);
+            const parsedTrackKey = typeof parseManiaTextureParamKey === 'function'
+                ? parseManiaTextureParamKey(pKey)
+                : null;
+            if (parsedTrackKey && parsedTrackKey.column != null) {
+                for (const alias of parsedTrackKey.aliases) {
+                    if (!aliases.includes(alias)) aliases.push(alias);
                 }
                 return aliases;
             }
@@ -17977,10 +17950,10 @@ void primeDefaultSkin();
         }
 // --- END ui/texture-param-lookup.js ---
 
-// --- BEGIN ui/texture-solid-shape-factory.js ---
+// --- BEGIN ui/texture-solid-shape-geometry.js ---
 // ============================================================================
-// texture-solid-shape-factory.js - 任意尺寸纯色图层与形状蒙版画布工厂
-// 依赖：无；只使用浏览器 Canvas 2D API。
+// texture-solid-shape-geometry.js - 纯色图层规格校验与矢量几何路径绘制
+// 从 texture-solid-shape-factory.js 按职责拆分；所有脚本共享既有经典脚本作用域。
 // ============================================================================
 
         const TEXTURE_SOLID_SHAPE_MAX_DIMENSION = 50000;
@@ -18537,6 +18510,30 @@ void primeDefaultSkin();
             ctx.rect(0, 0, width, height);
         }
 
+        function drawTextureSolidShape(ctx, width, height, shape, rgba, options = {}) {
+            if (shape.startsWith('arrow-')) {
+                drawTextureArrow(ctx, width, height, shape, rgba, options);
+                return;
+            }
+            ctx.fillStyle = `rgba(${rgba.r}, ${rgba.g}, ${rgba.b}, ${rgba.a})`;
+            ctx.beginPath();
+            appendTextureSolidShapePath(
+                ctx,
+                width,
+                height,
+                shape,
+                options.cornerRadius
+            );
+            ctx.fill();
+        }
+// --- END ui/texture-solid-shape-geometry.js ---
+
+// --- BEGIN ui/texture-solid-shape-factory.js ---
+// ============================================================================
+// texture-solid-shape-factory.js - 像素描边光栅化器与纯色图层合成工厂
+// 依赖：ui/texture-solid-shape-geometry.js
+// ============================================================================
+
         function createTexturePixelBoundaryStrokeCanvas(fillCanvas, options = {}) {
             const width = Number(fillCanvas && fillCanvas.width);
             const height = Number(fillCanvas && fillCanvas.height);
@@ -18757,23 +18754,6 @@ void primeDefaultSkin();
             if (!strokeCtx) return strokeCanvas;
             strokeCtx.putImageData(fillData, 0, 0);
             return strokeCanvas;
-        }
-
-        function drawTextureSolidShape(ctx, width, height, shape, rgba, options = {}) {
-            if (shape.startsWith('arrow-')) {
-                drawTextureArrow(ctx, width, height, shape, rgba, options);
-                return;
-            }
-            ctx.fillStyle = `rgba(${rgba.r}, ${rgba.g}, ${rgba.b}, ${rgba.a})`;
-            ctx.beginPath();
-            appendTextureSolidShapePath(
-                ctx,
-                width,
-                height,
-                shape,
-                options.cornerRadius
-            );
-            ctx.fill();
         }
 
         function createSolidShapeTexture(options = {}) {
@@ -23162,11 +23142,752 @@ void primeDefaultSkin();
         }
 // --- END ui/comboburst-editor.js ---
 
+// --- BEGIN ui/param-render-controls.js ---
+// ============================================================================
+// param-render-controls.js - 皮肤参数控件卡片渲染辅助
+// 从 param-render.js 按控件类型拆分；所有脚本共享既有经典脚本作用域。
+// ============================================================================
+
+        function getSkinParamDisplayValue(p, cfg, keys) {
+            let val = p.default;
+            if (p.key === 'ScorePercentWidth') {
+                return getScorePercentPaddingWidth(keys);
+            }
+            if (p.key === 'ScorePercentVisible') {
+                return getScorePercentVisibility(keys);
+            }
+            if (p.key === 'ComboBurstRandom') {
+                return !!(currentSkinMetadata.general &&
+                    (currentSkinMetadata.general.ComboBurstRandom === 1 ||
+                     currentSkinMetadata.general.ComboBurstRandom === '1' ||
+                     currentSkinMetadata.general.ComboBurstRandom === true));
+            }
+            if (p.tab === 'mania' || p.tab === 'textures') {
+                if (cfg[p.key] !== undefined && cfg[p.key] !== null) val = cfg[p.key];
+            } else if (p.tab === 'fonts') {
+                if (p.key === 'ScorePrefix') {
+                    val = (cfg && cfg.FontScore) || skinFontsConfig.scorePrefix || 'score';
+                } else if (p.key === 'ScoreOverlap') {
+                    val = getSkinFontOverlap('score', keys);
+                } else if (p.key === 'ComboPrefix') {
+                    // 显示「实际生效」的连击字体前缀：ini 显式指定了 [Mania] FontCombo / [Fonts] ComboPrefix 才有值，
+                    // 都没有时留空 (占位符会说明实际沿用 score 字体贴图)，避免面板与画布不一致
+                    val = getExplicitComboFontPrefix(keys) || '';
+                } else if (p.key === 'ComboOverlap') {
+                    val = getSkinFontOverlap('combo', keys);
+                } else if (p.key === 'HitCirclePrefix') {
+                    val = skinFontsConfig.hitCirclePrefix || 'default';
+                } else if (p.key === 'HitCircleOverlap') {
+                    val = skinFontsConfig.hitCircleOverlap != null
+                        ? skinFontsConfig.hitCircleOverlap
+                        : -2;
+                }
+            } else if (p.tab === 'general') {
+                if (currentSkinMetadata.general && currentSkinMetadata.general[p.key] !== undefined) {
+                    val = currentSkinMetadata.general[p.key];
+                }
+            } else if (p.tab === 'colours') {
+                if (currentSkinMetadata.colours && currentSkinMetadata.colours[p.key] !== undefined) {
+                    val = currentSkinMetadata.colours[p.key];
+                }
+            }
+            return val;
+        }
+
+        function buildSkinParamNumberControl(p, val) {
+            const numVal = (typeof val === 'number') ? val : (parseFloat(val) || p.default);
+            const combo = document.createElement('div');
+            combo.className = 'slider-input-combo';
+
+            const range = document.createElement('input');
+            range.type = 'range';
+            range.min = p.min;
+            range.max = p.max;
+            range.step = p.step;
+            range.value = numVal;
+
+            const updateRangeFill = (v) => {
+                const min = (p.min != null) ? p.min : 0;
+                const max = (p.max != null) ? p.max : 100;
+                const vf = (v != null && !isNaN(parseFloat(v))) ? parseFloat(v) : min;
+                const pct = max > min ? Math.min(100, Math.max(0, ((vf - min) / (max - min)) * 100)) : 0;
+                range.style.setProperty('--slider-pct', `${pct}%`);
+            };
+            updateRangeFill(numVal);
+
+            const num = document.createElement('input');
+            num.type = 'number';
+            num.min = p.min;
+            num.max = p.max;
+            num.step = p.step;
+            num.value = numVal;
+
+            range.oninput = (e) => {
+                updateRangeFill(e.target.value);
+                num.value = e.target.value;
+                onParamChange(p.key, parseFloat(e.target.value));
+            };
+            num.onchange = (e) => {
+                range.value = e.target.value;
+                updateRangeFill(e.target.value);
+                onParamChange(p.key, parseFloat(e.target.value));
+            };
+
+            combo.appendChild(range);
+            combo.appendChild(num);
+            return combo;
+        }
+
+        function buildSkinParamBooleanControl(p, val) {
+            const isChecked = !!(val === true || val === 1 || val === '1' || val === 'true');
+            const toggleBox = document.createElement('div');
+            toggleBox.style.display = 'flex';
+            toggleBox.style.alignItems = 'center';
+            toggleBox.style.gap = '8px';
+
+            const toggleLabel = document.createElement('label');
+            toggleLabel.className = 'ios-switch';
+            toggleLabel.innerHTML = `
+                <input type="checkbox" ${isChecked ? 'checked' : ''}>
+                <span class="slider"></span>
+            `;
+            const statusSpan = document.createElement('span');
+            statusSpan.style.fontSize = '0.8rem';
+            statusSpan.style.color = isChecked ? '#ffffff' : 'rgba(255,255,255,0.45)';
+            statusSpan.textContent = isChecked ? '开启' : '关闭';
+
+            const chk = toggleLabel.querySelector('input');
+            chk.onchange = (e) => {
+                statusSpan.textContent = e.target.checked ? '开启' : '关闭';
+                statusSpan.style.color = e.target.checked ? '#ffffff' : 'rgba(255,255,255,0.45)';
+                onParamChange(
+                    p.key,
+                    e.target.checked,
+                    null,
+                    p.key === 'ComboBurstRandom' ? { force: true } : {}
+                );
+            };
+
+            toggleBox.appendChild(toggleLabel);
+            toggleBox.appendChild(statusSpan);
+            return toggleBox;
+        }
+
+        function buildSkinParamSelectControl(p, val) {
+            const select = document.createElement('select');
+            select.className = 'param-select';
+            for (const opt of p.options) {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.label;
+                if (String(opt.value) === String(val)) option.selected = true;
+                select.appendChild(option);
+            }
+            select.onchange = (e) => onParamChange(
+                p.key,
+                e.target.value,
+                null,
+                p.key === 'ComboBurstStyle' ? { force: true } : {}
+            );
+            return select;
+        }
+
+        function buildSkinParamColorControl(p, val) {
+            const combo = document.createElement('div');
+            combo.className = 'color-picker-combo';
+
+            const rgbStr = (typeof val === 'object' && val) ? `${val.r || 255},${val.g || 0},${val.b || 0}` : String(val);
+            const parts = rgbStr.split(',').map(s => parseInt(s.trim(), 10) || 0);
+            const hex = `#${((1 << 24) + (parts[0] << 16) + (parts[1] << 8) + parts[2]).toString(16).slice(1)}`;
+
+            const picker = document.createElement('input');
+            picker.type = 'color';
+            picker.value = hex;
+
+            const text = document.createElement('input');
+            text.type = 'text';
+            text.className = 'color-text';
+            text.value = rgbStr;
+
+            picker.oninput = (e) => {
+                const h = e.target.value;
+                const r = parseInt(h.slice(1, 3), 16);
+                const g = parseInt(h.slice(3, 5), 16);
+                const b = parseInt(h.slice(5, 7), 16);
+                text.value = `${r},${g},${b}`;
+                onParamChange(p.key, text.value);
+                if (p.key === 'ComboBreakColour') {
+                    triggerComboBreakPreview();
+                }
+            };
+            text.onchange = (e) => {
+                onParamChange(p.key, e.target.value);
+                if (p.key === 'ComboBreakColour') {
+                    triggerComboBreakPreview();
+                }
+            };
+
+            combo.appendChild(picker);
+            combo.appendChild(text);
+
+            if (p.key === 'ComboBreakColour') {
+                const previewBreakBtn = document.createElement('button');
+                previewBreakBtn.type = 'button';
+                previewBreakBtn.className = 'col-colour-preview-btn';
+                previewBreakBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    <span>预览断连</span>
+                `;
+                previewBreakBtn.onclick = () => {
+                    triggerComboBreakPreview();
+                };
+                combo.appendChild(previewBreakBtn);
+            }
+
+            return combo;
+        }
+
+        function buildSkinParamColourHoldControl(cfg) {
+            const curHold = cfg.ColourHold || { r: 255, g: 191, b: 51, a: 255 };
+            const curHex = `#${((1 << 24) + (curHold.r << 16) + (curHold.g << 8) + curHold.b).toString(16).slice(1)}`;
+
+            const mainControls = document.createElement('div');
+            mainControls.className = 'colour-hold-controls';
+
+            const picker = document.createElement('input');
+            picker.type = 'color';
+            picker.className = 'col-colour-picker';
+            picker.value = curHex;
+
+            const alphaSlider = document.createElement('input');
+            alphaSlider.type = 'range';
+            alphaSlider.min = 0;
+            alphaSlider.max = 255;
+            alphaSlider.step = 1;
+            alphaSlider.value = (curHold.a != null) ? curHold.a : 255;
+            alphaSlider.className = 'col-colour-slider';
+            const holdInitPct = Math.max(0, Math.min(100, Math.round(alphaSlider.value / 255 * 100))) + '%';
+            alphaSlider.style.setProperty('--slider-pct', holdInitPct);
+
+            const alphaLabel = document.createElement('span');
+            alphaLabel.className = 'col-colour-val';
+            const updateHoldLabel = (a) => {
+                const pct = Math.max(0, Math.min(100, Math.round(a / 255 * 100)));
+                alphaLabel.textContent = `A: ${a} (${pct}%)`;
+                alphaSlider.style.setProperty('--slider-pct', `${pct}%`);
+            };
+            updateHoldLabel(parseInt(alphaSlider.value, 10));
+
+            const previewHoldBtn = document.createElement('button');
+            previewHoldBtn.type = 'button';
+            previewHoldBtn.className = 'col-colour-preview-btn';
+            previewHoldBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>预览变色</span>
+            `;
+
+            const updateColourHold = () => {
+                recordSkinUndoBeforeChange('调整按住hold时连击字体颜色');
+                const hex = picker.value;
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                const a = parseInt(alphaSlider.value, 10);
+                updateHoldLabel(a);
+                cfg.ColourHold = { r, g, b, a };
+                testHoldingUntil = performance.now() + 2500;
+                drawFrame();
+            };
+
+            previewHoldBtn.onclick = () => {
+                testHoldingUntil = performance.now() + 2500;
+                drawFrame();
+            };
+
+            picker.oninput = updateColourHold;
+            alphaSlider.oninput = updateColourHold;
+
+            mainControls.appendChild(picker);
+            mainControls.appendChild(alphaSlider);
+            mainControls.appendChild(alphaLabel);
+            mainControls.appendChild(previewHoldBtn);
+            return mainControls;
+        }
+
+        function buildSkinParamColourBarlineControl(cfg) {
+            const curBarline = cfg.ColourBarline || { r: 255, g: 255, b: 255, a: 255 };
+            const curHex = `#${((1 << 24) + (curBarline.r << 16) + (curBarline.g << 8) + curBarline.b).toString(16).slice(1)}`;
+
+            const mainControls = document.createElement('div');
+            mainControls.className = 'colour-barline-controls';
+
+            const picker = document.createElement('input');
+            picker.type = 'color';
+            picker.className = 'col-colour-picker';
+            picker.value = curHex;
+            picker.title = '选择小节线颜色';
+
+            const alphaSlider = document.createElement('input');
+            alphaSlider.type = 'range';
+            alphaSlider.min = 0;
+            alphaSlider.max = 255;
+            alphaSlider.step = 1;
+            alphaSlider.value = (curBarline.a != null) ? curBarline.a : 255;
+            alphaSlider.className = 'col-colour-slider';
+            alphaSlider.title = '调整小节线透明度';
+            const pctInit = ((alphaSlider.value / 255) * 100).toFixed(1) + '%';
+            alphaSlider.style.setProperty('--slider-pct', pctInit);
+
+            const alphaLabel = document.createElement('span');
+            alphaLabel.className = 'col-colour-val';
+            const updateBarlineLabel = (a) => {
+                const pct = Math.round(a / 255 * 100);
+                alphaLabel.textContent = `A: ${a} (${pct}%)`;
+            };
+            updateBarlineLabel(parseInt(alphaSlider.value, 10));
+
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.className = 'color-text';
+            textInput.value = `${curBarline.r},${curBarline.g},${curBarline.b},${curBarline.a != null ? curBarline.a : 255}`;
+            textInput.title = '直接输入 RGBA 格式数值 (r,g,b,a)';
+
+            const updateColourBarline = (recordUndo = true) => {
+                const hex = picker.value;
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                const a = parseInt(alphaSlider.value, 10);
+                const prevBarline = cfg.ColourBarline;
+                const prevAlpha = prevBarline && prevBarline.a != null ? prevBarline.a : 255;
+                const isSameBarline = !!prevBarline &&
+                    prevBarline.r === r &&
+                    prevBarline.g === g &&
+                    prevBarline.b === b &&
+                    prevAlpha === a;
+                if (recordUndo && !isSameBarline) {
+                    recordSkinUndoBeforeChange('调整小节线颜色');
+                }
+                const pct = ((a / 255) * 100).toFixed(1) + '%';
+                alphaSlider.style.setProperty('--slider-pct', pct);
+                updateBarlineLabel(a);
+                textInput.value = `${r},${g},${b},${a}`;
+                cfg.ColourBarline = { r, g, b, a };
+                drawFrame();
+            };
+
+            picker.oninput = () => updateColourBarline(true);
+            picker.onchange = () => updateColourBarline(true);
+            alphaSlider.oninput = () => updateColourBarline(true);
+            alphaSlider.onchange = () => updateColourBarline(true);
+
+            textInput.onchange = (e) => {
+                const parts = e.target.value.split(',').map(s => parseInt(s.trim(), 10));
+                if (parts.length >= 3 && !parts.slice(0, 3).some(isNaN)) {
+                    recordSkinUndoBeforeChange('调整小节线颜色');
+                    const r = Math.max(0, Math.min(255, parts[0]));
+                    const g = Math.max(0, Math.min(255, parts[1]));
+                    const b = Math.max(0, Math.min(255, parts[2]));
+                    const a = (parts.length >= 4 && !isNaN(parts[3])) ? Math.max(0, Math.min(255, parts[3])) : 255;
+                    cfg.ColourBarline = { r, g, b, a };
+                    picker.value = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+                    alphaSlider.value = a;
+                    const pct = ((a / 255) * 100).toFixed(1) + '%';
+                    alphaSlider.style.setProperty('--slider-pct', pct);
+                    updateBarlineLabel(a);
+                    textInput.value = `${r},${g},${b},${a}`;
+                    drawFrame();
+                }
+            };
+
+            mainControls.appendChild(picker);
+            mainControls.appendChild(alphaSlider);
+            mainControls.appendChild(alphaLabel);
+            mainControls.appendChild(textInput);
+            return mainControls;
+        }
+
+        function appendSkinParamArrayNumberControls(controlRow, p, val, keys) {
+            let arrVal = Array.isArray(val) ? [...val] : String(val).split(',').map(s => parseFloat(s.trim()) || 0);
+            const arrStr = arrVal.map(Math.round).join(',');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'param-text-input';
+            input.value = arrStr;
+            input.placeholder = (p.key === 'ColumnLineWidth')
+                ? '以逗号隔开的数组 (如 2,2,2,2,2)'
+                : '以逗号隔开的数组 (如 30,30,30,30)';
+            controlRow.appendChild(input);
+
+            // 渲染各轨独立快速微调输入框 chips (支持各轨道宽度与间距直接修改)
+            const chipsGrid = document.createElement('div');
+            chipsGrid.className = 'array-chips-grid';
+
+            const numChips = (p.key === 'ColumnSpacing')
+                ? Math.max(0, keys - 1)
+                : ((p.key === 'ColumnLineWidth') ? keys + 1 : keys);
+            for (let c = 0; c < numChips; c++) {
+                const chip = document.createElement('div');
+                chip.className = 'array-chip';
+                const label = document.createElement('span');
+                label.className = 'chip-label';
+                if (p.key === 'ColumnSpacing') {
+                    label.textContent = `轨${c + 1}-${c + 2}距`;
+                } else if (p.key === 'ColumnLineWidth') {
+                    if (c === 0) label.textContent = '左边界';
+                    else if (c === keys) label.textContent = '右边界';
+                    else label.textContent = `轨${c}-${c + 1}线`;
+                } else {
+                    label.textContent = `第${c + 1}轨宽`;
+                }
+
+                const chipInput = document.createElement('input');
+                chipInput.type = 'number';
+                chipInput.className = 'array-chip-input';
+                chipInput.min = p.min != null ? p.min : 0;
+                chipInput.max = p.max != null ? p.max : 300;
+                chipInput.value = (arrVal[c] != null) ? Math.round(arrVal[c]) : (p.default || 0);
+
+                chipInput.oninput = () => {
+                    const num = parseFloat(chipInput.value) || 0;
+                    arrVal[c] = num;
+                    input.value = arrVal.map(Math.round).join(',');
+                    // 传入改动下标：超限时只收敛当前这一项，并即时回写实际生效值
+                    const applied = onParamChange(p.key, arrVal, c);
+                    if (Array.isArray(applied)) {
+                        arrVal = applied.slice();
+                        input.value = applied.map(Math.round).join(',');
+                        if (Math.round(applied[c]) !== Math.round(num)) {
+                            chipInput.value = Math.round(applied[c]);
+                        }
+                    }
+                };
+
+                chip.appendChild(label);
+                chip.appendChild(chipInput);
+                chipsGrid.appendChild(chip);
+            }
+            controlRow.appendChild(chipsGrid);
+
+            input.onchange = (e) => {
+                const typed = String(e.target.value).split(',').map(s => parseFloat(s.trim()) || 0);
+                // 整组替换：若轨道区总宽度超限则本次修改不予采纳，并回写实际生效值
+                const applied = onParamChange(p.key, e.target.value);
+                const parts = Array.isArray(applied) ? applied : typed;
+                arrVal = parts.slice();
+                const allInputs = chipsGrid.querySelectorAll('.array-chip-input');
+                allInputs.forEach((ci, idx) => {
+                    if (parts[idx] !== undefined) ci.value = Math.round(parts[idx]);
+                });
+                const changed = parts.length !== typed.length
+                    || parts.some((v, i) => Math.round(v) !== Math.round(typed[i]));
+                if (changed) input.value = parts.map(v => Math.round(v)).join(',');
+            };
+        }
+
+        function buildSkinParamTextControl(p, val, keys) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'param-text-input';
+            input.value = (val !== undefined && val !== null) ? val : '';
+            // 连击数字前缀：留空时提示「实际沿用 score 字体贴图」，避免与画布渲染结果不一致
+            if (p.key === 'ComboPrefix') {
+                const effComboFont = getExplicitComboFontPrefix(keys);
+                input.placeholder = effComboFont
+                    ? `如 ${effComboFont}-0.png`
+                    : 'ini 未指定 (实际使用: score 字体贴图)';
+            }
+            input.onchange = (e) => onParamChange(p.key, e.target.value);
+            return input;
+        }
+
+        function buildSkinParamCard(p, cfg, keys) {
+            const card = document.createElement('div');
+            card.className = 'param-card';
+            card.id = `param-card-${p.key}`;
+
+            const val = getSkinParamDisplayValue(p, cfg, keys);
+
+            // Card 头部
+            const header = document.createElement('div');
+            header.className = 'param-card-header';
+            header.innerHTML = `
+                <div class="param-names">
+                    <span class="param-zh-name">${p.zhName}</span>
+                    ${p.desc ? `
+                        <span class="param-info-trigger" tabindex="0">
+                            <span class="param-info-icon">ⓘ</span>
+                            <div class="param-desc-tooltip">${p.desc}</div>
+                        </span>
+                    ` : ''}
+                    <span class="param-en-name">${p.enName}</span>
+                </div>
+            `;
+
+            const actionsArea = document.createElement('div');
+            actionsArea.style.display = 'flex';
+            actionsArea.style.gap = '4px';
+
+            if (p.elementId) {
+                const locateBtn = document.createElement('button');
+                locateBtn.type = 'button';
+                locateBtn.className = 'param-action-btn locate';
+                locateBtn.title = '在画布上框选此元素';
+                locateBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
+                locateBtn.onclick = () => {
+                    const target = canvasInteractiveElements.find(i => i.id === p.elementId) ||
+                        canvasInteractiveElements.find(i => i.paramKey === p.key);
+                    if (target) {
+                        selectedCanvasElement = target;
+                        selectionAnimStartTime = performance.now();
+                        syncCanvasSelectedCard(target);
+                        drawFrame();
+                    }
+                };
+                actionsArea.appendChild(locateBtn);
+            }
+
+            if (actionsArea.children.length > 0) {
+                header.appendChild(actionsArea);
+            }
+
+            if (p.notice) {
+                const notice = document.createElement('span');
+                notice.className = 'param-inline-notice';
+                notice.textContent = p.notice;
+                const names = header.querySelector('.param-names');
+                if (names) names.appendChild(notice);
+            }
+            card.appendChild(header);
+
+            const controlRow = document.createElement('div');
+            controlRow.className = 'param-control-row';
+
+            if (p.type === 'number') {
+                controlRow.appendChild(buildSkinParamNumberControl(p, val));
+            } else if (p.type === 'boolean') {
+                controlRow.appendChild(buildSkinParamBooleanControl(p, val));
+            } else if (p.type === 'select') {
+                controlRow.appendChild(buildSkinParamSelectControl(p, val));
+            } else if (p.type === 'color') {
+                controlRow.appendChild(buildSkinParamColorControl(p, val));
+            } else if (p.type === 'column_colour') {
+                controlRow.appendChild(buildPerTrackColourManager(cfg, keys, {
+                    arrKey: 'ColumnColour',
+                    iniPrefix: 'Colour',
+                    defaultColour: { r: 0, g: 0, b: 0, a: 255 },
+                    unifiedTitle: '全轨统一底色与透明度',
+                    what: '底色'
+                }));
+            } else if (p.type === 'light_colour') {
+                controlRow.appendChild(buildPerTrackColourManager(cfg, keys, {
+                    arrKey: 'ColourLight',
+                    iniPrefix: 'ColourLight',
+                    defaultColour: { r: 255, g: 255, b: 255, a: 255 },
+                    unifiedTitle: '全轨统一按键动画颜色与透明度',
+                    what: '动画颜色',
+                    withPreview: true,
+                    alphaZeroForcedOpaque: true
+                }));
+            } else if (p.type === 'colour_hold') {
+                controlRow.appendChild(buildSkinParamColourHoldControl(cfg));
+            } else if (p.type === 'colour_barline') {
+                controlRow.appendChild(buildSkinParamColourBarlineControl(cfg));
+            } else if (p.type === 'array_number') {
+                appendSkinParamArrayNumberControls(controlRow, p, val, keys);
+            } else if (p.type === 'texture') {
+                // 贴图参数控件 (缩略图 + 路径输入 + 上传下拉) 统一由 buildTextureParamControl 构建，
+                // 与「逐轨道贴图分组框」内的每一行共用同一实现，保证样式与行为完全一致。
+                controlRow.appendChild(buildTextureParamControl(p, keys, card));
+            } else {
+                controlRow.appendChild(buildSkinParamTextControl(p, val, keys));
+            }
+
+            card.appendChild(controlRow);
+            return card;
+        }
+// --- END ui/param-render-controls.js ---
+
 // --- BEGIN ui/param-render.js ---
 // ============================================================================
 // param-render.js - 皮肤编辑器参数面板渲染入口
-// 依赖：ui/param-core.js、ui/texture-controls.js
+// 依赖：ui/param-core.js、ui/texture-controls.js、ui/param-render-controls.js
 // ============================================================================
+
+        function renderFontsTabGlyphBlocks(container, fontGlyphParams, keys, q) {
+            const scoreTargetIds = {
+                '0': 'hud_score_digit_0',
+                '1': 'hud_score_digit_1',
+                '2': 'hud_score_digit_2',
+                '3': 'hud_score_digit_3',
+                '4': 'hud_score_digit_4',
+                '5': 'hud_score_digit_5',
+                '6': 'hud_score_digit_6',
+                '7': 'hud_score_digit_7',
+                '8': 'hud_acc_glyph_1',
+                '9': 'hud_acc_glyph_0',
+                '.': 'hud_acc_glyph_2',
+                '%': 'hud_acc_glyph_5'
+            };
+            const makeGlyphView = (p) => {
+                const char = p._fontGlyph.char;
+                return {
+                    char,
+                    label: p.zhName,
+                    tex: p.default,
+                    param: p,
+                    targetId: p._fontGlyph.group === 'combo'
+                        ? 'combo'
+                        : scoreTargetIds[char]
+                };
+            };
+            const scoreGlyphs = fontGlyphParams
+                .filter((p) => p._fontGlyph.group === 'score')
+                .map(makeGlyphView);
+            container.appendChild(buildFontGlyphBlock({
+                title: '数字贴图',
+                glyphs: scoreGlyphs,
+                fontType: 'score',
+                uploadParamKey: 'ScorePrefix',
+                cardIdPrefix: 'glyph-card',
+                keys, q,
+                locate: (g) => canvasInteractiveElements.find(i => i.id === g.targetId) ||
+                               canvasInteractiveElements.find(i => i.textureName === g.tex)
+            }));
+
+            const comboGlyphs = fontGlyphParams
+                .filter((p) => p._fontGlyph.group === 'combo')
+                .map(makeGlyphView);
+            container.appendChild(buildFontGlyphBlock({
+                title: '连击数字贴图',
+                glyphs: comboGlyphs,
+                fontType: 'combo',
+                uploadParamKey: 'ComboPrefix',
+                cardIdPrefix: 'combo-glyph-card',
+                blockClass: 'combo-font-glyphs-block',
+                keys, q,
+                locate: () => canvasInteractiveElements.find(i => i.id === 'combo')
+            }));
+        }
+
+        function buildParamCategoryBlock(container, catName, items, cfg, keys, q) {
+            const isFontsAdvanced = (activeEditorTab === 'fonts' && catName === '字体排版');
+
+            const block = document.createElement('div');
+            block.className = 'param-category-block';
+
+            // 每个分类都可折叠：折叠状态按「标签页::分类名」记忆；
+            // 搜索时强制展开，保证搜到的参数不会被折叠挡住。
+            const collapseKey = activeEditorTab + '::' + catName;
+            const isCollapsed = !isFontsAdvanced && !q && collapsedParamCategories.has(collapseKey);
+            block.dataset.categoryKey = collapseKey;
+            if (isCollapsed) block.classList.add('collapsed');
+
+            if (isFontsAdvanced) {
+                block.classList.add('fonts-advanced-category-block');
+                const isSearching = !!q;
+                const isExpanded = isSearching || isFontsAdvancedExpanded;
+                if (isExpanded) {
+                    block.classList.add('expanded');
+                }
+
+                const toggleBar = document.createElement('div');
+                toggleBar.className = 'advanced-settings-toggle-bar';
+
+                const toggleBtn = document.createElement('button');
+                toggleBtn.type = 'button';
+                toggleBtn.className = `advanced-toggle-btn ${isExpanded ? 'active' : ''}`;
+                toggleBtn.innerHTML = `
+                    <div class="advanced-toggle-left">
+                        <svg class="advanced-toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                        <span class="advanced-toggle-label">${isExpanded ? '收起高级设置 (字体排版与前缀)' : '展开高级设置 (字体排版与前缀)'}</span>
+                        <span class="count-badge">${items.length}</span>
+                    </div>
+                    <span class="advanced-toggle-hint">${isExpanded ? '点击收起' : '点击展开高级参数'}</span>
+                `;
+
+                toggleBtn.onclick = () => {
+                    isFontsAdvancedExpanded = !isFontsAdvancedExpanded;
+                    const nowExpanded = isFontsAdvancedExpanded;
+                    block.classList.toggle('expanded', nowExpanded);
+                    toggleBtn.classList.toggle('active', nowExpanded);
+                    toggleBtn.querySelector('.advanced-toggle-label').textContent = nowExpanded ? '收起高级设置 (字体排版与前缀)' : '展开高级设置 (字体排版与前缀)';
+                    toggleBtn.querySelector('.advanced-toggle-hint').textContent = nowExpanded ? '点击收起' : '点击展开高级参数';
+                };
+
+                toggleBar.appendChild(toggleBtn);
+                container.appendChild(toggleBar);
+            }
+
+            const contentParent = isFontsAdvanced ? document.createElement('div') : block;
+            if (isFontsAdvanced) {
+                contentParent.className = 'fonts-advanced-inner';
+            }
+
+            if (!isFontsAdvanced) {
+                const title = document.createElement('button');
+                title.type = 'button';
+                title.className = 'param-category-title param-category-toggle';
+                title.title = '点击折叠 / 展开该分类';
+                title.innerHTML = `
+                    <svg class="cat-toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    <span>${catName}</span><span class="count-badge">${items.length}</span>
+                `;
+                title.onclick = () => {
+                    const nowCollapsed = !block.classList.contains('collapsed');
+                    block.classList.toggle('collapsed', nowCollapsed);
+                    if (nowCollapsed) collapsedParamCategories.add(collapseKey);
+                    else collapsedParamCategories.delete(collapseKey);
+                };
+                block.appendChild(title);
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'param-cards-grid';
+
+            // 同一贴图类型 (NoteImage / 长条头身尾 / KeyImage / KeyImageD) 的所有轨道
+            // 合并为同一个分组框渲染单元；其余参数仍保持各自独立卡片。
+            const renderUnits = [];
+            for (const item of items) {
+                if (item._trackGroupKey) {
+                    const last = renderUnits[renderUnits.length - 1];
+                    if (last && last.kind === 'trackGroup' && last.groupKey === item._trackGroupKey) {
+                        last.items.push(item);
+                    } else {
+                        renderUnits.push({
+                            kind: 'trackGroup',
+                            groupKey: item._trackGroupKey,
+                            groupName: item._trackGroupZhName || item._trackGroupName || item._trackGroupKey,
+                            groupEnName: item._trackGroupEnName,
+                            desc: item._trackGroupDesc,
+                            items: [item],
+                        });
+                    }
+                } else {
+                    renderUnits.push({ kind: 'card', p: item });
+                }
+            }
+
+            for (const unit of renderUnits) {
+                if (unit.kind === 'trackGroup') {
+                    grid.appendChild(buildPerTrackTextureGroup(unit, keys));
+                    continue;
+                }
+                grid.appendChild(buildSkinParamCard(unit.p, cfg, keys));
+            }
+
+            contentParent.appendChild(grid);
+            if (isFontsAdvanced) {
+                block.appendChild(contentParent);
+            }
+            container.appendChild(block);
+        }
 
         function renderSkinEditorParams() {
             const container = document.getElementById('paramListContainer');
@@ -23233,63 +23954,10 @@ void primeDefaultSkin();
 
             // 若在 Fonts 标签页，在参数列表顶部追加渲染 "数字贴图"(分数) 与 "连击数字贴图"
             if (isFontsTab && hudGlyphMatchesQuery) {
-                const makeGlyphView = (p) => {
-                    const char = p._fontGlyph.char;
-                    const scoreTargetIds = {
-                        '0': 'hud_score_digit_0',
-                        '1': 'hud_score_digit_1',
-                        '2': 'hud_score_digit_2',
-                        '3': 'hud_score_digit_3',
-                        '4': 'hud_score_digit_4',
-                        '5': 'hud_score_digit_5',
-                        '6': 'hud_score_digit_6',
-                        '7': 'hud_score_digit_7',
-                        '8': 'hud_acc_glyph_1',
-                        '9': 'hud_acc_glyph_0',
-                        '.': 'hud_acc_glyph_2',
-                        '%': 'hud_acc_glyph_5'
-                    };
-                    return {
-                        char,
-                        label: p.zhName,
-                        tex: p.default,
-                        param: p,
-                        targetId: p._fontGlyph.group === 'combo'
-                            ? 'combo'
-                            : scoreTargetIds[char]
-                    };
-                };
-                const scoreGlyphs = fontGlyphParams
-                    .filter((p) => p._fontGlyph.group === 'score')
-                    .map(makeGlyphView);
-                container.appendChild(buildFontGlyphBlock({
-                    title: '数字贴图',
-                    glyphs: scoreGlyphs,
-                    fontType: 'score',
-                    uploadParamKey: 'ScorePrefix',
-                    cardIdPrefix: 'glyph-card',
-                    keys, q,
-                    locate: (g) => canvasInteractiveElements.find(i => i.id === g.targetId) ||
-                                   canvasInteractiveElements.find(i => i.textureName === g.tex)
-                }));
-
-                const comboGlyphs = fontGlyphParams
-                    .filter((p) => p._fontGlyph.group === 'combo')
-                    .map(makeGlyphView);
-                container.appendChild(buildFontGlyphBlock({
-                    title: '连击数字贴图',
-                    glyphs: comboGlyphs,
-                    fontType: 'combo',
-                    uploadParamKey: 'ComboPrefix',
-                    cardIdPrefix: 'combo-glyph-card',
-                    blockClass: 'combo-font-glyphs-block',
-                    keys, q,
-                    locate: () => canvasInteractiveElements.find(i => i.id === 'combo')
-                }));
+                renderFontsTabGlyphBlocks(container, fontGlyphParams, keys, q);
             }
 
-            // 逐轨道贴图参数展开为「每轨一张卡片」(NoteImage0..N / KeyImage0..N 等)，
-            // 使每一项都拥有与其他贴图参数完全一致的上传按钮，而不是「一个总体 + 若干简化行」
+            // 逐轨道贴图参数展开为「每轨一张卡片」(NoteImage0..N / KeyImage0..N 等)
             const expandedItems = [];
             for (const item of filtered) {
                 const perTrack = expandPerTrackTextureParams(item, keys);
@@ -23305,647 +23973,7 @@ void primeDefaultSkin();
             }
 
             for (const [catName, items] of groups.entries()) {
-                const isFontsAdvanced = (activeEditorTab === 'fonts' && catName === '字体排版');
-
-                const block = document.createElement('div');
-                block.className = 'param-category-block';
-
-                // 每个分类都可折叠：折叠状态按「标签页::分类名」记忆；
-                // 搜索时强制展开，保证搜到的参数不会被折叠挡住。
-                const collapseKey = activeEditorTab + '::' + catName;
-                const isCollapsed = !isFontsAdvanced && !q && collapsedParamCategories.has(collapseKey);
-                block.dataset.categoryKey = collapseKey;
-                if (isCollapsed) block.classList.add('collapsed');
-
-                if (isFontsAdvanced) {
-                    block.classList.add('fonts-advanced-category-block');
-                    const isSearching = !!q;
-                    const isExpanded = isSearching || isFontsAdvancedExpanded;
-                    if (isExpanded) {
-                        block.classList.add('expanded');
-                    }
-
-                    const toggleBar = document.createElement('div');
-                    toggleBar.className = 'advanced-settings-toggle-bar';
-
-                    const toggleBtn = document.createElement('button');
-                    toggleBtn.type = 'button';
-                    toggleBtn.className = `advanced-toggle-btn ${isExpanded ? 'active' : ''}`;
-                    toggleBtn.innerHTML = `
-                        <div class="advanced-toggle-left">
-                            <svg class="advanced-toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                            <span class="advanced-toggle-label">${isExpanded ? '收起高级设置 (字体排版与前缀)' : '展开高级设置 (字体排版与前缀)'}</span>
-                            <span class="count-badge">${items.length}</span>
-                        </div>
-                        <span class="advanced-toggle-hint">${isExpanded ? '点击收起' : '点击展开高级参数'}</span>
-                    `;
-
-                    toggleBtn.onclick = () => {
-                        isFontsAdvancedExpanded = !isFontsAdvancedExpanded;
-                        const nowExpanded = isFontsAdvancedExpanded;
-                        block.classList.toggle('expanded', nowExpanded);
-                        toggleBtn.classList.toggle('active', nowExpanded);
-                        toggleBtn.querySelector('.advanced-toggle-label').textContent = nowExpanded ? '收起高级设置 (字体排版与前缀)' : '展开高级设置 (字体排版与前缀)';
-                        toggleBtn.querySelector('.advanced-toggle-hint').textContent = nowExpanded ? '点击收起' : '点击展开高级参数';
-                    };
-
-                    toggleBar.appendChild(toggleBtn);
-                    container.appendChild(toggleBar);
-                }
-
-                const contentParent = isFontsAdvanced ? document.createElement('div') : block;
-                if (isFontsAdvanced) {
-                    contentParent.className = 'fonts-advanced-inner';
-                }
-
-                if (!isFontsAdvanced) {
-                    // 分类标题本身即折叠按钮（保留 .param-category-title 类与内部 span 结构，
-                    // 外观沿用原分类标题样式，只额外加一个箭头指示器）
-                    const title = document.createElement('button');
-                    title.type = 'button';
-                    title.className = 'param-category-title param-category-toggle';
-                    title.title = '点击折叠 / 展开该分类';
-                    title.innerHTML = `
-                        <svg class="cat-toggle-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                        <span>${catName}</span><span class="count-badge">${items.length}</span>
-                    `;
-                    title.onclick = () => {
-                        const nowCollapsed = !block.classList.contains('collapsed');
-                        block.classList.toggle('collapsed', nowCollapsed);
-                        if (nowCollapsed) collapsedParamCategories.add(collapseKey);
-                        else collapsedParamCategories.delete(collapseKey);
-                    };
-                    block.appendChild(title);
-                }
-
-                const grid = document.createElement('div');
-                grid.className = 'param-cards-grid';
-
-                // 同一贴图类型 (NoteImage / 长条头身尾 / KeyImage / KeyImageD) 的所有轨道
-                // 合并为同一个分组框渲染单元；其余参数仍保持各自独立卡片。
-                const renderUnits = [];
-                for (const item of items) {
-                    if (item._trackGroupKey) {
-                        const last = renderUnits[renderUnits.length - 1];
-                        if (last && last.kind === 'trackGroup' && last.groupKey === item._trackGroupKey) {
-                            last.items.push(item);
-                        } else {
-                            renderUnits.push({
-                                kind: 'trackGroup',
-                                groupKey: item._trackGroupKey,
-                                groupName: item._trackGroupZhName || item._trackGroupName || item._trackGroupKey,
-                                groupEnName: item._trackGroupEnName,
-                                desc: item._trackGroupDesc,
-                                items: [item],
-                            });
-                        }
-                    } else {
-                        renderUnits.push({ kind: 'card', p: item });
-                    }
-                }
-
-                for (const unit of renderUnits) {
-                    if (unit.kind === 'trackGroup') {
-                        grid.appendChild(buildPerTrackTextureGroup(unit, keys));
-                        continue;
-                    }
-                    const p = unit.p;
-                    const card = document.createElement('div');
-                    card.className = 'param-card';
-                    card.id = `param-card-${p.key}`;
-
-                    // 当前数值获取
-                    let val = p.default;
-                    if (p.key === 'ScorePercentWidth') {
-                        val = getScorePercentPaddingWidth(keys);
-                    } else if (p.key === 'ScorePercentVisible') {
-                        val = getScorePercentVisibility(keys);
-                    } else if (p.key === 'ComboBurstRandom') {
-                        val = !!(currentSkinMetadata.general &&
-                            (currentSkinMetadata.general.ComboBurstRandom === 1 ||
-                             currentSkinMetadata.general.ComboBurstRandom === '1' ||
-                             currentSkinMetadata.general.ComboBurstRandom === true));
-                    } else if (p.tab === 'mania' || p.tab === 'textures') {
-                        if (cfg[p.key] !== undefined && cfg[p.key] !== null) val = cfg[p.key];
-                    } else if (p.tab === 'fonts') {
-                        if (p.key === 'ScorePrefix') {
-                            val = (cfg && cfg.FontScore) || skinFontsConfig.scorePrefix || 'score';
-                        }
-                        else if (p.key === 'ScoreOverlap') val = getSkinFontOverlap('score', keys);
-                        else if (p.key === 'ComboPrefix') {
-                            // 显示「实际生效」的连击字体前缀：ini 显式指定了 [Mania] FontCombo / [Fonts] ComboPrefix 才有值，
-                            // 都没有时留空 (占位符会说明实际沿用 score 字体贴图)，避免面板与画布不一致
-                            val = getExplicitComboFontPrefix(keys) || '';
-                        }
-                        else if (p.key === 'ComboOverlap') val = getSkinFontOverlap('combo', keys);
-                        else if (p.key === 'HitCirclePrefix') val = skinFontsConfig.hitCirclePrefix || 'default';
-                        else if (p.key === 'HitCircleOverlap') {
-                            val = skinFontsConfig.hitCircleOverlap != null
-                                ? skinFontsConfig.hitCircleOverlap
-                                : -2;
-                        }
-                    } else if (p.tab === 'general') {
-                        if (currentSkinMetadata.general && currentSkinMetadata.general[p.key] !== undefined) {
-                            val = currentSkinMetadata.general[p.key];
-                        }
-                    } else if (p.tab === 'colours') {
-                        if (currentSkinMetadata.colours && currentSkinMetadata.colours[p.key] !== undefined) {
-                            val = currentSkinMetadata.colours[p.key];
-                        }
-                    }
-
-                    // Card 头部
-                    const header = document.createElement('div');
-                    header.className = 'param-card-header';
-                    header.innerHTML = `
-                        <div class="param-names">
-                            <span class="param-zh-name">${p.zhName}</span>
-                            ${p.desc ? `
-                                <span class="param-info-trigger" tabindex="0">
-                                    <span class="param-info-icon">ⓘ</span>
-                                    <div class="param-desc-tooltip">${p.desc}</div>
-                                </span>
-                            ` : ''}
-                            <span class="param-en-name">${p.enName}</span>
-                        </div>
-                    `;
-
-                    // 右侧快捷定位与重置操作按钮
-                    const actionsArea = document.createElement('div');
-                    actionsArea.style.display = 'flex';
-                    actionsArea.style.gap = '4px';
-
-                    if (p.elementId) {
-                        const locateBtn = document.createElement('button');
-                        locateBtn.type = 'button';
-                        locateBtn.className = 'param-action-btn locate';
-                        locateBtn.title = '在画布上框选此元素';
-                        locateBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
-                        locateBtn.onclick = () => {
-                            const target = canvasInteractiveElements.find(i => i.id === p.elementId) ||
-                                canvasInteractiveElements.find(i => i.paramKey === p.key);
-                            if (target) {
-                                selectedCanvasElement = target;
-                                selectionAnimStartTime = performance.now();
-                                syncCanvasSelectedCard(target);
-                                drawFrame();
-                            }
-                        };
-                        actionsArea.appendChild(locateBtn);
-                    }
-
-                    if (actionsArea.children.length > 0) {
-                        header.appendChild(actionsArea);
-                    }
-
-                    if (p.notice) {
-                        const notice = document.createElement('span');
-                        notice.className = 'param-inline-notice';
-                        notice.textContent = p.notice;
-                        const names = header.querySelector('.param-names');
-                        if (names) names.appendChild(notice);
-                    }
-                    card.appendChild(header);
-
-                    // 输入控制行
-                    const controlRow = document.createElement('div');
-                    controlRow.className = 'param-control-row';
-
-                    if (p.type === 'number') {
-                        const numVal = (typeof val === 'number') ? val : (parseFloat(val) || p.default);
-                        const combo = document.createElement('div');
-                        combo.className = 'slider-input-combo';
-
-                        const range = document.createElement('input');
-                        range.type = 'range';
-                        range.min = p.min;
-                        range.max = p.max;
-                        range.step = p.step;
-                        range.value = numVal;
-
-                        const updateRangeFill = (v) => {
-                            const min = (p.min != null) ? p.min : 0;
-                            const max = (p.max != null) ? p.max : 100;
-                            const vf = (v != null && !isNaN(parseFloat(v))) ? parseFloat(v) : min;
-                            const pct = max > min ? Math.min(100, Math.max(0, ((vf - min) / (max - min)) * 100)) : 0;
-                            range.style.setProperty('--slider-pct', `${pct}%`);
-                        };
-                        updateRangeFill(numVal);
-
-                        const num = document.createElement('input');
-                        num.type = 'number';
-                        num.min = p.min;
-                        num.max = p.max;
-                        num.step = p.step;
-                        num.value = numVal;
-
-                        range.oninput = (e) => {
-                            updateRangeFill(e.target.value);
-                            num.value = e.target.value;
-                            onParamChange(p.key, parseFloat(e.target.value));
-                        };
-                        num.onchange = (e) => {
-                            range.value = e.target.value;
-                            updateRangeFill(e.target.value);
-                            onParamChange(p.key, parseFloat(e.target.value));
-                        };
-
-                        combo.appendChild(range);
-                        combo.appendChild(num);
-                        controlRow.appendChild(combo);
-                    } else if (p.type === 'boolean') {
-                        const isChecked = !!(val === true || val === 1 || val === '1' || val === 'true');
-                        const toggleBox = document.createElement('div');
-                        toggleBox.style.display = 'flex';
-                        toggleBox.style.alignItems = 'center';
-                        toggleBox.style.gap = '8px';
-
-                        const toggleLabel = document.createElement('label');
-                        toggleLabel.className = 'ios-switch';
-                        toggleLabel.innerHTML = `
-                            <input type="checkbox" ${isChecked ? 'checked' : ''}>
-                            <span class="slider"></span>
-                        `;
-                        const statusSpan = document.createElement('span');
-                        statusSpan.style.fontSize = '0.8rem';
-                        statusSpan.style.color = isChecked ? '#ffffff' : 'rgba(255,255,255,0.45)';
-                        statusSpan.textContent = isChecked ? '开启' : '关闭';
-
-                        const chk = toggleLabel.querySelector('input');
-                        chk.onchange = (e) => {
-                            statusSpan.textContent = e.target.checked ? '开启' : '关闭';
-                            statusSpan.style.color = e.target.checked ? '#ffffff' : 'rgba(255,255,255,0.45)';
-                            onParamChange(
-                                p.key,
-                                e.target.checked,
-                                null,
-                                p.key === 'ComboBurstRandom' ? { force: true } : {}
-                            );
-                        };
-
-                        toggleBox.appendChild(toggleLabel);
-                        toggleBox.appendChild(statusSpan);
-                        controlRow.appendChild(toggleBox);
-                    } else if (p.type === 'select') {
-                        const select = document.createElement('select');
-                        select.className = 'param-select';
-                        for (const opt of p.options) {
-                            const option = document.createElement('option');
-                            option.value = opt.value;
-                            option.textContent = opt.label;
-                            if (String(opt.value) === String(val)) option.selected = true;
-                            select.appendChild(option);
-                        }
-                        select.onchange = (e) => onParamChange(
-                            p.key,
-                            e.target.value,
-                            null,
-                            p.key === 'ComboBurstStyle' ? { force: true } : {}
-                        );
-                        controlRow.appendChild(select);
-                    } else if (p.type === 'color') {
-                        const combo = document.createElement('div');
-                        combo.className = 'color-picker-combo';
-
-                        let rgbStr = (typeof val === 'object' && val) ? `${val.r || 255},${val.g || 0},${val.b || 0}` : String(val);
-                        const parts = rgbStr.split(',').map(s => parseInt(s.trim(), 10) || 0);
-                        const hex = `#${((1 << 24) + (parts[0] << 16) + (parts[1] << 8) + parts[2]).toString(16).slice(1)}`;
-
-                        const picker = document.createElement('input');
-                        picker.type = 'color';
-                        picker.value = hex;
-
-                        const text = document.createElement('input');
-                        text.type = 'text';
-                        text.className = 'color-text';
-                        text.value = rgbStr;
-
-                        picker.oninput = (e) => {
-                            const h = e.target.value;
-                            const r = parseInt(h.slice(1, 3), 16);
-                            const g = parseInt(h.slice(3, 5), 16);
-                            const b = parseInt(h.slice(5, 7), 16);
-                            text.value = `${r},${g},${b}`;
-                            onParamChange(p.key, text.value);
-                            if (p.key === 'ComboBreakColour') {
-                                triggerComboBreakPreview();
-                            }
-                        };
-                        text.onchange = (e) => {
-                            onParamChange(p.key, e.target.value);
-                            if (p.key === 'ComboBreakColour') {
-                                triggerComboBreakPreview();
-                            }
-                        };
-
-                        combo.appendChild(picker);
-                        combo.appendChild(text);
-
-                        if (p.key === 'ComboBreakColour') {
-                            const previewBreakBtn = document.createElement('button');
-                            previewBreakBtn.type = 'button';
-                            previewBreakBtn.className = 'col-colour-preview-btn';
-                            previewBreakBtn.innerHTML = `
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
-                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                                </svg>
-                                <span>预览断连</span>
-                            `;
-                            previewBreakBtn.onclick = () => {
-                                triggerComboBreakPreview();
-                            };
-                            combo.appendChild(previewBreakBtn);
-                        }
-
-                        controlRow.appendChild(combo);
-                    } else if (p.type === 'column_colour') {
-                        // 轨道底色 (Colour1..N)：与按键动画颜色 ColourLight1..N 同构，共用同一个管理器
-                        controlRow.appendChild(buildPerTrackColourManager(cfg, keys, {
-                            arrKey: 'ColumnColour',
-                            iniPrefix: 'Colour',
-                            defaultColour: { r: 0, g: 0, b: 0, a: 255 },
-                            unifiedTitle: '全轨统一底色与透明度',
-                            what: '底色'
-                        }));
-                    } else if (p.type === 'light_colour') {
-                        // 按键动画颜色 (ColourLight1..N)：对应 lazer LegacyColumnBackground 的
-                        // ColumnLightColour lookup，未指定时引擎回退纯白。
-                        controlRow.appendChild(buildPerTrackColourManager(cfg, keys, {
-                            arrKey: 'ColourLight',
-                            iniPrefix: 'ColourLight',
-                            defaultColour: { r: 255, g: 255, b: 255, a: 255 },
-                            unifiedTitle: '全轨统一按键动画颜色与透明度',
-                            what: '动画颜色',
-                            withPreview: true,
-                            alphaZeroForcedOpaque: true
-                        }));
-                    } else if (p.type === 'colour_hold') {
-                        const curHold = cfg.ColourHold || { r: 255, g: 191, b: 51, a: 255 };
-                        const curHex = `#${((1 << 24) + (curHold.r << 16) + (curHold.g << 8) + curHold.b).toString(16).slice(1)}`;
-
-                        const mainControls = document.createElement('div');
-                        mainControls.className = 'colour-hold-controls';
-
-                        const picker = document.createElement('input');
-                        picker.type = 'color';
-                        picker.className = 'col-colour-picker';
-                        picker.value = curHex;
-
-                        const alphaSlider = document.createElement('input');
-                        alphaSlider.type = 'range';
-                        alphaSlider.min = 0;
-                        alphaSlider.max = 255;
-                        alphaSlider.step = 1;
-                        alphaSlider.value = (curHold.a != null) ? curHold.a : 255;
-                        alphaSlider.className = 'col-colour-slider';
-                        const holdInitPct = Math.max(0, Math.min(100, Math.round(alphaSlider.value / 255 * 100))) + '%';
-                        alphaSlider.style.setProperty('--slider-pct', holdInitPct);
-
-                        const alphaLabel = document.createElement('span');
-                        alphaLabel.className = 'col-colour-val';
-                        const updateHoldLabel = (a) => {
-                            const pct = Math.max(0, Math.min(100, Math.round(a / 255 * 100)));
-                            alphaLabel.textContent = `A: ${a} (${pct}%)`;
-                            alphaSlider.style.setProperty('--slider-pct', `${pct}%`);
-                        };
-                        updateHoldLabel(parseInt(alphaSlider.value, 10));
-
-                        const previewHoldBtn = document.createElement('button');
-                        previewHoldBtn.type = 'button';
-                        previewHoldBtn.className = 'col-colour-preview-btn';
-                        previewHoldBtn.innerHTML = `
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
-                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                            </svg>
-                            <span>预览变色</span>
-                        `;
-
-                        const updateColourHold = () => {
-                            recordSkinUndoBeforeChange('调整按住hold时连击字体颜色');
-                            const hex = picker.value;
-                            const r = parseInt(hex.slice(1, 3), 16);
-                            const g = parseInt(hex.slice(3, 5), 16);
-                            const b = parseInt(hex.slice(5, 7), 16);
-                            const a = parseInt(alphaSlider.value, 10);
-                            updateHoldLabel(a);
-                            cfg.ColourHold = { r, g, b, a };
-                            testHoldingUntil = performance.now() + 2500;
-                            drawFrame();
-                        };
-
-                        previewHoldBtn.onclick = () => {
-                            testHoldingUntil = performance.now() + 2500;
-                            drawFrame();
-                        };
-
-                        picker.oninput = updateColourHold;
-                        alphaSlider.oninput = updateColourHold;
-
-                        mainControls.appendChild(picker);
-                        mainControls.appendChild(alphaSlider);
-                        mainControls.appendChild(alphaLabel);
-                        mainControls.appendChild(previewHoldBtn);
-
-                        controlRow.appendChild(mainControls);
-                    } else if (p.type === 'colour_barline') {
-                        const curBarline = cfg.ColourBarline || { r: 255, g: 255, b: 255, a: 255 };
-                        const curHex = `#${((1 << 24) + (curBarline.r << 16) + (curBarline.g << 8) + curBarline.b).toString(16).slice(1)}`;
-
-                        const mainControls = document.createElement('div');
-                        mainControls.className = 'colour-barline-controls';
-
-                        const picker = document.createElement('input');
-                        picker.type = 'color';
-                        picker.className = 'col-colour-picker';
-                        picker.value = curHex;
-                        picker.title = '选择小节线颜色';
-
-                        const alphaSlider = document.createElement('input');
-                        alphaSlider.type = 'range';
-                        alphaSlider.min = 0;
-                        alphaSlider.max = 255;
-                        alphaSlider.step = 1;
-                        alphaSlider.value = (curBarline.a != null) ? curBarline.a : 255;
-                        alphaSlider.className = 'col-colour-slider';
-                        alphaSlider.title = '调整小节线透明度';
-                        const pctInit = ((alphaSlider.value / 255) * 100).toFixed(1) + '%';
-                        alphaSlider.style.setProperty('--slider-pct', pctInit);
-
-                        const alphaLabel = document.createElement('span');
-                        alphaLabel.className = 'col-colour-val';
-                        const updateBarlineLabel = (a) => {
-                            const pct = Math.round(a / 255 * 100);
-                            alphaLabel.textContent = `A: ${a} (${pct}%)`;
-                        };
-                        updateBarlineLabel(parseInt(alphaSlider.value, 10));
-
-                        const textInput = document.createElement('input');
-                        textInput.type = 'text';
-                        textInput.className = 'color-text';
-                        textInput.value = `${curBarline.r},${curBarline.g},${curBarline.b},${curBarline.a != null ? curBarline.a : 255}`;
-                        textInput.title = '直接输入 RGBA 格式数值 (r,g,b,a)';
-
-                        const updateColourBarline = (recordUndo = true) => {
-                            const hex = picker.value;
-                            const r = parseInt(hex.slice(1, 3), 16);
-                            const g = parseInt(hex.slice(3, 5), 16);
-                            const b = parseInt(hex.slice(5, 7), 16);
-                            const a = parseInt(alphaSlider.value, 10);
-                            const prevBarline = cfg.ColourBarline;
-                            const prevAlpha = prevBarline && prevBarline.a != null ? prevBarline.a : 255;
-                            const isSameBarline = !!prevBarline &&
-                                prevBarline.r === r &&
-                                prevBarline.g === g &&
-                                prevBarline.b === b &&
-                                prevAlpha === a;
-                            if (recordUndo && !isSameBarline) {
-                                recordSkinUndoBeforeChange('调整小节线颜色');
-                            }
-                            const pct = ((a / 255) * 100).toFixed(1) + '%';
-                            alphaSlider.style.setProperty('--slider-pct', pct);
-                            updateBarlineLabel(a);
-                            textInput.value = `${r},${g},${b},${a}`;
-                            cfg.ColourBarline = { r, g, b, a };
-                            drawFrame();
-                        };
-
-                        picker.oninput = () => updateColourBarline(true);
-                        picker.onchange = () => updateColourBarline(true);
-                        alphaSlider.oninput = () => updateColourBarline(true);
-                        alphaSlider.onchange = () => updateColourBarline(true);
-
-                        textInput.onchange = (e) => {
-                            const parts = e.target.value.split(',').map(s => parseInt(s.trim(), 10));
-                            if (parts.length >= 3 && !parts.slice(0, 3).some(isNaN)) {
-                                recordSkinUndoBeforeChange('调整小节线颜色');
-                                const r = Math.max(0, Math.min(255, parts[0]));
-                                const g = Math.max(0, Math.min(255, parts[1]));
-                                const b = Math.max(0, Math.min(255, parts[2]));
-                                const a = (parts.length >= 4 && !isNaN(parts[3])) ? Math.max(0, Math.min(255, parts[3])) : 255;
-                                cfg.ColourBarline = { r, g, b, a };
-                                picker.value = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-                                alphaSlider.value = a;
-                                const pct = ((a / 255) * 100).toFixed(1) + '%';
-                                alphaSlider.style.setProperty('--slider-pct', pct);
-                                updateBarlineLabel(a);
-                                textInput.value = `${r},${g},${b},${a}`;
-                                drawFrame();
-                            }
-                        };
-
-                        mainControls.appendChild(picker);
-                        mainControls.appendChild(alphaSlider);
-                        mainControls.appendChild(alphaLabel);
-                        mainControls.appendChild(textInput);
-
-                        controlRow.appendChild(mainControls);
-                    } else if (p.type === 'array_number') {
-                        let arrVal = Array.isArray(val) ? [...val] : String(val).split(',').map(s => parseFloat(s.trim()) || 0);
-                        let arrStr = arrVal.map(Math.round).join(',');
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.className = 'param-text-input';
-                        input.value = arrStr;
-                        input.placeholder = (p.key === 'ColumnLineWidth')
-                            ? '以逗号隔开的数组 (如 2,2,2,2,2)'
-                            : '以逗号隔开的数组 (如 30,30,30,30)';
-                        controlRow.appendChild(input);
-
-                        // 渲染各轨独立快速微调输入框 chips (支持各轨道宽度与间距直接修改)
-                        const chipsGrid = document.createElement('div');
-                        chipsGrid.className = 'array-chips-grid';
-
-                        const numChips = (p.key === 'ColumnSpacing')
-                            ? Math.max(0, keys - 1)
-                            : ((p.key === 'ColumnLineWidth') ? keys + 1 : keys);
-                        for (let c = 0; c < numChips; c++) {
-                            const chip = document.createElement('div');
-                            chip.className = 'array-chip';
-                            const label = document.createElement('span');
-                            label.className = 'chip-label';
-                            if (p.key === 'ColumnSpacing') {
-                                label.textContent = `轨${c + 1}-${c + 2}距`;
-                            } else if (p.key === 'ColumnLineWidth') {
-                                if (c === 0) label.textContent = '左边界';
-                                else if (c === keys) label.textContent = '右边界';
-                                else label.textContent = `轨${c}-${c + 1}线`;
-                            } else {
-                                label.textContent = `第${c + 1}轨宽`;
-                            }
-
-                            const chipInput = document.createElement('input');
-                            chipInput.type = 'number';
-                            chipInput.className = 'array-chip-input';
-                            chipInput.min = p.min != null ? p.min : 0;
-                            chipInput.max = p.max != null ? p.max : 300;
-                            chipInput.value = (arrVal[c] != null) ? Math.round(arrVal[c]) : (p.default || 0);
-
-                            chipInput.oninput = () => {
-                                const num = parseFloat(chipInput.value) || 0;
-                                arrVal[c] = num;
-                                input.value = arrVal.map(Math.round).join(',');
-                                // 传入改动下标：超限时只收敛当前这一项，并即时回写实际生效值
-                                const applied = onParamChange(p.key, arrVal, c);
-                                if (Array.isArray(applied)) {
-                                    arrVal = applied.slice();
-                                    input.value = applied.map(Math.round).join(',');
-                                    if (Math.round(applied[c]) !== Math.round(num)) {
-                                        chipInput.value = Math.round(applied[c]);
-                                    }
-                                }
-                            };
-
-                            chip.appendChild(label);
-                            chip.appendChild(chipInput);
-                            chipsGrid.appendChild(chip);
-                        }
-                        controlRow.appendChild(chipsGrid);
-
-                        input.onchange = (e) => {
-                            const typed = String(e.target.value).split(',').map(s => parseFloat(s.trim()) || 0);
-                            // 整组替换：若轨道区总宽度超限则本次修改不予采纳，并回写实际生效值
-                            const applied = onParamChange(p.key, e.target.value);
-                            const parts = Array.isArray(applied) ? applied : typed;
-                            arrVal = parts.slice();
-                            const allInputs = chipsGrid.querySelectorAll('.array-chip-input');
-                            allInputs.forEach((ci, idx) => {
-                                if (parts[idx] !== undefined) ci.value = Math.round(parts[idx]);
-                            });
-                            const changed = parts.length !== typed.length
-                                || parts.some((v, i) => Math.round(v) !== Math.round(typed[i]));
-                            if (changed) input.value = parts.map(v => Math.round(v)).join(',');
-                        };
-                    } else if (p.type === 'texture') {
-                        // 贴图参数控件 (缩略图 + 路径输入 + 上传下拉) 统一由 buildTextureParamControl 构建，
-                        // 与「逐轨道贴图分组框」内的每一行共用同一实现，保证样式与行为完全一致。
-                        controlRow.appendChild(buildTextureParamControl(p, keys, card));
-                    } else {
-                        const input = document.createElement('input');
-                        input.type = 'text';
-                        input.className = 'param-text-input';
-                        input.value = (val !== undefined && val !== null) ? val : '';
-                        // 连击数字前缀：留空时提示「实际沿用 score 字体贴图」，避免与画布渲染结果不一致
-                        if (p.key === 'ComboPrefix') {
-                            const effComboFont = getExplicitComboFontPrefix(keys);
-                            input.placeholder = effComboFont
-                                ? `如 ${effComboFont}-0.png`
-                                : 'ini 未指定 (实际使用: score 字体贴图)';
-                        }
-                        input.onchange = (e) => onParamChange(p.key, e.target.value);
-                        controlRow.appendChild(input);
-                    }
-
-                    card.appendChild(controlRow);
-                    grid.appendChild(card);
-                }
-
-                contentParent.appendChild(grid);
-                if (isFontsAdvanced) {
-                    block.appendChild(contentParent);
-                }
-                container.appendChild(block);
+                buildParamCategoryBlock(container, catName, items, cfg, keys, q);
             }
         }
 // --- END ui/param-render.js ---
@@ -25096,25 +25124,36 @@ void primeDefaultSkin();
             }
         }
 
+        function cloneTextureEditRecipeParams(params, rgbOverride = undefined) {
+            if (!params || typeof params !== 'object') return null;
+            const rgbSource = rgbOverride !== undefined ? rgbOverride : params.rgbAdjustment;
+            return {
+                ...params,
+                imageTransform: typeof cloneImageTransform === 'function'
+                    ? cloneImageTransform(params.imageTransform)
+                    : (params.imageTransform ? { ...params.imageTransform } : null),
+                rgbAdjustment: typeof cloneRgbAdjustment === 'function'
+                    ? cloneRgbAdjustment(rgbSource)
+                    : (rgbSource ? { ...rgbSource } : null)
+            };
+        }
+
+        function cloneTextureEditRecipeEntry(recipe) {
+            if (!recipe || typeof recipe !== 'object') return null;
+            return {
+                sourceFrames: (recipe.sourceFrames || []).map((f) => cloneFrame(f)),
+                originalReference: recipe.originalReference,
+                keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
+                    ? cloneKeyImageEditSources(recipe.keyImageOriginalSources)
+                    : {},
+                params: cloneTextureEditRecipeParams(recipe.params),
+                outputFrames: (recipe.outputFrames || []).map((f) => cloneFrame(f))
+            };
+        }
+
         function cloneTextureEditRecipesForHistory(recipesMap) {
             if (!(recipesMap instanceof Map)) return null;
-            return new Map(Array.from(recipesMap.entries(), ([k, v]) => [k, {
-                sourceFrames: (v.sourceFrames || []).map((f) => cloneFrame(f)),
-                originalReference: v.originalReference,
-                keyImageOriginalSources: typeof cloneKeyImageEditSources === 'function'
-                    ? cloneKeyImageEditSources(v.keyImageOriginalSources)
-                    : {},
-                params: v.params ? {
-                    ...v.params,
-                    imageTransform: typeof cloneImageTransform === 'function'
-                        ? cloneImageTransform(v.params.imageTransform)
-                        : (v.params.imageTransform ? { ...v.params.imageTransform } : null),
-                    rgbAdjustment: typeof cloneRgbAdjustment === 'function'
-                        ? cloneRgbAdjustment(v.params.rgbAdjustment)
-                        : (v.params.rgbAdjustment ? { ...v.params.rgbAdjustment } : null)
-                } : null,
-                outputFrames: (v.outputFrames || []).map((f) => cloneFrame(f))
-            }]));
+            return new Map(Array.from(recipesMap.entries(), ([k, v]) => [k, cloneTextureEditRecipeEntry(v)]));
         }
 
         function createSkinSnapshot(desc = '操作') {
@@ -27470,62 +27509,36 @@ void primeDefaultSkin();
                         return false;
                     }
 
-                    const mTrackNote = pKey.match(/^(NoteImage|HoldNoteHeadImage|HoldNoteBodyImage|HoldNoteTailImage|KeyImageDown|KeyImage)(\d+)([HLTD])?$/i);
-                    if (mTrackNote) {
+                    const parsedTrackKey = typeof parseManiaTextureParamKey === 'function'
+                        ? parseManiaTextureParamKey(pKey)
+                        : null;
+                    const lookupNoteType = {
+                        [LML.NoteImage]: 'note',
+                        [LML.HoldNoteHeadImage]: 'head',
+                        [LML.HoldNoteBodyImage]: 'body',
+                        [LML.HoldNoteTailImage]: 'tail',
+                        [LML.KeyImage]: 'key',
+                        [LML.KeyImageDown]: 'keydown'
+                    }[targetKey] || null;
+                    if (parsedTrackKey && parsedTrackKey.column != null) {
                         isTrackNote = true;
-                        if (trackCol == null) trackCol = parseInt(mTrackNote[2], 10);
-                        const prefixLow = mTrackNote[1].toLowerCase();
-                        const suffix = (mTrackNote[3] || '').toUpperCase();
-                        if (prefixLow.startsWith('holdnotehead') || suffix === 'H') noteType = 'head';
-                        else if (prefixLow.startsWith('holdnotebody') || suffix === 'L') noteType = 'body';
-                        else if (prefixLow.startsWith('holdnotetail') || suffix === 'T') noteType = 'tail';
-                        else if (prefixLow.startsWith('keyimagedown') || suffix === 'D') noteType = 'keydown';
-                        else if (prefixLow.startsWith('keyimage')) noteType = 'key';
-                        else noteType = 'note';
-                    } else if (trackCol != null) {
-                        if (targetKey === LML.NoteImage || pKey.startsWith('NoteImage')) {
-                            isTrackNote = true;
-                            noteType = 'note';
-                        } else if (targetKey === LML.HoldNoteHeadImage || pKey.startsWith('HoldNoteHeadImage')) {
-                            isTrackNote = true;
-                            noteType = 'head';
-                        } else if (targetKey === LML.HoldNoteBodyImage || pKey.startsWith('HoldNoteBodyImage')) {
-                            isTrackNote = true;
-                            noteType = 'body';
-                        } else if (targetKey === LML.HoldNoteTailImage || pKey.startsWith('HoldNoteTailImage')) {
-                            isTrackNote = true;
-                            noteType = 'tail';
-                        } else if (targetKey === LML.KeyImage || pKey.startsWith('KeyImage')) {
-                            isTrackNote = true;
-                            noteType = 'key';
-                        } else if (targetKey === LML.KeyImageDown || pKey.startsWith('KeyImageDown')) {
-                            isTrackNote = true;
-                            noteType = 'keydown';
-                        }
+                        if (trackCol == null) trackCol = parsedTrackKey.column;
+                        noteType = parsedTrackKey.kind;
+                    } else if (trackCol != null && (lookupNoteType || parsedTrackKey)) {
+                        isTrackNote = true;
+                        noteType = lookupNoteType || parsedTrackKey.kind;
                     }
 
                     let canonicalParamKey = pKey;
                     let paramAliases = [pKey];
 
-                    if (isTrackNote && trackCol != null) {
-                        if (noteType === 'note') {
-                            canonicalParamKey = `NoteImage${trackCol}`;
-                            paramAliases = [`NoteImage${trackCol}`];
-                        } else if (noteType === 'head') {
-                            canonicalParamKey = `NoteImage${trackCol}H`;
-                            paramAliases = [`NoteImage${trackCol}H`, `HoldNoteHeadImage${trackCol}`];
-                        } else if (noteType === 'body') {
-                            canonicalParamKey = `NoteImage${trackCol}L`;
-                            paramAliases = [`NoteImage${trackCol}L`, `HoldNoteBodyImage${trackCol}`];
-                        } else if (noteType === 'tail') {
-                            canonicalParamKey = `NoteImage${trackCol}T`;
-                            paramAliases = [`NoteImage${trackCol}T`, `HoldNoteTailImage${trackCol}`];
-                        } else if (noteType === 'key') {
-                            canonicalParamKey = `KeyImage${trackCol}`;
-                            paramAliases = [`KeyImage${trackCol}`];
-                        } else if (noteType === 'keydown') {
-                            canonicalParamKey = `KeyImage${trackCol}D`;
-                            paramAliases = [`KeyImage${trackCol}D`, `KeyImageDown${trackCol}`, `KeyImage${trackCol}Down`];
+                    if (isTrackNote && trackCol != null && typeof MANIA_TRACK_TEXTURE_META !== 'undefined') {
+                        const meta = MANIA_TRACK_TEXTURE_META[noteType];
+                        if (meta) {
+                            canonicalParamKey = `${meta.prefix}${trackCol}${meta.suffix}`;
+                            paramAliases = typeof buildTrackTextureAliases === 'function'
+                                ? buildTrackTextureAliases(noteType, trackCol)
+                                : [canonicalParamKey];
                         }
                     }
 
@@ -28360,6 +28373,39 @@ void primeDefaultSkin();
             updateRgbAdjustmentInputs();
             updateRgbAdjustmentControlAvailability();
         }
+
+        function collectOtherTrackTextureReferences(sourcePath, paramKey) {
+            if (!sourcePath || typeof collectTexturePathReferences !== 'function') return [];
+            const currentParam = paramKey && typeof getTextureTabParams === 'function'
+                ? getTextureTabParams().find((p) => p.key === paramKey)
+                : null;
+            const currentTrack = currentParam && typeof getParamTrackIndex === 'function'
+                ? getParamTrackIndex(currentParam)
+                : null;
+            if (currentTrack == null) return [];
+            const currentKind = typeof getKeyImageParamKind === 'function'
+                ? getKeyImageParamKind(currentParam)
+                : null;
+            return collectTexturePathReferences(sourcePath).filter((p) => {
+                if (p.key === paramKey) return false;
+                const track = typeof getParamTrackIndex === 'function' ? getParamTrackIndex(p) : null;
+                if (track == null) return false;
+                if (track !== currentTrack) return true;
+                const otherKind = typeof getKeyImageParamKind === 'function' ? getKeyImageParamKind(p) : null;
+                return !(currentKind && otherKind && currentKind !== otherKind);
+            });
+        }
+
+        async function requestSharedTextureReferenceDecision(displayPath, otherReferences) {
+            if (!Array.isArray(otherReferences) || otherReferences.length === 0) return 'all';
+            if (typeof requestLongBodyApplyScope !== 'function') return 'all';
+            return requestLongBodyApplyScope({
+                title: '贴图被多处引用',
+                text: `“${displayPath}”还被其他 ${otherReferences.length} 个轨道引用。是否同步替换所有引用？选择“同步替换”将直接覆盖原图；选择“独立创建”将为当前轨道独立创建贴图。`,
+                currentLabel: '独立创建',
+                allLabel: '同步替换'
+            });
+        }
 // --- END ui/texture-image-editor-state.js ---
 
 // --- BEGIN ui/texture-image-editor-tabs.js ---
@@ -28649,10 +28695,10 @@ void primeDefaultSkin();
         }
 // --- END ui/texture-image-editor-tabs.js ---
 
-// --- BEGIN ui/texture-image-editor-create.js ---
+// --- BEGIN ui/texture-image-editor-create-state.js ---
 // ============================================================================
-// texture-image-editor-create.js - 纯色贴图创建与二次编辑控制器
-// 直接生成贴图到全部贴图区域，保留参数以供二次编辑
+// texture-image-editor-create-state.js - 纯色贴图创建器状态与预览渲染
+// 从 texture-image-editor-create.js 按职责拆分；所有脚本共享既有经典脚本作用域。
 // ============================================================================
 
         let nextTextureCreatorTabId = 1;
@@ -29020,10 +29066,17 @@ void primeDefaultSkin();
                 syncActiveCreatorTabDirtyDot();
                 return true;
             } catch (err) {
-                console.warn('生成设置画布实时预览失败:', err);
+                console.warn('生成生成设置画布实时预览失败:', err);
                 return false;
             }
         }
+// --- END ui/texture-image-editor-create-state.js ---
+
+// --- BEGIN ui/texture-image-editor-create-inputs.js ---
+// ============================================================================
+// texture-image-editor-create-inputs.js - 纯色贴图创建器表单同步与 DOM 事件绑定
+// 从 texture-image-editor-create.js 按职责拆分；所有脚本共享既有经典脚本作用域。
+// ============================================================================
 
         function updateTextureCreatorCornerInputs() {
             const usesRadius = textureCreatorShapeUsesCornerRadius(
@@ -29170,355 +29223,6 @@ void primeDefaultSkin();
             updateTextureCreatorArrowInputs();
             updateTextureCreatorShapeSelection();
             refreshTextureCreatorPreview();
-        }
-
-        function getTextureCreatorTabs() {
-            return tabs.filter((tab) => tab.kind === 'creator' && tab.creatorState);
-        }
-
-        function getTextureCreatorTabForEditPath(editPath) {
-            if (!editPath) return null;
-            return getTextureCreatorTabs().find((tab) => tab.creatorState.editPath === editPath) || null;
-        }
-
-        function getNextTextureCreatorTabId() {
-            const id = nextTextureCreatorTabId === 1
-                ? 'texture-creator'
-                : `texture-creator-${nextTextureCreatorTabId}`;
-            nextTextureCreatorTabId++;
-            return id;
-        }
-
-        function getTextureCreatorTabTitle(creatorState) {
-            if (!creatorState) return '创建贴图';
-            if (creatorState.editPath) {
-                const filename = creatorState.editPath.split('/').pop();
-                return `编辑 · ${filename}`;
-            }
-            const name = String(creatorState.name || '').trim();
-            return name ? `创建 · ${name}` : '创建贴图';
-        }
-
-        function updateActiveTextureCreatorTabTitle() {
-            const tab = getActiveTab();
-            if (!tab || tab.kind !== 'creator') return;
-            tab.title = getTextureCreatorTabTitle(tab.creatorState);
-            const list = byId('textureImageTabList');
-            if (!list) return;
-            for (const tabEl of list.querySelectorAll('.texture-image-tab')) {
-                if (tabEl.dataset.tabId !== tab.id) continue;
-                const label = tabEl.querySelector('.texture-image-tab-label');
-                if (label) {
-                    label.textContent = tab.title;
-                    label.title = tab.title;
-                }
-                break;
-            }
-            syncActiveCreatorTabDirtyDot(tab);
-        }
-
-        function openTextureCreator(options = {}) {
-            if (!isSkinEditingWorkspaceReady()) {
-                open();
-                return false;
-            }
-            const isEdit = !!(options && options.editPath);
-            let tab = isEdit ? getTextureCreatorTabForEditPath(options.editPath) : null;
-            if (!tab) {
-                const creatorState = createTextureCreatorState({
-                    editPath: isEdit ? options.editPath : null
-                });
-                creatorState.paramKey = (options && options.paramKey) || null;
-                if (isEdit && typeof createSkinSnapshot === 'function') {
-                    creatorState.previewSnapshot = createSkinSnapshot(
-                        '生成设置实时预览基线'
-                    );
-                    creatorState.baseline = captureTextureCreatorBaseline(creatorState);
-                }
-                tab = {
-                    id: getNextTextureCreatorTabId(),
-                    kind: 'creator',
-                    title: getTextureCreatorTabTitle(creatorState),
-                    creatorState,
-                    previousTabId: activeTabId || 'menu'
-                };
-                tabs.push(tab);
-            } else if (options && options.paramKey) {
-                tab.creatorState.paramKey = options.paramKey;
-            }
-            textureCreatorState = tab.creatorState;
-
-            if (activeTabId === tab.id) {
-                renderTabs();
-                renderTextureCreatorForm();
-                setViews('creator');
-            } else {
-                activateTab(tab.id);
-            }
-            const nameInput = byId('textureImageCreateName');
-            if (nameInput) {
-                nameInput.focus({ preventScroll: true });
-                if (!isEdit) nameInput.select();
-            }
-            updateActiveTextureCreatorTabTitle();
-            return true;
-        }
-
-        function closeTextureCreator() {
-            cancelScheduledTextureCreatorPreview();
-            const tab = getActiveTab();
-            if (!tab || tab.kind !== 'creator') return false;
-            return removeTab(tab.id, { restorePreview: true });
-        }
-
-        function readTextureCreatorPayload() {
-            const nameInput = byId('textureImageCreateName');
-            const rawName = nameInput ? nameInput.value.trim() : (textureCreatorState.name || '');
-            if (!rawName) throw new Error('请输入贴图名称');
-
-            const width = Number((byId('textureImageCreateWidth') || {}).value);
-            const height = Number((byId('textureImageCreateHeight') || {}).value);
-            if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
-                throw new Error('宽度和高度必须是大于等于 1 的整数');
-            }
-            if (width > TEXTURE_SOLID_SHAPE_MAX_DIMENSION ||
-                height > TEXTURE_SOLID_SHAPE_MAX_DIMENSION ||
-                width * height > TEXTURE_SOLID_SHAPE_MAX_PIXELS) {
-                throw new Error(`画布尺寸过大，单边不能超过 ${TEXTURE_SOLID_SHAPE_MAX_DIMENSION}px`);
-            }
-
-            const checkedSpec = document.querySelector('input[name="textureImageCreateSpec"]:checked');
-            const spec = checkedSpec ? (checkedSpec.value === '2x' ? '2x' : '1x') : textureCreatorState.spec;
-            const colorHexInput = byId('textureImageCreateColorHex');
-            const colorInput = byId('textureImageCreateColor');
-            const rawColor = (colorHexInput && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(colorHexInput.value.trim()))
-                ? colorHexInput.value
-                : ((colorInput && colorInput.value) || textureCreatorState.color);
-            const color = normalizeTextureHexColor(rawColor);
-
-            const alphaValue = Number((byId('textureImageCreateAlphaValue') || {}).value);
-            const alpha = Number.isFinite(alphaValue)
-                ? Math.max(0, Math.min(100, Math.round(alphaValue)))
-                : textureCreatorState.alpha;
-            const strokeColorHexInput = byId('textureImageCreateStrokeColorHex');
-            const strokeColorInput = byId('textureImageCreateStrokeColor');
-            const rawStrokeColor = (strokeColorHexInput && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(strokeColorHexInput.value.trim()))
-                ? strokeColorHexInput.value
-                : ((strokeColorInput && strokeColorInput.value) || textureCreatorState.strokeColor);
-            const strokeColor = normalizeTextureHexColor(rawStrokeColor);
-            const strokeAlphaValue = Number(
-                (byId('textureImageCreateStrokeAlphaValue') || {}).value
-            );
-            const strokeAlpha = Number.isFinite(strokeAlphaValue)
-                ? Math.max(0, Math.min(100, Math.round(strokeAlphaValue)))
-                : textureCreatorState.strokeAlpha;
-            const strokeEnabledInput = byId('textureImageCreateStrokeEnabled');
-            const strokeWidthValue = Number(
-                (byId('textureImageCreateStrokeWidthValue') || {}).value
-            );
-            const parsedStrokeWidth = Number.isFinite(strokeWidthValue)
-                ? Math.max(0, Math.min(64, Math.round(strokeWidthValue)))
-                : textureCreatorState.strokeWidth;
-            const strokeWidth = (strokeEnabledInput && !strokeEnabledInput.checked) ? 0 : parsedStrokeWidth;
-            const radiusValue = Number((byId('textureImageCreateCornerRadius') || {}).value);
-            const cornerRadius = normalizeTextureCreatorCornerRadius(
-                radiusValue,
-                textureCreatorState.shape,
-                width,
-                height
-            );
-            const thicknessValue = Number((byId('textureImageCreateArrowThicknessValue') || {}).value);
-            const arrowThickness = Number.isFinite(thicknessValue)
-                ? Math.max(8, Math.min(50, Math.round(thicknessValue)))
-                : textureCreatorState.arrowThickness;
-            const roundnessValue = Number((byId('textureImageCreateArrowRoundnessValue') || {}).value);
-            const arrowRoundness = Number.isFinite(roundnessValue)
-                ? Math.max(0, Math.min(100, Math.round(roundnessValue)))
-                : textureCreatorState.arrowRoundness;
-
-            const fillTransparentColorInput = byId('textureImageCreateFillTransparentColor');
-            const fillTransparentColorHexInput = byId('textureImageCreateFillTransparentColorHex');
-            const rawFillTransparentColor = (fillTransparentColorHexInput && fillTransparentColorHexInput.value) ||
-                (fillTransparentColorInput && fillTransparentColorInput.value) ||
-                textureCreatorState.fillTransparentColor ||
-                '#000000';
-            const fillTransparentColor = normalizeTextureHexColor(rawFillTransparentColor);
-            const fillTransparentAlphaValue = Number(
-                (byId('textureImageCreateFillTransparentAlphaValue') || {}).value
-            );
-            const fillTransparentAlpha = Number.isFinite(fillTransparentAlphaValue)
-                ? Math.max(0, Math.min(100, Math.round(fillTransparentAlphaValue)))
-                : (Number.isFinite(textureCreatorState.fillTransparentAlpha) ? textureCreatorState.fillTransparentAlpha : 0);
-
-            textureCreatorState.name = rawName;
-            textureCreatorState.width = width;
-            textureCreatorState.height = height;
-            textureCreatorState.spec = spec;
-            textureCreatorState.color = color;
-            textureCreatorState.alpha = alpha;
-            textureCreatorState.strokeColor = strokeColor;
-            textureCreatorState.strokeWidth = strokeWidth;
-            textureCreatorState.strokeEnabled = strokeWidth > 0;
-            textureCreatorState.strokeAlpha = strokeAlpha;
-            textureCreatorState.cornerRadius = cornerRadius;
-            textureCreatorState.arrowThickness = arrowThickness;
-            textureCreatorState.arrowRoundness = arrowRoundness;
-            textureCreatorState.fillTransparentColor = fillTransparentColor;
-            textureCreatorState.fillTransparentAlpha = fillTransparentAlpha;
-            return {
-                name: rawName,
-                width,
-                height,
-                spec,
-                is2x: spec === '2x',
-                color,
-                alpha,
-                strokeEnabled: textureCreatorState.strokeEnabled,
-                strokeColor,
-                strokeAlpha,
-                strokeWidth,
-                shape: textureCreatorState.shape,
-                cornerRadius,
-                arrowThickness,
-                arrowRoundness,
-                fillTransparentColor,
-                fillTransparentAlpha
-            };
-        }
-
-        async function createTextureFromCreator() {
-            cancelScheduledTextureCreatorPreview();
-            const errorEl = byId('textureImageCreateNameError');
-            if (errorEl) {
-                errorEl.textContent = '';
-                errorEl.style.display = 'none';
-            }
-            try {
-                const creatorTab = getActiveTab();
-                if (!creatorTab || creatorTab.kind !== 'creator') return false;
-                const creatorState = creatorTab.creatorState;
-                textureCreatorState = creatorState;
-                const payload = readTextureCreatorPayload();
-                const isEdit = !!creatorState.editPath;
-                const sourcePath = isEdit ? normalizeTextureLookupPath(creatorState.editPath) : '';
-                const paramKey = creatorState.paramKey;
-                const currentParam = paramKey
-                    ? (typeof getTextureTabParams === 'function' ? getTextureTabParams() : []).find((p) => p.key === paramKey)
-                    : null;
-                const currentTrack = currentParam && typeof getParamTrackIndex === 'function'
-                    ? getParamTrackIndex(currentParam)
-                    : null;
-                const references = (isEdit && typeof collectTexturePathReferences === 'function')
-                    ? collectTexturePathReferences(sourcePath)
-                    : [];
-                const otherReferences = currentTrack == null
-                    ? []
-                    : references.filter((p) => {
-                        if (p.key === paramKey) return false;
-                        const track = typeof getParamTrackIndex === 'function' ? getParamTrackIndex(p) : null;
-                        return track != null && track !== currentTrack;
-                    });
-
-                let decision = 'all';
-                if (otherReferences.length > 0 && typeof requestLongBodyApplyScope === 'function') {
-                    decision = await requestLongBodyApplyScope({
-                        title: '贴图被多处引用',
-                        text: `“${sourcePath}”还被其他 ${otherReferences.length} 个轨道引用。是否同步替换所有引用？选择“同步替换”将直接覆盖原图；选择“独立创建”将为当前轨道独立创建贴图。`,
-                        currentLabel: '独立创建',
-                        allLabel: '同步替换'
-                    });
-                    if (!decision) return false;
-                }
-
-                if (creatorState.editPath && creatorState.previewSnapshot) {
-                    applySkinSnapshot(creatorState.previewSnapshot, { preserveNonTextureSettings: true });
-                    drawFrame();
-                }
-
-                let result;
-                if (decision === 'current' && isEdit && paramKey) {
-                    const independentPath = createIndependentTexturePath(sourcePath, paramKey);
-                    const independentPayload = {
-                        ...payload,
-                        name: independentPath
-                    };
-                    result = await saveSolidTextureToLibrary(independentPayload, {
-                        oldPath: null
-                    });
-                    const previousParams = typeof getCreatedTextureParams === 'function'
-                        ? getCreatedTextureParams(sourcePath)
-                        : null;
-                    if (previousParams && previousParams.generalEditParams &&
-                        typeof saveCreatedTextureGeneralEditParams === 'function') {
-                        saveCreatedTextureGeneralEditParams(
-                            result.path,
-                            previousParams.generalEditParams
-                        );
-                    }
-                    if (typeof pointTextureEditParamToPath === 'function') {
-                        pointTextureEditParamToPath(paramKey, result.path);
-                    }
-                } else {
-                    result = await saveSolidTextureToLibrary(payload, {
-                        oldPath: creatorState.editPath
-                    });
-                    if (paramKey && typeof pointTextureEditParamToPath === 'function') {
-                        pointTextureEditParamToPath(paramKey, result.path);
-                    }
-                }
-                creatorState.previewSnapshot = null;
-                if (typeof updateEditorBaseAfterSave === 'function') {
-                    updateEditorBaseAfterSave();
-                }
-                if (typeof renderTextureLibrary === 'function') {
-                    renderTextureLibrary();
-                } else if (typeof textureLibraryUi !== 'undefined' && textureLibraryUi.refresh) {
-                    textureLibraryUi.refresh();
-                }
-                renderPicker();
-                drawFrame();
-                renderSkinEditorParams();
-                if (selectedCanvasElement) syncCanvasSelectedCard(selectedCanvasElement);
-
-                const creatorTabsBefore = getTextureCreatorTabs();
-                const creatorIndex = creatorTabsBefore.findIndex((tab) => tab.id === creatorTab.id);
-                const nextCreatorTab = creatorTabsBefore[creatorIndex + 1] ||
-                    creatorTabsBefore[creatorIndex - 1] ||
-                    null;
-                removeTab(creatorTab.id, { restorePreview: false });
-                activateTab(nextCreatorTab ? nextCreatorTab.id : 'texture-library', { force: true });
-
-                if (typeof textureLibraryUi !== 'undefined' && textureLibraryUi) {
-                    textureLibraryUi.refresh();
-                    if (typeof textureLibraryUi.selectPath === 'function') {
-                        textureLibraryUi.selectPath(result.path);
-                    }
-                }
-                const createdCard = document.querySelector(
-                    `#textureImageLibraryGrid [data-texture-path="${result.path}"]`
-                );
-                if (createdCard && !nextCreatorTab) {
-                    createdCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-                }
-
-                showToast(
-                    result.isEdit ? '贴图已更新' : '已创建纯色贴图',
-                    decision === 'current'
-                        ? `${result.path}.png 已作为独立贴图分配给当前轨道。`
-                        : `${result.path}.png 已生成到全部贴图。`
-                );
-                return true;
-            } catch (err) {
-                if (getActiveTab() && getActiveTab().kind === 'creator') {
-                    refreshTextureCreatorCanvasPreview();
-                }
-                if (errorEl) {
-                    errorEl.textContent = err.message || '操作失败';
-                    errorEl.style.display = 'block';
-                }
-                showToast('无法保存贴图', err.message || '请检查贴图名称与各项参数');
-                return false;
-            }
         }
 
         function applyTextureCreatorAlpha(rawValue) {
@@ -29829,6 +29533,344 @@ void primeDefaultSkin();
                 });
             }
         }
+// --- END ui/texture-image-editor-create-inputs.js ---
+
+// --- BEGIN ui/texture-image-editor-create.js ---
+// ============================================================================
+// texture-image-editor-create.js - 纯色贴图创建与二次编辑保存控制器
+// 依赖：ui/texture-image-editor-create-state.js、ui/texture-image-editor-create-inputs.js
+// ============================================================================
+
+        function getTextureCreatorTabs() {
+            return tabs.filter((tab) => tab.kind === 'creator' && tab.creatorState);
+        }
+
+        function getTextureCreatorTabForEditPath(editPath) {
+            if (!editPath) return null;
+            return getTextureCreatorTabs().find((tab) => tab.creatorState.editPath === editPath) || null;
+        }
+
+        function getNextTextureCreatorTabId() {
+            const id = nextTextureCreatorTabId === 1
+                ? 'texture-creator'
+                : `texture-creator-${nextTextureCreatorTabId}`;
+            nextTextureCreatorTabId++;
+            return id;
+        }
+
+        function getTextureCreatorTabTitle(creatorState) {
+            if (!creatorState) return '创建贴图';
+            if (creatorState.editPath) {
+                const filename = creatorState.editPath.split('/').pop();
+                return `编辑 · ${filename}`;
+            }
+            const name = String(creatorState.name || '').trim();
+            return name ? `创建 · ${name}` : '创建贴图';
+        }
+
+        function updateActiveTextureCreatorTabTitle() {
+            const tab = getActiveTab();
+            if (!tab || tab.kind !== 'creator') return;
+            tab.title = getTextureCreatorTabTitle(tab.creatorState);
+            const list = byId('textureImageTabList');
+            if (!list) return;
+            for (const tabEl of list.querySelectorAll('.texture-image-tab')) {
+                if (tabEl.dataset.tabId !== tab.id) continue;
+                const label = tabEl.querySelector('.texture-image-tab-label');
+                if (label) {
+                    label.textContent = tab.title;
+                    label.title = tab.title;
+                }
+                break;
+            }
+            syncActiveCreatorTabDirtyDot(tab);
+        }
+
+        function openTextureCreator(options = {}) {
+            if (!isSkinEditingWorkspaceReady()) {
+                open();
+                return false;
+            }
+            const isEdit = !!(options && options.editPath);
+            let tab = isEdit ? getTextureCreatorTabForEditPath(options.editPath) : null;
+            if (!tab) {
+                const creatorState = createTextureCreatorState({
+                    editPath: isEdit ? options.editPath : null
+                });
+                creatorState.paramKey = (options && options.paramKey) || null;
+                if (isEdit && typeof createSkinSnapshot === 'function') {
+                    creatorState.previewSnapshot = createSkinSnapshot(
+                        '生成设置实时预览基线'
+                    );
+                    creatorState.baseline = captureTextureCreatorBaseline(creatorState);
+                }
+                tab = {
+                    id: getNextTextureCreatorTabId(),
+                    kind: 'creator',
+                    title: getTextureCreatorTabTitle(creatorState),
+                    creatorState,
+                    previousTabId: activeTabId || 'menu'
+                };
+                tabs.push(tab);
+            } else if (options && options.paramKey) {
+                tab.creatorState.paramKey = options.paramKey;
+            }
+            textureCreatorState = tab.creatorState;
+
+            if (activeTabId === tab.id) {
+                renderTabs();
+                renderTextureCreatorForm();
+                setViews('creator');
+            } else {
+                activateTab(tab.id);
+            }
+            const nameInput = byId('textureImageCreateName');
+            if (nameInput) {
+                nameInput.focus({ preventScroll: true });
+                if (!isEdit) nameInput.select();
+            }
+            updateActiveTextureCreatorTabTitle();
+            return true;
+        }
+
+        function closeTextureCreator() {
+            cancelScheduledTextureCreatorPreview();
+            const tab = getActiveTab();
+            if (!tab || tab.kind !== 'creator') return false;
+            return removeTab(tab.id, { restorePreview: true });
+        }
+
+        function readTextureCreatorPayload() {
+            const nameInput = byId('textureImageCreateName');
+            const rawName = nameInput ? nameInput.value.trim() : (textureCreatorState.name || '');
+            if (!rawName) throw new Error('请输入贴图名称');
+
+            const width = Number((byId('textureImageCreateWidth') || {}).value);
+            const height = Number((byId('textureImageCreateHeight') || {}).value);
+            if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
+                throw new Error('宽度和高度必须是大于等于 1 的整数');
+            }
+            if (width > TEXTURE_SOLID_SHAPE_MAX_DIMENSION ||
+                height > TEXTURE_SOLID_SHAPE_MAX_DIMENSION ||
+                width * height > TEXTURE_SOLID_SHAPE_MAX_PIXELS) {
+                throw new Error(`画布尺寸过大，单边不能超过 ${TEXTURE_SOLID_SHAPE_MAX_DIMENSION}px`);
+            }
+
+            const checkedSpec = document.querySelector('input[name="textureImageCreateSpec"]:checked');
+            const spec = checkedSpec ? (checkedSpec.value === '2x' ? '2x' : '1x') : textureCreatorState.spec;
+            const colorHexInput = byId('textureImageCreateColorHex');
+            const colorInput = byId('textureImageCreateColor');
+            const rawColor = (colorHexInput && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(colorHexInput.value.trim()))
+                ? colorHexInput.value
+                : ((colorInput && colorInput.value) || textureCreatorState.color);
+            const color = normalizeTextureHexColor(rawColor);
+
+            const alphaValue = Number((byId('textureImageCreateAlphaValue') || {}).value);
+            const alpha = Number.isFinite(alphaValue)
+                ? Math.max(0, Math.min(100, Math.round(alphaValue)))
+                : textureCreatorState.alpha;
+            const strokeColorHexInput = byId('textureImageCreateStrokeColorHex');
+            const strokeColorInput = byId('textureImageCreateStrokeColor');
+            const rawStrokeColor = (strokeColorHexInput && /^#?(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(strokeColorHexInput.value.trim()))
+                ? strokeColorHexInput.value
+                : ((strokeColorInput && strokeColorInput.value) || textureCreatorState.strokeColor);
+            const strokeColor = normalizeTextureHexColor(rawStrokeColor);
+            const strokeAlphaValue = Number(
+                (byId('textureImageCreateStrokeAlphaValue') || {}).value
+            );
+            const strokeAlpha = Number.isFinite(strokeAlphaValue)
+                ? Math.max(0, Math.min(100, Math.round(strokeAlphaValue)))
+                : textureCreatorState.strokeAlpha;
+            const strokeEnabledInput = byId('textureImageCreateStrokeEnabled');
+            const strokeWidthValue = Number(
+                (byId('textureImageCreateStrokeWidthValue') || {}).value
+            );
+            const parsedStrokeWidth = Number.isFinite(strokeWidthValue)
+                ? Math.max(0, Math.min(64, Math.round(strokeWidthValue)))
+                : textureCreatorState.strokeWidth;
+            const strokeWidth = (strokeEnabledInput && !strokeEnabledInput.checked) ? 0 : parsedStrokeWidth;
+            const radiusValue = Number((byId('textureImageCreateCornerRadius') || {}).value);
+            const cornerRadius = normalizeTextureCreatorCornerRadius(
+                radiusValue,
+                textureCreatorState.shape,
+                width,
+                height
+            );
+            const thicknessValue = Number((byId('textureImageCreateArrowThicknessValue') || {}).value);
+            const arrowThickness = Number.isFinite(thicknessValue)
+                ? Math.max(8, Math.min(50, Math.round(thicknessValue)))
+                : textureCreatorState.arrowThickness;
+            const roundnessValue = Number((byId('textureImageCreateArrowRoundnessValue') || {}).value);
+            const arrowRoundness = Number.isFinite(roundnessValue)
+                ? Math.max(0, Math.min(100, Math.round(roundnessValue)))
+                : textureCreatorState.arrowRoundness;
+
+            const fillTransparentColorInput = byId('textureImageCreateFillTransparentColor');
+            const fillTransparentColorHexInput = byId('textureImageCreateFillTransparentColorHex');
+            const rawFillTransparentColor = (fillTransparentColorHexInput && fillTransparentColorHexInput.value) ||
+                (fillTransparentColorInput && fillTransparentColorInput.value) ||
+                textureCreatorState.fillTransparentColor ||
+                '#000000';
+            const fillTransparentColor = normalizeTextureHexColor(rawFillTransparentColor);
+            const fillTransparentAlphaValue = Number(
+                (byId('textureImageCreateFillTransparentAlphaValue') || {}).value
+            );
+            const fillTransparentAlpha = Number.isFinite(fillTransparentAlphaValue)
+                ? Math.max(0, Math.min(100, Math.round(fillTransparentAlphaValue)))
+                : (Number.isFinite(textureCreatorState.fillTransparentAlpha) ? textureCreatorState.fillTransparentAlpha : 0);
+
+            textureCreatorState.name = rawName;
+            textureCreatorState.width = width;
+            textureCreatorState.height = height;
+            textureCreatorState.spec = spec;
+            textureCreatorState.color = color;
+            textureCreatorState.alpha = alpha;
+            textureCreatorState.strokeColor = strokeColor;
+            textureCreatorState.strokeWidth = strokeWidth;
+            textureCreatorState.strokeEnabled = strokeWidth > 0;
+            textureCreatorState.strokeAlpha = strokeAlpha;
+            textureCreatorState.cornerRadius = cornerRadius;
+            textureCreatorState.arrowThickness = arrowThickness;
+            textureCreatorState.arrowRoundness = arrowRoundness;
+            textureCreatorState.fillTransparentColor = fillTransparentColor;
+            textureCreatorState.fillTransparentAlpha = fillTransparentAlpha;
+            return {
+                name: rawName,
+                width,
+                height,
+                spec,
+                is2x: spec === '2x',
+                color,
+                alpha,
+                strokeEnabled: textureCreatorState.strokeEnabled,
+                strokeColor,
+                strokeAlpha,
+                strokeWidth,
+                shape: textureCreatorState.shape,
+                cornerRadius,
+                arrowThickness,
+                arrowRoundness,
+                fillTransparentColor,
+                fillTransparentAlpha
+            };
+        }
+
+        async function createTextureFromCreator() {
+            cancelScheduledTextureCreatorPreview();
+            const errorEl = byId('textureImageCreateNameError');
+            if (errorEl) {
+                errorEl.textContent = '';
+                errorEl.style.display = 'none';
+            }
+            try {
+                const creatorTab = getActiveTab();
+                if (!creatorTab || creatorTab.kind !== 'creator') return false;
+                const creatorState = creatorTab.creatorState;
+                textureCreatorState = creatorState;
+                const payload = readTextureCreatorPayload();
+                const isEdit = !!creatorState.editPath;
+                const sourcePath = isEdit ? normalizeTextureLookupPath(creatorState.editPath) : '';
+                const paramKey = creatorState.paramKey;
+                const otherReferences = (isEdit && typeof collectOtherTrackTextureReferences === 'function')
+                    ? collectOtherTrackTextureReferences(sourcePath, paramKey)
+                    : [];
+
+                let decision = 'all';
+                if (otherReferences.length > 0 && typeof requestSharedTextureReferenceDecision === 'function') {
+                    decision = await requestSharedTextureReferenceDecision(sourcePath, otherReferences);
+                    if (!decision) return false;
+                }
+
+                if (creatorState.editPath && creatorState.previewSnapshot) {
+                    applySkinSnapshot(creatorState.previewSnapshot, { preserveNonTextureSettings: true });
+                    drawFrame();
+                }
+
+                let result;
+                if (decision === 'current' && isEdit && paramKey) {
+                    const independentPath = createIndependentTexturePath(sourcePath, paramKey);
+                    const independentPayload = {
+                        ...payload,
+                        name: independentPath
+                    };
+                    result = await saveSolidTextureToLibrary(independentPayload, {
+                        oldPath: null
+                    });
+                    const previousParams = typeof getCreatedTextureParams === 'function'
+                        ? getCreatedTextureParams(sourcePath)
+                        : null;
+                    if (previousParams && previousParams.generalEditParams &&
+                        typeof saveCreatedTextureGeneralEditParams === 'function') {
+                        saveCreatedTextureGeneralEditParams(
+                            result.path,
+                            previousParams.generalEditParams
+                        );
+                    }
+                    if (typeof pointTextureEditParamToPath === 'function') {
+                        pointTextureEditParamToPath(paramKey, result.path);
+                    }
+                } else {
+                    result = await saveSolidTextureToLibrary(payload, {
+                        oldPath: creatorState.editPath
+                    });
+                    if (paramKey && typeof pointTextureEditParamToPath === 'function') {
+                        pointTextureEditParamToPath(paramKey, result.path);
+                    }
+                }
+                creatorState.previewSnapshot = null;
+                if (typeof updateEditorBaseAfterSave === 'function') {
+                    updateEditorBaseAfterSave();
+                }
+                if (typeof renderTextureLibrary === 'function') {
+                    renderTextureLibrary();
+                } else if (typeof textureLibraryUi !== 'undefined' && textureLibraryUi.refresh) {
+                    textureLibraryUi.refresh();
+                }
+                renderPicker();
+                drawFrame();
+                renderSkinEditorParams();
+                if (selectedCanvasElement) syncCanvasSelectedCard(selectedCanvasElement);
+
+                const creatorTabsBefore = getTextureCreatorTabs();
+                const creatorIndex = creatorTabsBefore.findIndex((tab) => tab.id === creatorTab.id);
+                const nextCreatorTab = creatorTabsBefore[creatorIndex + 1] ||
+                    creatorTabsBefore[creatorIndex - 1] ||
+                    null;
+                removeTab(creatorTab.id, { restorePreview: false });
+                activateTab(nextCreatorTab ? nextCreatorTab.id : 'texture-library', { force: true });
+
+                if (typeof textureLibraryUi !== 'undefined' && textureLibraryUi) {
+                    textureLibraryUi.refresh();
+                    if (typeof textureLibraryUi.selectPath === 'function') {
+                        textureLibraryUi.selectPath(result.path);
+                    }
+                }
+                const createdCard = document.querySelector(
+                    `#textureImageLibraryGrid [data-texture-path="${result.path}"]`
+                );
+                if (createdCard && !nextCreatorTab) {
+                    createdCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+
+                showToast(
+                    result.isEdit ? '贴图已更新' : '已创建纯色贴图',
+                    decision === 'current'
+                        ? `${result.path}.png 已作为独立贴图分配给当前轨道。`
+                        : `${result.path}.png 已生成到全部贴图。`
+                );
+                return true;
+            } catch (err) {
+                if (getActiveTab() && getActiveTab().kind === 'creator') {
+                    refreshTextureCreatorCanvasPreview();
+                }
+                if (errorEl) {
+                    errorEl.textContent = err.message || '操作失败';
+                    errorEl.style.display = 'block';
+                }
+                showToast('无法保存贴图', err.message || '请检查贴图名称与各项参数');
+                return false;
+            }
+        }
 
         window.openTextureCreator = openTextureCreator;
 // --- END ui/texture-image-editor-create.js ---
@@ -29973,15 +30015,10 @@ void primeDefaultSkin();
                         sourceFrames: item.group.sourceFrames.map(cloneFrame),
                         originalReference: item.group.reference,
                         keyImageOriginalSources: cloneKeyImageEditSources(originalSources),
-                        params: {
-                            ...params,
-                            imageTransform: cloneImageTransform(params.imageTransform),
-                            rgbAdjustment: cloneRgbAdjustment(
-                                item.group.rgbAdjustment != null
-                                    ? item.group.rgbAdjustment
-                                    : params.rgbAdjustment
-                            )
-                        },
+                        params: cloneTextureEditRecipeParams(
+                            params,
+                            item.group.rgbAdjustment != null ? item.group.rgbAdjustment : params.rgbAdjustment
+                        ),
                         outputFrames: target.frames.slice()
                     });
                 }
@@ -35158,7 +35195,7 @@ void primeDefaultSkin();
 
 // --- BEGIN ui/texture-image-editor-save-close.js ---
 // ============================================================================
-// texture-image-editor-save-close.js - 贴图保存、重置与编辑器关闭流程
+// texture-image-editor-save-close.js - 贴图保存管线、目标刷新与单图重置
 // 由 texture-image-editor.js 按职责拆分；所有脚本共享既有经典脚本作用域。
 // ============================================================================
 
@@ -35192,6 +35229,551 @@ void primeDefaultSkin();
             }
             if (getActiveTab() === savedTab) state.selected = target;
         }
+
+        function getTextureEditSourcePath(selected) {
+            if (!selected) return '';
+            if (selected.kind === 'library') {
+                return normalizeTextureLookupPath(selected.libraryPath || selected.base);
+            }
+            return normalizeTextureLookupPath(
+                (selected.resolved && selected.resolved.name) ||
+                selected.base ||
+                ''
+            );
+        }
+
+        function getTextureEditParamKey(selected) {
+            if (!selected) return null;
+            if (selected.kind === 'library') {
+                return selected.libraryParamKey || (
+                    (typeof getEffectiveParamForTarget === 'function')
+                        ? (getEffectiveParamForTarget(selected) || {}).key || null
+                        : null
+                );
+            }
+            return selected.p ? selected.p.key : null;
+        }
+
+        function createIndependentTexturePath(sourcePath, paramKey) {
+            const normalizedSource = normalizeTextureLookupPath(sourcePath);
+            const slash = normalizedSource.lastIndexOf('/');
+            const directory = slash >= 0 ? normalizedSource.slice(0, slash + 1) : '';
+            const basename = slash >= 0 ? normalizedSource.slice(slash + 1) : normalizedSource;
+            const suffix = String(paramKey || 'copy')
+                .replace(/[^a-z0-9_-]+/gi, '_')
+                .replace(/^_+|_+$/g, '')
+                .toLowerCase() || 'copy';
+            const existing = new Set(
+                collectExistingTextureSources().map((item) => normalizeSkinKey(item.path))
+            );
+            let index = 1;
+            let candidate;
+            do {
+                const suffixText = index === 1 ? suffix : `${suffix}_${index}`;
+                candidate = `${directory}${basename}_${suffixText}`;
+                index++;
+            } while (existing.has(normalizeSkinKey(candidate)));
+            return candidate;
+        }
+
+        async function resolveTextureEditSavePlan(selected, options = {}) {
+            const sourcePath = getTextureEditSourcePath(selected);
+            if (!sourcePath) {
+                throw new Error('无法确定当前贴图路径');
+            }
+            if (selected && isFontGlyphTextureParam(selected.p)) {
+                return {
+                    sourcePath,
+                    savePath: sourcePath,
+                    paramKey: selected.p.key,
+                    mode: 'overwrite',
+                    otherReferences: []
+                };
+            }
+            const paramKey = getTextureEditParamKey(selected);
+            const otherReferences = collectOtherTrackTextureReferences(sourcePath, paramKey);
+            if (otherReferences.length === 0) {
+                return {
+                    sourcePath,
+                    savePath: sourcePath,
+                    paramKey,
+                    mode: 'overwrite',
+                    otherReferences
+                };
+            }
+            const decision = (options && options.mode === 'overwrite')
+                ? 'all'
+                : ((options && options.mode === 'independent')
+                    ? 'current'
+                    : await requestSharedTextureReferenceDecision(sourcePath, otherReferences));
+            if (!decision) return null;
+            if (decision === 'all') {
+                return {
+                    sourcePath,
+                    savePath: sourcePath,
+                    paramKey,
+                    mode: 'overwrite',
+                    otherReferences
+                };
+            }
+            return {
+                sourcePath,
+                savePath: createIndependentTexturePath(sourcePath, paramKey),
+                paramKey,
+                mode: 'independent',
+                otherReferences
+            };
+        }
+
+        function pointTextureEditParamToPath(paramKey, targetPath) {
+            if (!paramKey || !targetPath) return false;
+            const p = getTextureTabParams().find((item) => item.key === paramKey) ||
+                (typeof SKIN_INI_PARAM_SCHEMA !== 'undefined'
+                    ? SKIN_INI_PARAM_SCHEMA.find((item) => item.key === paramKey)
+                    : null);
+            if (!p || typeof assignTextureParamLookup !== 'function') return false;
+            if (isFontGlyphTextureParam(p)) return false;
+            if (typeof preserveHoldHeadsBeforeNoteEdit === 'function') {
+                preserveHoldHeadsBeforeNoteEdit(
+                    getActiveKeyCount(),
+                    p,
+                    { syncInput: true }
+                );
+            }
+            assignTextureParamLookup(getActiveKeyCount(), p, targetPath);
+            return true;
+        }
+
+        function completeSavedTab(options = {}) {
+            const savedTab = getActiveTab();
+            if (!savedTab || savedTab.kind !== 'texture') return false;
+            if (typeof clearKeyImageHeightBaselines === 'function') {
+                clearKeyImageHeightBaselines();
+            }
+            refreshSavedTabTarget(savedTab);
+            const hasPreparedRecipe = !!getStoredTextureEditRecipe(savedTab.target);
+            if (!hasPreparedRecipe) {
+                rememberTextureEditRecipe(savedTab);
+            }
+            if (!getStoredTextureEditRecipe(savedTab.target)) {
+                removeTextureEditRecipe(savedTab);
+            }
+            updateEditorBaseAfterSave();
+            renderPicker();
+
+            if (options.closeTabAfterSave !== true) {
+                if (savedTab.state.longBodyComposer && savedTab.state.longBodyComposer.active) {
+                    const previewOutput = buildLongBodyComposite(LONG_BODY_PREVIEW_HEIGHT);
+                    if (previewOutput) {
+                        savedTab.state.previewFrames = [previewOutput];
+                    }
+                }
+                savedTab.state.previewSnapshot = editorBaseSnapshot;
+                savedTab.state.savedLongBodyComposer = captureLongBodyComposerState(savedTab.state.longBodyComposer);
+                savedTab.state.keyImageEditRecipe = null;
+                resetEditorHistory();
+                return true;
+            }
+
+            const remainingTextureTabs = getTextureTabs().filter((tab) => tab.id !== savedTab.id);
+            if (remainingTextureTabs.length === 0 && options.closeEditorWhenLast !== false) {
+                finalizeEditorClose({ restoreSnapshot: false });
+            } else {
+                removeTab(savedTab.id, { restorePreview: false });
+            }
+            return true;
+        }
+
+        async function applyKeyImageTextureEditPipeline(options, context) {
+            const {
+                effParam,
+                keyImageApplyScope,
+                syncKeyImagePair,
+                selectedKeyImageKind,
+                recordUndoForApply
+            } = context;
+            const groups = collectKeyImageEditGroups(keyImageApplyScope, {
+                syncPair: syncKeyImagePair,
+                selectedKind: selectedKeyImageKind
+            });
+            if (groups.length === 0) {
+                throw new Error('没有找到可应用的 KeyImage 源贴图');
+            }
+            const params = cloneTextureEditRecipeParams(
+                state.keyImageEditRecipe && state.keyImageEditRecipe.params
+                    ? state.keyImageEditRecipe.params
+                    : getCurrentEditParams(),
+                state.rgbAdjustment
+            );
+
+            let keyImageMode = (options && options.mode) || 'overwrite';
+            if (!options.mode && keyImageApplyScope !== 'all') {
+                const otherReferences = [];
+                const sourcePaths = new Set();
+                for (const group of groups) {
+                    for (const entry of group.entries) {
+                        const rawSource = (entry.reference && !entry.reference.startsWith('missing:'))
+                            ? entry.reference
+                            : ((entry.target.resolved && entry.target.resolved.name) ||
+                               entry.target.base ||
+                               entry.p.key);
+                        const sourcePath = normalizeTextureLookupPath(rawSource);
+                        if (!sourcePath || sourcePaths.has(sourcePath)) continue;
+                        sourcePaths.add(sourcePath);
+                        const refs = collectTexturePathReferences(sourcePath).filter((p) => {
+                            const track = getParamTrackIndex(p);
+                            return track != null && track !== entry.column;
+                        });
+                        for (const ref of refs) {
+                            if (!otherReferences.some((r) => r.key === ref.key)) {
+                                otherReferences.push(ref);
+                            }
+                        }
+                    }
+                }
+                if (otherReferences.length > 0) {
+                    const primarySource = Array.from(sourcePaths)[0] || (effParam && effParam.key) || 'KeyImage';
+                    const decision = await requestSharedTextureReferenceDecision(primarySource, otherReferences);
+                    if (!decision) return false;
+                    keyImageMode = (decision === 'all') ? 'overwrite' : 'independent';
+                }
+            }
+
+            if (state.previewSnapshot) applySkinSnapshot(state.previewSnapshot, { preserveNonTextureSettings: true });
+            const stateLabel = syncKeyImagePair
+                ? 'KeyImage + KeyImageD'
+                : (selectedKeyImageKind === 'down' ? 'KeyImageD' : 'KeyImage');
+            const scopeLabel = keyImageApplyScope === 'all' ? '全部轨道' : '当前轨道';
+            recordUndoForApply(`贴图编辑: ${stateLabel}（${scopeLabel}）`);
+            const prepared = await persistKeyImageEditGroups(groups, params, {
+                mode: keyImageMode,
+                scope: keyImageApplyScope
+            });
+            if (!prepared) throw new Error('KeyImage 贴图未能写入皮肤');
+            rememberPreparedKeyImageEditRecipes(prepared, params);
+            if (keyImageMode === 'independent' && state.selected && state.selected.kind === 'library') {
+                const repItem = prepared.find((item) => item.group.entries.some((entry) => entry.isSelected)) || prepared[0];
+                if (repItem && repItem.base) {
+                    state.selected.base = repItem.base;
+                    state.selected.libraryPath = repItem.base;
+                    state.selected.libraryStoreKey = repItem.base;
+                }
+            }
+            showToast(
+                '贴图编辑成功',
+                keyImageMode === 'independent'
+                    ? `已更新${scopeLabel}的 ${stateLabel}，已为当前轨道创建独立贴图。`
+                    : `已更新${scopeLabel}的 ${stateLabel}，已直接覆盖原图。`
+            );
+            return completeSavedTab(options);
+        }
+
+        async function applyStandardTextureEditPipeline(options, context) {
+            const { recordUndoForApply } = context;
+            const framesToSave = buildPreviewFrames().map((frame) =>
+                applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
+            );
+            if (!framesToSave || framesToSave.length === 0 || !framesToSave[0]) {
+                throw new Error('无法生成要保存的贴图');
+            }
+            state.previewFrames = framesToSave;
+            const savePlan = await resolveTextureEditSavePlan(state.selected, options);
+            if (!savePlan) return false;
+
+            const serialized = await serializeFrames(savePlan.savePath, framesToSave);
+            if (state.previewSnapshot) applySkinSnapshot(state.previewSnapshot, { preserveNonTextureSettings: true });
+
+            const editingCreatedTexture =
+                typeof hasCreatedTextureParams === 'function' &&
+                hasCreatedTextureParams(savePlan.sourcePath);
+            const hasExistingRecipe = !!getStoredTextureEditRecipe(state.selected);
+            if (savePlan.paramKey &&
+                typeof preserveHoldHeadsBeforeNoteEdit === 'function') {
+                const currentParam = getTextureTabParams().find(
+                    (item) => item.key === savePlan.paramKey
+                ) || (typeof SKIN_INI_PARAM_SCHEMA !== 'undefined'
+                    ? SKIN_INI_PARAM_SCHEMA.find((item) => item.key === savePlan.paramKey)
+                    : null);
+                if (currentParam) {
+                    preserveHoldHeadsBeforeNoteEdit(
+                        getActiveKeyCount(),
+                        currentParam,
+                        { syncInput: true }
+                    );
+                }
+            }
+            if (savePlan.mode === 'independent' &&
+                state.selected.kind !== 'library' &&
+                !hasExistingRecipe &&
+                state.originalFrames.length > 0 &&
+                typeof installTextureFramesAtPath === 'function') {
+                installTextureFramesAtPath(
+                    state.originalFrames,
+                    savePlan.sourcePath,
+                    { draw: false }
+                );
+            }
+            const targetZh = (state.selected && state.selected.p && state.selected.p.zhName) || savePlan.savePath;
+            const modeZh = savePlan.mode === 'independent' ? '独立创建' : '同步替换';
+            recordUndoForApply(`贴图编辑: ${targetZh}（${modeZh}）`);
+            persistTextureFramesAtPath(serialized, savePlan.savePath, {
+                refresh: false,
+                showToast: false
+            });
+            if (savePlan.mode === 'independent' && editingCreatedTexture) {
+                cloneCreatedTextureParams(
+                    savePlan.sourcePath,
+                    savePlan.savePath
+                );
+            }
+            pointTextureEditParamToPath(
+                savePlan.paramKey,
+                savePlan.savePath
+            );
+            if (savePlan.mode === 'overwrite') {
+                if (Array.isArray(savePlan.otherReferences)) {
+                    for (const ref of savePlan.otherReferences) {
+                        if (ref && ref.key && ref.key !== savePlan.paramKey) {
+                            pointTextureEditParamToPath(ref.key, savePlan.savePath);
+                        }
+                    }
+                }
+                if (savePlan.paramKey && typeof getTextureParamColumnKeys === 'function') {
+                    const curKeys = getActiveKeyCount();
+                    const columnKeys = getTextureParamColumnKeys(savePlan.paramKey, curKeys);
+                    for (const colKey of columnKeys) {
+                        pointTextureEditParamToPath(colKey, savePlan.savePath);
+                    }
+                }
+            }
+            if (editingCreatedTexture && typeof saveCreatedTextureGeneralEditParams === 'function') {
+                saveCreatedTextureGeneralEditParams(savePlan.savePath, {
+                    ...getCurrentEditParams(),
+                    imageTransform: cloneImageTransform(state.imageTransform),
+                    rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
+                });
+            }
+            state.originalReference = normalizeSkinKey(savePlan.savePath);
+            if (state.selected.kind === 'library') {
+                state.selected.base = savePlan.savePath;
+                state.selected.libraryPath = savePlan.savePath;
+                if (state.selected.resolved) {
+                    state.selected.resolved.name = savePlan.savePath;
+                }
+            } else if (state.selected.resolved) {
+                state.selected.resolved.name = savePlan.savePath;
+            }
+            drawFrame();
+            renderSkinEditorParams();
+            renderPicker();
+            if (typeof renderTextureLibrary === 'function') renderTextureLibrary();
+            showToast(
+                '贴图编辑成功',
+                savePlan.mode === 'independent'
+                    ? `已创建独立副本 ${savePlan.savePath}`
+                    : `已直接覆盖 ${savePlan.savePath}`
+            );
+            return completeSavedTab(options);
+        }
+
+        async function applyLongBodyComposerEditPipeline(options, context) {
+            const {
+                longBodyTargetColumns,
+                applyingAll,
+                recordUndoForApply
+            } = context;
+            setLongBodyProgress('正在生成完整长条...', 0);
+            await waitForUiPaint();
+            const framesToSave = [await buildLongBodyCompositeAsync(
+                state.longBodyComposer.targetHeight,
+                (value) => setLongBodyProgress('正在生成完整长条...', value)
+            )];
+            if (!framesToSave || framesToSave.length === 0 || !framesToSave[0]) {
+                throw new Error('无法生成要保存的贴图');
+            }
+            setLongBodyProgress('正在编码 PNG...', 65, true);
+            await waitForUiPaint();
+            const serialized = [await serializeLongBodyFrame(framesToSave[0])];
+            setLongBodyProgress('正在替换身体贴图...', 82);
+            await waitForUiPaint();
+            if (state.previewSnapshot) applySkinSnapshot(state.previewSnapshot, { preserveNonTextureSettings: true });
+
+            // 预览期间会临时把 NoteBodyStyle 设为 1；历史快照必须记录进入编辑器前的原值，
+            // 否则撤销“一键投皮”时会把临时值一起保留下来。
+            restoreNoteBodyStyle();
+            recordUndoForApply(applyingAll ? '一键投皮（全部轨道）' : '一键投皮（当前轨道）');
+            setNoteBodyStyleOne(false, applyingAll);
+            const applyLabel = applyingAll ? '正在应用到全部轨道...' : '正在应用到当前轨道...';
+            setLongBodyProgress(applyLabel, 82);
+            await waitForUiPaint();
+            const longBodySettings = {
+                targetHeight: state.longBodyComposer.targetHeight,
+                coverage: state.longBodyComposer.coverage,
+                fade: state.longBodyComposer.fade,
+                tailPreset: state.longBodyComposer.tailPreset,
+                presetHeight: state.longBodyComposer.presetHeight,
+                rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
+            };
+            const longBodyApplyPlans = createLongBodyApplyPlans(longBodyTargetColumns);
+            const bodyApplied = await applyLongBodyToTracks(
+                serialized[0],
+                longBodyApplyPlans,
+                longBodySettings,
+                (value) => setLongBodyProgress(applyLabel, value)
+            );
+            if (!bodyApplied) throw new Error('完整长条身体未能写入目标轨道');
+            const tailLabel = applyingAll ? '正在写入全轨透明尾部...' : '正在写入透明尾部...';
+            setLongBodyProgress(tailLabel, 92);
+            await waitForUiPaint();
+            const tailsApplied = await applyTransparentTailsToTracks(
+                longBodyTargetColumns,
+                (value) => setLongBodyProgress(tailLabel, value)
+            );
+            if (!tailsApplied) throw new Error('透明长条尾部未能写入目标轨道');
+
+            setNoteBodyStyleOne(false, applyingAll);
+            persistLongBodyComposerSessions(
+                longBodyApplyPlans,
+                longBodySettings,
+                applyingAll ? 'all' : 'current'
+            );
+            setLongBodyProgress('正在完成...', 100);
+            await waitForUiPaint();
+            showToast(
+                '一键投皮应用成功',
+                applyingAll ? `已应用到全部 ${getActiveKeyCount()} 条轨道。` : '已应用到当前轨道。'
+            );
+            return completeSavedTab(options);
+        }
+
+        async function applySelectedTexture(options = {}) {
+            const applyTab = getActiveTab();
+            if (!state.selected) {
+                showToast('尚未选择贴图', '请先点击“选择贴图”。');
+                return false;
+            }
+            const longBodyApplyScope = state.longBodyComposer.active
+                ? ((options && (options.longBodyScope || options.scope)) || await requestLongBodyApplyScope())
+                : null;
+            if (state.longBodyComposer.active && !longBodyApplyScope) return false;
+            const effParam = (typeof getEffectiveParamForTarget === 'function')
+                ? getEffectiveParamForTarget(state.selected)
+                : (state.selected && state.selected.p);
+            const editingKeyImage = !state.longBodyComposer.active &&
+                effParam &&
+                isEditingKeyImageParam(effParam);
+            const keyImageApplyScope = editingKeyImage
+                ? (options.keyImageScope === 'all' ? 'all' : 'current')
+                : null;
+            const syncKeyImagePair = editingKeyImage
+                ? options.syncKeyImagePair !== false
+                : false;
+            const selectedKeyImageKind = editingKeyImage
+                ? getKeyImageParamKind(effParam)
+                : null;
+            const longBodyTargetColumns = longBodyApplyScope === 'all'
+                ? Array.from({ length: getActiveKeyCount() }, (_, column) => column)
+                : [getSelectedTrackIndex()].filter((column) => column != null);
+            const applyingAll = longBodyApplyScope === 'all';
+
+            const applyBtn = byId('textureImageApplyBtn');
+            const applyMenuBtn = byId('textureImageApplyMenuBtn');
+            closeTextureImageSaveMenu();
+            if (applyBtn) {
+                applyBtn.disabled = true;
+                applyBtn.textContent = '正在应用...';
+            }
+            if (applyMenuBtn) applyMenuBtn.disabled = true;
+
+            let recordedUndoSnapshot = null;
+            let savedRedoStack = null;
+            const recordUndoForApply = (desc) => {
+                if (typeof recordSkinUndoBeforeChange !== 'function') return;
+                const prevTop = (typeof undoStack !== 'undefined' && undoStack.length > 0)
+                    ? undoStack[undoStack.length - 1]
+                    : null;
+                const redoBefore = (typeof redoStack !== 'undefined') ? redoStack.slice() : null;
+                recordSkinUndoBeforeChange(desc, { force: true });
+                if (typeof undoStack !== 'undefined' && undoStack.length > 0) {
+                    const nextTop = undoStack[undoStack.length - 1];
+                    if (nextTop && nextTop !== prevTop) {
+                        recordedUndoSnapshot = nextTop;
+                        savedRedoStack = redoBefore;
+                    }
+                }
+            };
+
+            try {
+                if (editingKeyImage && !state.longBodyComposer.active) {
+                    return await applyKeyImageTextureEditPipeline(options, {
+                        effParam,
+                        keyImageApplyScope,
+                        syncKeyImagePair,
+                        selectedKeyImageKind,
+                        recordUndoForApply
+                    });
+                }
+                if (state.longBodyComposer.active) {
+                    return await applyLongBodyComposerEditPipeline(options, {
+                        longBodyTargetColumns,
+                        applyingAll,
+                        recordUndoForApply
+                    });
+                }
+                return await applyStandardTextureEditPipeline(options, {
+                    recordUndoForApply
+                });
+            } catch (err) {
+                console.error('贴图编辑应用失败', err);
+                showToast('贴图编辑失败', err.message || '未知错误');
+                if (recordedUndoSnapshot && typeof rollbackLastRecordedSkinUndo === 'function') {
+                    rollbackLastRecordedSkinUndo(recordedUndoSnapshot, savedRedoStack);
+                }
+                if (state.longBodyComposer.active) restoreNoteBodyStyle();
+                if (state.selected && state.previewFrames.length > 0) {
+                    installFramesToStores(state.previewFrames, state.selected, { persist: false });
+                }
+                return false;
+            } finally {
+                hideLongBodyProgress();
+                if (applyBtn && (!state.selected || getActiveTab() !== applyTab)) {
+                    applyBtn.disabled = true;
+                }
+                updateSelectionSummary();
+            }
+        }
+
+        function resetCurrentTexture() {
+            if (!state.selected) return;
+            if (state.longBodyComposer.active) {
+                const key = getLongBodySessionKey();
+                if (key) longBodyComposerSessions.delete(key);
+                disableLongBodyComposer();
+                resetRgbAdjustmentInputs();
+                refreshLivePreview();
+                showToast('已重置', '一键投皮已关闭，长条身体已恢复为进入编辑器前的状态。');
+                return;
+            }
+            commitEditorHistory();
+            beginEditorHistory('重置当前贴图', { group: 'reset-texture' });
+            state.keyImageEditRecipe = null;
+            state.workingFrames = state.originalFrames.map(cloneFrame);
+            state.previewFrames = state.workingFrames.map(cloneFrame);
+            resetTransformInputs();
+            resetRgbAdjustmentInputs();
+            state.previewFrames = buildPreviewFrames();
+            installFramesToStores(state.previewFrames, state.selected, { persist: false });
+            updateMeta();
+            commitEditorHistory();
+            showToast('已重置', '当前贴图已恢复为打开编辑器时的状态。');
+        }
+// --- END ui/texture-image-editor-save-close.js ---
+
+// --- BEGIN ui/texture-image-editor-window.js ---
+// ============================================================================
+// texture-image-editor-window.js - 贴图编辑器历史同步、打开/关闭与窗口拖拽
+// 从 texture-image-editor-save-close.js 按职责拆分；所有脚本共享既有经典脚本作用域。
+// ============================================================================
 
         function refreshTextureImageEditorAfterSkinHistory() {
             const modal = byId('textureImageEditorModal');
@@ -35280,557 +35862,6 @@ void primeDefaultSkin();
             return refreshedAny;
         }
 
-        function getTextureEditSourcePath(selected) {
-            if (!selected) return '';
-            if (selected.kind === 'library') {
-                return normalizeTextureLookupPath(selected.libraryPath || selected.base);
-            }
-            return normalizeTextureLookupPath(
-                (selected.resolved && selected.resolved.name) ||
-                selected.base ||
-                ''
-            );
-        }
-
-        function getTextureEditParamKey(selected) {
-            if (!selected) return null;
-            if (selected.kind === 'library') {
-                return selected.libraryParamKey || (
-                    (typeof getEffectiveParamForTarget === 'function')
-                        ? (getEffectiveParamForTarget(selected) || {}).key || null
-                        : null
-                );
-            }
-            return selected.p ? selected.p.key : null;
-        }
-
-        function createIndependentTexturePath(sourcePath, paramKey) {
-            const normalizedSource = normalizeTextureLookupPath(sourcePath);
-            const slash = normalizedSource.lastIndexOf('/');
-            const directory = slash >= 0 ? normalizedSource.slice(0, slash + 1) : '';
-            const basename = slash >= 0 ? normalizedSource.slice(slash + 1) : normalizedSource;
-            const suffix = String(paramKey || 'copy')
-                .replace(/[^a-z0-9_-]+/gi, '_')
-                .replace(/^_+|_+$/g, '')
-                .toLowerCase() || 'copy';
-            const existing = new Set(
-                collectExistingTextureSources().map((item) => normalizeSkinKey(item.path))
-            );
-            let index = 1;
-            let candidate;
-            do {
-                const suffixText = index === 1 ? suffix : `${suffix}_${index}`;
-                candidate = `${directory}${basename}_${suffixText}`;
-                index++;
-            } while (existing.has(normalizeSkinKey(candidate)));
-            return candidate;
-        }
-
-        async function resolveTextureEditSavePlan(selected, options = {}) {
-            const sourcePath = getTextureEditSourcePath(selected);
-            if (!sourcePath) {
-                throw new Error('无法确定当前贴图路径');
-            }
-            if (selected && isFontGlyphTextureParam(selected.p)) {
-                return {
-                    sourcePath,
-                    savePath: sourcePath,
-                    paramKey: selected.p.key,
-                    mode: 'overwrite',
-                    otherReferences: []
-                };
-            }
-            const paramKey = getTextureEditParamKey(selected);
-            const references = collectTexturePathReferences(sourcePath);
-            const currentParam = paramKey
-                ? getTextureTabParams().find((p) => p.key === paramKey)
-                : null;
-            const currentTrack = currentParam ? getParamTrackIndex(currentParam) : null;
-            const otherReferences = currentTrack == null
-                ? []
-                : references.filter((p) => {
-                    if (p.key === paramKey) return false;
-                    const track = getParamTrackIndex(p);
-                    if (track == null) return false;
-                    if (track !== currentTrack) return true;
-                    const currentKind = getKeyImageParamKind(currentParam);
-                    const otherKind = getKeyImageParamKind(p);
-                    return !(currentKind && otherKind && currentKind !== otherKind);
-                });
-            if (otherReferences.length === 0) {
-                return {
-                    sourcePath,
-                    savePath: sourcePath,
-                    paramKey,
-                    mode: 'overwrite',
-                    otherReferences
-                };
-            }
-            const decision = (options && options.mode === 'overwrite')
-                ? 'all'
-                : ((options && options.mode === 'independent')
-                    ? 'current'
-                    : await requestLongBodyApplyScope({
-                        title: '贴图被多处引用',
-                        text: `“${sourcePath}”还被其他 ${otherReferences.length} 个轨道引用。是否同步替换所有引用？选择“同步替换”将直接覆盖原图；选择“独立创建”将为当前轨道独立创建贴图。`,
-                        currentLabel: '独立创建',
-                        allLabel: '同步替换'
-                    }));
-            if (!decision) return null;
-            if (decision === 'all') {
-                return {
-                    sourcePath,
-                    savePath: sourcePath,
-                    paramKey,
-                    mode: 'overwrite',
-                    otherReferences
-                };
-            }
-            return {
-                sourcePath,
-                savePath: createIndependentTexturePath(sourcePath, paramKey),
-                paramKey,
-                mode: 'independent',
-                otherReferences
-            };
-        }
-
-        function pointTextureEditParamToPath(paramKey, targetPath) {
-            if (!paramKey || !targetPath) return false;
-            const p = getTextureTabParams().find((item) => item.key === paramKey) ||
-                (typeof SKIN_INI_PARAM_SCHEMA !== 'undefined'
-                    ? SKIN_INI_PARAM_SCHEMA.find((item) => item.key === paramKey)
-                    : null);
-            if (!p || typeof assignTextureParamLookup !== 'function') return false;
-            if (isFontGlyphTextureParam(p)) return false;
-            if (typeof preserveHoldHeadsBeforeNoteEdit === 'function') {
-                preserveHoldHeadsBeforeNoteEdit(
-                    getActiveKeyCount(),
-                    p,
-                    { syncInput: true }
-                );
-            }
-            assignTextureParamLookup(getActiveKeyCount(), p, targetPath);
-            return true;
-        }
-
-        function completeSavedTab(options = {}) {
-            const savedTab = getActiveTab();
-            if (!savedTab || savedTab.kind !== 'texture') return false;
-            if (typeof clearKeyImageHeightBaselines === 'function') {
-                clearKeyImageHeightBaselines();
-            }
-            refreshSavedTabTarget(savedTab);
-            const hasPreparedRecipe = !!getStoredTextureEditRecipe(savedTab.target);
-            if (!hasPreparedRecipe) {
-                rememberTextureEditRecipe(savedTab);
-            }
-            if (!getStoredTextureEditRecipe(savedTab.target)) {
-                removeTextureEditRecipe(savedTab);
-            }
-            updateEditorBaseAfterSave();
-            renderPicker();
-
-            if (options.closeTabAfterSave !== true) {
-                if (savedTab.state.longBodyComposer && savedTab.state.longBodyComposer.active) {
-                    const previewOutput = buildLongBodyComposite(LONG_BODY_PREVIEW_HEIGHT);
-                    if (previewOutput) {
-                        savedTab.state.previewFrames = [previewOutput];
-                    }
-                }
-                savedTab.state.previewSnapshot = editorBaseSnapshot;
-                savedTab.state.savedLongBodyComposer = captureLongBodyComposerState(savedTab.state.longBodyComposer);
-                savedTab.state.keyImageEditRecipe = null;
-                resetEditorHistory();
-                return true;
-            }
-
-            const remainingTextureTabs = getTextureTabs().filter((tab) => tab.id !== savedTab.id);
-            if (remainingTextureTabs.length === 0 && options.closeEditorWhenLast !== false) {
-                finalizeEditorClose({ restoreSnapshot: false });
-            } else {
-                removeTab(savedTab.id, { restorePreview: false });
-            }
-            return true;
-        }
-
-        async function applySelectedTexture(options = {}) {
-            const applyTab = getActiveTab();
-            if (!state.selected) {
-                showToast('尚未选择贴图', '请先点击“选择贴图”。');
-                return false;
-            }
-            const longBodyApplyScope = state.longBodyComposer.active
-                ? ((options && (options.longBodyScope || options.scope)) || await requestLongBodyApplyScope())
-                : null;
-            if (state.longBodyComposer.active && !longBodyApplyScope) return false;
-            const effParam = (typeof getEffectiveParamForTarget === 'function')
-                ? getEffectiveParamForTarget(state.selected)
-                : (state.selected && state.selected.p);
-            const editingKeyImage = !state.longBodyComposer.active &&
-                effParam &&
-                isEditingKeyImageParam(effParam);
-            const keyImageApplyScope = editingKeyImage
-                ? (options.keyImageScope === 'all' ? 'all' : 'current')
-                : null;
-            const syncKeyImagePair = editingKeyImage
-                ? options.syncKeyImagePair !== false
-                : false;
-            const selectedKeyImageKind = editingKeyImage
-                ? getKeyImageParamKind(effParam)
-                : null;
-            const longBodyTargetColumns = longBodyApplyScope === 'all'
-                ? Array.from({ length: getActiveKeyCount() }, (_, column) => column)
-                : [getSelectedTrackIndex()].filter((column) => column != null);
-            const applyingAll = longBodyApplyScope === 'all';
-
-            const applyBtn = byId('textureImageApplyBtn');
-            const applyMenuBtn = byId('textureImageApplyMenuBtn');
-            closeTextureImageSaveMenu();
-            if (applyBtn) {
-                applyBtn.disabled = true;
-                applyBtn.textContent = '正在应用...';
-            }
-            if (applyMenuBtn) applyMenuBtn.disabled = true;
-
-            let recordedUndoSnapshot = null;
-            let savedRedoStack = null;
-            const recordUndoForApply = (desc) => {
-                if (typeof recordSkinUndoBeforeChange !== 'function') return;
-                const prevTop = (typeof undoStack !== 'undefined' && undoStack.length > 0)
-                    ? undoStack[undoStack.length - 1]
-                    : null;
-                const redoBefore = (typeof redoStack !== 'undefined') ? redoStack.slice() : null;
-                recordSkinUndoBeforeChange(desc, { force: true });
-                if (typeof undoStack !== 'undefined' && undoStack.length > 0) {
-                    const nextTop = undoStack[undoStack.length - 1];
-                    if (nextTop && nextTop !== prevTop) {
-                        recordedUndoSnapshot = nextTop;
-                        savedRedoStack = redoBefore;
-                    }
-                }
-            };
-
-            try {
-                const committingLongBodyComposer = state.longBodyComposer.active;
-                if (editingKeyImage && !committingLongBodyComposer) {
-                    const groups = collectKeyImageEditGroups(keyImageApplyScope, {
-                        syncPair: syncKeyImagePair,
-                        selectedKind: selectedKeyImageKind
-                    });
-                    if (groups.length === 0) {
-                        throw new Error('没有找到可应用的 KeyImage 源贴图');
-                    }
-                    const params = {
-                        ...(state.keyImageEditRecipe && state.keyImageEditRecipe.params
-                            ? {
-                            ...state.keyImageEditRecipe.params,
-                            imageTransform: cloneImageTransform(
-                                state.keyImageEditRecipe.params.imageTransform
-                            )
-                            }
-                            : getCurrentEditParams()),
-                        rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
-                    };
-
-                    let keyImageMode = (options && options.mode) || 'overwrite';
-                    if (!options.mode && keyImageApplyScope !== 'all') {
-                        const otherReferences = [];
-                        const sourcePaths = new Set();
-                        for (const group of groups) {
-                            for (const entry of group.entries) {
-                                const rawSource = (entry.reference && !entry.reference.startsWith('missing:'))
-                                    ? entry.reference
-                                    : ((entry.target.resolved && entry.target.resolved.name) ||
-                                       entry.target.base ||
-                                       entry.p.key);
-                                const sourcePath = normalizeTextureLookupPath(rawSource);
-                                if (!sourcePath || sourcePaths.has(sourcePath)) continue;
-                                sourcePaths.add(sourcePath);
-                                const refs = collectTexturePathReferences(sourcePath).filter((p) => {
-                                    const track = getParamTrackIndex(p);
-                                    return track != null && track !== entry.column;
-                                });
-                                for (const ref of refs) {
-                                    if (!otherReferences.some((r) => r.key === ref.key)) {
-                                        otherReferences.push(ref);
-                                    }
-                                }
-                            }
-                        }
-                        if (otherReferences.length > 0) {
-                            const primarySource = Array.from(sourcePaths)[0] || (effParam && effParam.key) || 'KeyImage';
-                            const decision = await requestLongBodyApplyScope({
-                                title: '贴图被多处引用',
-                                text: `“${primarySource}”还被其他 ${otherReferences.length} 个轨道引用。是否同步替换所有引用？选择“同步替换”将直接覆盖原图；选择“独立创建”将为当前轨道独立创建贴图。`,
-                                currentLabel: '独立创建',
-                                allLabel: '同步替换'
-                            });
-                            if (!decision) return false;
-                            keyImageMode = (decision === 'all') ? 'overwrite' : 'independent';
-                        }
-                    }
-
-                    if (state.previewSnapshot) applySkinSnapshot(state.previewSnapshot, { preserveNonTextureSettings: true });
-                    const stateLabel = syncKeyImagePair
-                        ? 'KeyImage + KeyImageD'
-                        : (selectedKeyImageKind === 'down' ? 'KeyImageD' : 'KeyImage');
-                    const scopeLabel = keyImageApplyScope === 'all' ? '全部轨道' : '当前轨道';
-                    recordUndoForApply(`贴图编辑: ${stateLabel}（${scopeLabel}）`);
-                    const prepared = await persistKeyImageEditGroups(groups, params, {
-                        mode: keyImageMode,
-                        scope: keyImageApplyScope
-                    });
-                    if (!prepared) throw new Error('KeyImage 贴图未能写入皮肤');
-                    rememberPreparedKeyImageEditRecipes(prepared, params);
-                    if (keyImageMode === 'independent' && state.selected && state.selected.kind === 'library') {
-                        const repItem = prepared.find((item) => item.group.entries.some((entry) => entry.isSelected)) || prepared[0];
-                        if (repItem && repItem.base) {
-                            state.selected.base = repItem.base;
-                            state.selected.libraryPath = repItem.base;
-                            state.selected.libraryStoreKey = repItem.base;
-                        }
-                    }
-                    const trackCount = prepared.reduce(
-                        (count, item) => count + item.group.entries.length,
-                        0
-                    );
-                    showToast(
-                        '贴图编辑成功',
-                        keyImageMode === 'independent'
-                            ? `已更新${scopeLabel}的 ${stateLabel}，已为当前轨道创建独立贴图。`
-                            : `已更新${scopeLabel}的 ${stateLabel}，已直接覆盖原图。`
-                    );
-                    return completeSavedTab(options);
-                }
-                let framesToSave;
-                if (committingLongBodyComposer) {
-                    setLongBodyProgress('正在生成完整长条...', 0);
-                    await waitForUiPaint();
-                    framesToSave = [await buildLongBodyCompositeAsync(
-                        state.longBodyComposer.targetHeight,
-                        (value) => setLongBodyProgress('正在生成完整长条...', value)
-                    )];
-                } else {
-                    framesToSave = buildPreviewFrames().map((frame) =>
-                        applyRgbAdjustmentToCanvas(cloneFrame(frame), state.rgbAdjustment)
-                    );
-                }
-                if (!framesToSave || framesToSave.length === 0 || !framesToSave[0]) {
-                    throw new Error('无法生成要保存的贴图');
-                }
-                if (!committingLongBodyComposer) state.previewFrames = framesToSave;
-                const savePlan = committingLongBodyComposer
-                    ? null
-                    : await resolveTextureEditSavePlan(state.selected, options);
-                if (!committingLongBodyComposer && !savePlan) return false;
-                if (committingLongBodyComposer) {
-                    setLongBodyProgress('正在编码 PNG...', 65, true);
-                    await waitForUiPaint();
-                }
-                const serialized = committingLongBodyComposer
-                    ? [await serializeLongBodyFrame(framesToSave[0])]
-                    : await serializeFrames(savePlan.savePath, framesToSave);
-                if (committingLongBodyComposer) {
-                    setLongBodyProgress('正在替换身体贴图...', 82);
-                    await waitForUiPaint();
-                }
-                if (state.previewSnapshot) applySkinSnapshot(state.previewSnapshot, { preserveNonTextureSettings: true });
-
-                if (!committingLongBodyComposer) {
-                    const editingCreatedTexture =
-                        typeof hasCreatedTextureParams === 'function' &&
-                        hasCreatedTextureParams(savePlan.sourcePath);
-                    const hasExistingRecipe = !!getStoredTextureEditRecipe(state.selected);
-                    if (savePlan.paramKey &&
-                        typeof preserveHoldHeadsBeforeNoteEdit === 'function') {
-                        const currentParam = getTextureTabParams().find(
-                            (item) => item.key === savePlan.paramKey
-                        ) || (typeof SKIN_INI_PARAM_SCHEMA !== 'undefined'
-                            ? SKIN_INI_PARAM_SCHEMA.find((item) => item.key === savePlan.paramKey)
-                            : null);
-                        if (currentParam) {
-                            preserveHoldHeadsBeforeNoteEdit(
-                                getActiveKeyCount(),
-                                currentParam,
-                                { syncInput: true }
-                            );
-                        }
-                    }
-                    if (savePlan.mode === 'independent' &&
-                        state.selected.kind !== 'library' &&
-                        !hasExistingRecipe &&
-                        state.originalFrames.length > 0 &&
-                        typeof installTextureFramesAtPath === 'function') {
-                        installTextureFramesAtPath(
-                            state.originalFrames,
-                            savePlan.sourcePath,
-                            { draw: false }
-                        );
-                    }
-                    const targetZh = (state.selected && state.selected.p && state.selected.p.zhName) || savePlan.savePath;
-                    const modeZh = savePlan.mode === 'independent' ? '独立创建' : '同步替换';
-                    recordUndoForApply(`贴图编辑: ${targetZh}（${modeZh}）`);
-                    persistTextureFramesAtPath(serialized, savePlan.savePath, {
-                        refresh: false,
-                        showToast: false
-                    });
-                    if (savePlan.mode === 'independent') {
-                        if (editingCreatedTexture) {
-                            cloneCreatedTextureParams(
-                                savePlan.sourcePath,
-                                savePlan.savePath
-                            );
-                        }
-                    }
-                    pointTextureEditParamToPath(
-                        savePlan.paramKey,
-                        savePlan.savePath
-                    );
-                    if (savePlan.mode === 'overwrite') {
-                        if (Array.isArray(savePlan.otherReferences)) {
-                            for (const ref of savePlan.otherReferences) {
-                                if (ref && ref.key && ref.key !== savePlan.paramKey) {
-                                    pointTextureEditParamToPath(ref.key, savePlan.savePath);
-                                }
-                            }
-                        }
-                        if (savePlan.paramKey && typeof getTextureParamColumnKeys === 'function') {
-                            const curKeys = getActiveKeyCount();
-                            const columnKeys = getTextureParamColumnKeys(savePlan.paramKey, curKeys);
-                            for (const colKey of columnKeys) {
-                                pointTextureEditParamToPath(colKey, savePlan.savePath);
-                            }
-                        }
-                    }
-                    if (editingCreatedTexture) {
-                        if (typeof saveCreatedTextureGeneralEditParams === 'function') {
-                            saveCreatedTextureGeneralEditParams(savePlan.savePath, {
-                                ...getCurrentEditParams(),
-                                imageTransform: cloneImageTransform(state.imageTransform),
-                                rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
-                            });
-                        }
-                    }
-                    state.originalReference = normalizeSkinKey(savePlan.savePath);
-                    if (state.selected.kind === 'library') {
-                        state.selected.base = savePlan.savePath;
-                        state.selected.libraryPath = savePlan.savePath;
-                        if (state.selected.resolved) {
-                            state.selected.resolved.name = savePlan.savePath;
-                        }
-                    } else if (state.selected.resolved) {
-                        state.selected.resolved.name = savePlan.savePath;
-                    }
-                    drawFrame();
-                    renderSkinEditorParams();
-                    renderPicker();
-                    if (typeof renderTextureLibrary === 'function') renderTextureLibrary();
-                    showToast(
-                        '贴图编辑成功',
-                        savePlan.mode === 'independent'
-                            ? `已创建独立副本 ${savePlan.savePath}`
-                            : `已直接覆盖 ${savePlan.savePath}`
-                    );
-                    return completeSavedTab(options);
-                }
-
-                let longBodyApplyPlans = null;
-                let longBodySettings = null;
-                if (committingLongBodyComposer) {
-                    // 预览期间会临时把 NoteBodyStyle 设为 1；历史快照必须记录进入编辑器前的原值，
-                    // 否则撤销“一键投皮”时会把临时值一起保留下来。
-                    restoreNoteBodyStyle();
-                    recordUndoForApply(applyingAll ? '一键投皮（全部轨道）' : '一键投皮（当前轨道）');
-                    setNoteBodyStyleOne(false, applyingAll);
-                    const applyLabel = applyingAll ? '正在应用到全部轨道...' : '正在应用到当前轨道...';
-                    setLongBodyProgress(applyLabel, 82);
-                    await waitForUiPaint();
-                    longBodySettings = {
-                        targetHeight: state.longBodyComposer.targetHeight,
-                        coverage: state.longBodyComposer.coverage,
-                        fade: state.longBodyComposer.fade,
-                        tailPreset: state.longBodyComposer.tailPreset,
-                        presetHeight: state.longBodyComposer.presetHeight,
-                        rgbAdjustment: cloneRgbAdjustment(state.rgbAdjustment)
-                    };
-                    longBodyApplyPlans = createLongBodyApplyPlans(longBodyTargetColumns);
-                    const bodyApplied = await applyLongBodyToTracks(
-                        serialized[0],
-                        longBodyApplyPlans,
-                        longBodySettings,
-                        (value) => setLongBodyProgress(applyLabel, value)
-                    );
-                    if (!bodyApplied) throw new Error('完整长条身体未能写入目标轨道');
-                    const tailLabel = applyingAll ? '正在写入全轨透明尾部...' : '正在写入透明尾部...';
-                    setLongBodyProgress(tailLabel, 92);
-                    await waitForUiPaint();
-                    const tailsApplied = await applyTransparentTailsToTracks(
-                        longBodyTargetColumns,
-                        (value) => setLongBodyProgress(tailLabel, value)
-                    );
-                    if (!tailsApplied) throw new Error('透明长条尾部未能写入目标轨道');
-                }
-                if (committingLongBodyComposer) {
-                    setNoteBodyStyleOne(false, applyingAll);
-                    persistLongBodyComposerSessions(
-                        longBodyApplyPlans,
-                        longBodySettings,
-                        applyingAll ? 'all' : 'current'
-                    );
-                    setLongBodyProgress('正在完成...', 100);
-                    await waitForUiPaint();
-                    showToast(
-                        '一键投皮应用成功',
-                        applyingAll ? `已应用到全部 ${getActiveKeyCount()} 条轨道。` : '已应用到当前轨道。'
-                    );
-                }
-                return completeSavedTab(options);
-            } catch (err) {
-                console.error('贴图编辑应用失败', err);
-                showToast('贴图编辑失败', err.message || '未知错误');
-                if (recordedUndoSnapshot && typeof rollbackLastRecordedSkinUndo === 'function') {
-                    rollbackLastRecordedSkinUndo(recordedUndoSnapshot, savedRedoStack);
-                }
-                if (state.longBodyComposer.active) restoreNoteBodyStyle();
-                if (state.selected && state.previewFrames.length > 0) {
-                    installFramesToStores(state.previewFrames, state.selected, { persist: false });
-                }
-                return false;
-            } finally {
-                hideLongBodyProgress();
-                if (applyBtn && (!state.selected || getActiveTab() !== applyTab)) {
-                    applyBtn.disabled = true;
-                }
-                updateSelectionSummary();
-            }
-        }
-
-        function resetCurrentTexture() {
-            if (!state.selected) return;
-            if (state.longBodyComposer.active) {
-                const key = getLongBodySessionKey();
-                if (key) longBodyComposerSessions.delete(key);
-                disableLongBodyComposer();
-                resetRgbAdjustmentInputs();
-                refreshLivePreview();
-                showToast('已重置', '一键投皮已关闭，长条身体已恢复为进入编辑器前的状态。');
-                return;
-            }
-            commitEditorHistory();
-            beginEditorHistory('重置当前贴图', { group: 'reset-texture' });
-            state.keyImageEditRecipe = null;
-            state.workingFrames = state.originalFrames.map(cloneFrame);
-            state.previewFrames = state.workingFrames.map(cloneFrame);
-            resetTransformInputs();
-            resetRgbAdjustmentInputs();
-            state.previewFrames = buildPreviewFrames();
-            installFramesToStores(state.previewFrames, state.selected, { persist: false });
-            updateMeta();
-            commitEditorHistory();
-            showToast('已重置', '当前贴图已恢复为打开编辑器时的状态。');
-        }
-
         function refreshTextureImageEditorAfterSkinImport() {
             const modal = byId('textureImageEditorModal');
             if (!modal || !modal.classList.contains('active')) return false;
@@ -35891,6 +35922,8 @@ void primeDefaultSkin();
             const modal = byId('textureImageEditorModal');
             if (!modal) return false;
             const skinEditingReady = syncSkinEditingAvailabilityUI();
+            const wasClosing = modal.classList.contains('is-closing')
+                || (typeof textureEditorCloseTimer !== 'undefined' && !!textureEditorCloseTimer);
             if (typeof textureEditorCloseToken !== 'undefined') {
                 textureEditorCloseToken++;
             }
@@ -35899,11 +35932,18 @@ void primeDefaultSkin();
                 textureEditorCloseTimer = null;
             }
             modal.classList.remove('is-closing');
-            if (modal.classList.contains('active')) {
+            if (modal.classList.contains('active') && !wasClosing) {
                 if (typeof bringFloatingWindowToFront === 'function') {
                     bringFloatingWindowToFront('texture-editor');
                 }
                 return true;
+            }
+            if (wasClosing) {
+                for (const tab of tabs) {
+                    if (tab.kind === 'texture' && typeof clearEditorStateTimers === 'function') {
+                        clearEditorStateTimers(tab.state);
+                    }
+                }
             }
             Object.assign(menuState, createEditorState());
             state = menuState;
@@ -36102,7 +36142,7 @@ void primeDefaultSkin();
                 };
             }
         }
-// --- END ui/texture-image-editor-save-close.js ---
+// --- END ui/texture-image-editor-window.js ---
 
 // --- BEGIN ui/texture-image-editor.js ---
 // ============================================================================
@@ -37274,6 +37314,152 @@ void primeDefaultSkin();
         const keyImageHeightBaselineState = new Map();
         let keyImageHeightPersistGeneration = 0;
 
+        function hitTestCanvasInteractiveElement(mouseX, mouseY, options = {}) {
+            const includeStageEdges = options.includeStageEdges !== false;
+            // 严格分级命中检测算法（从高到低）：
+            // KeyImage 高度手柄 > 判定提示 > 连击 > 血条 > 其余 HUD > note/hold
+            // > hitposition > lightposition 手柄 > lighting > mania-stage-light > KeyImage > 轨道 (> 舞台边界)
+            let hit = null;
+            let keyImageHeightHandleHit = false;
+
+            const keyImageHandlePad = Math.max(8, 12 * (canvas.height / 480));
+            for (const item of canvasInteractiveElements) {
+                if (!item.id.startsWith('key_') || !item.keyImageHeightAdjustable ||
+                    item.keyImageResizeEdgeY == null) continue;
+                if (mouseX >= item.x && mouseX <= item.x + item.w &&
+                    Math.abs(mouseY - item.keyImageResizeEdgeY) <= keyImageHandlePad) {
+                    keyImageHeightHandleHit = true;
+                    hit = item;
+                    break;
+                }
+            }
+
+            if (!hit) {
+                for (const id of ['judgement', 'combo', 'healthDisplay']) {
+                    const item = canvasInteractiveElements.find(el => el.id === id);
+                    if (item && mouseX >= item.x && mouseX <= item.x + item.w &&
+                        mouseY >= item.y && mouseY <= item.y + item.h) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit) {
+                for (const item of canvasInteractiveElements) {
+                    if (!item.id.startsWith('hud_')) continue;
+                    const pad = 3;
+                    if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
+                        mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit && !isPlaying) {
+                let bestNote = null;
+                let minCenterDist = Infinity;
+                for (let i = canvasInteractiveElements.length - 1; i >= 0; i--) {
+                    const item = canvasInteractiveElements[i];
+                    if (!item.id.startsWith('note_') && !item.id.startsWith('hold_')) continue;
+                    if (mouseX >= item.x && mouseX <= item.x + item.w &&
+                        mouseY >= item.y && mouseY <= item.y + item.h) {
+                        const centerY = item.y + item.h / 2;
+                        const dist = Math.abs(mouseY - centerY);
+                        if (dist < minCenterDist) {
+                            minCenterDist = dist;
+                            bestNote = item;
+                        }
+                    }
+                }
+                if (bestNote) hit = bestNote;
+            }
+
+            if (!hit) {
+                const hp = canvasInteractiveElements.find(el => el.id === 'hitPosition');
+                if (hp && mouseX >= hp.x && mouseX <= hp.x + hp.w &&
+                    mouseY >= hp.y && mouseY <= hp.y + hp.h) {
+                    hit = hp;
+                }
+            }
+
+            if (!hit) {
+                const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
+                if (lp) {
+                    const lightHandleY = (lp.handleY != null) ? lp.handleY : lp.y;
+                    const lightHandleH = (lp.handleH != null) ? lp.handleH : lp.h;
+                    if (mouseX >= lp.x && mouseX <= lp.x + lp.w &&
+                        mouseY >= lightHandleY && mouseY <= lightHandleY + lightHandleH) {
+                        hit = lp;
+                    }
+                }
+            }
+
+            if (!hit) {
+                for (const item of canvasInteractiveElements) {
+                    if (item.dragType !== 'lighting_width') continue;
+                    const lwPad = (selectedCanvasElement && selectedCanvasElement.id === item.id) ? 8 : 0;
+                    if (mouseX >= item.x - lwPad && mouseX <= item.x + item.w + lwPad &&
+                        mouseY >= item.y - lwPad && mouseY <= item.y + item.h + lwPad) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit) {
+                const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
+                if (lp && lp.visibleY != null && lp.visibleH > 0 &&
+                    mouseX >= lp.x && mouseX <= lp.x + lp.w &&
+                    mouseY >= lp.visibleY && mouseY <= lp.visibleY + lp.visibleH) {
+                    hit = lp;
+                }
+            }
+
+            if (!hit) {
+                for (const item of canvasInteractiveElements) {
+                    if (!item.id.startsWith('key_')) continue;
+                    if (mouseX >= item.x && mouseX <= item.x + item.w &&
+                        mouseY >= item.y && mouseY <= item.y + item.h) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit) {
+                for (const item of canvasInteractiveElements) {
+                    if (!item.id.startsWith('track_col_')) continue;
+                    const isSelected = selectedCanvasElement && selectedCanvasElement.id === item.id;
+                    const pad = isSelected ? 12 : 6;
+                    if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
+                        mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            if (!hit && includeStageEdges) {
+                const stageEdgePad = Math.max(18, Math.round(22 * (canvas.height / 480)));
+                for (const item of canvasInteractiveElements) {
+                    const isStageEdge = item.id.startsWith('stageLeft') || item.id.startsWith('stageRight');
+                    if (!isStageEdge) continue;
+                    const isSelected = selectedCanvasElement && selectedCanvasElement.id === item.id;
+                    const padX = isSelected ? Math.round(stageEdgePad * 1.35) : stageEdgePad;
+                    const padY = Math.round(stageEdgePad * 0.55);
+                    if (mouseX >= item.x - padX && mouseX <= item.x + item.w + padX &&
+                        mouseY >= item.y - padY && mouseY <= item.y + item.h + padY) {
+                        hit = item;
+                        break;
+                    }
+                }
+            }
+
+            return { hit, keyImageHeightHandleHit };
+        }
+
         function initCanvasEditorUI() {
             // 画布交互点击与拖拽监听
             if (canvas) {
@@ -37285,173 +37471,11 @@ void primeDefaultSkin();
                     const mouseX = (e.clientX - rect.left) * scaleX;
                     const mouseY = (e.clientY - rect.top) * scaleY;
 
-                    // 严格分级命中检测算法（从高到低）：
-                    // 判定提示 > 连击 > 血条 > note > hitposition > lightposition
-                    // > lighting > mania-stage-light > KeyImage > 轨道。
-                    let hit = null;
-                    let keyImageHeightHandleHit = false;
-
-                    // KeyImage 高度手柄属于独立编辑控件，优先于所有贴图命中，避免与 hitposition 重叠时失效。
-                    const keyImageHandlePad = Math.max(8, 12 * (canvas.height / 480));
-                    for (const item of canvasInteractiveElements) {
-                        if (!item.id.startsWith('key_') || !item.keyImageHeightAdjustable ||
-                            item.keyImageResizeEdgeY == null) continue;
-                        if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                            Math.abs(mouseY - item.keyImageResizeEdgeY) <= keyImageHandlePad) {
-                            keyImageHeightHandleHit = true;
-                            hit = item;
-                            break;
-                        }
-                    }
-
-                    // 1. 判定提示（最高）
-                    if (!hit) {
-                        const item = canvasInteractiveElements.find(el => el.id === 'judgement');
-                        if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                            hit = item;
-                        }
-                    }
-
-                    // 2. 连击
-                    if (!hit) {
-                        const item = canvasInteractiveElements.find(el => el.id === 'combo');
-                        if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                            hit = item;
-                        }
-                    }
-
-                    // 3. 血条
-                    if (!hit) {
-                        const item = canvasInteractiveElements.find(el => el.id === 'healthDisplay');
-                        if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                            hit = item;
-                        }
-                    }
-
-                    // 其余 HUD 控件保持为高层 UI，优先级位于 note 之前。
-                    if (!hit) {
-                        for (const item of canvasInteractiveElements) {
-                            if (!item.id.startsWith('hud_')) continue;
-                            const pad = 3;
-                            if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
-                                mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 4. note / hold
-                    if (!hit && !isPlaying) {
-                        let bestNote = null;
-                        let minCenterDist = Infinity;
-                        for (let i = canvasInteractiveElements.length - 1; i >= 0; i--) {
-                            const item = canvasInteractiveElements[i];
-                            if (!item.id.startsWith('note_') && !item.id.startsWith('hold_')) continue;
-                            if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                mouseY >= item.y && mouseY <= item.y + item.h) {
-                                const centerY = item.y + item.h / 2;
-                                const dist = Math.abs(mouseY - centerY);
-                                if (dist < minCenterDist) {
-                                    minCenterDist = dist;
-                                    bestNote = item;
-                                }
-                            }
-                        }
-                        if (bestNote) hit = bestNote;
-                    }
-
-                    // 5. hitposition
-                    if (!hit) {
-                        const hp = canvasInteractiveElements.find(el => el.id === 'hitPosition');
-                        const containsRect = (r) => r && mouseX >= r.x && mouseX <= r.x + r.w &&
-                            mouseY >= r.y && mouseY <= r.y + r.h;
-                        if (containsRect(hp)) hit = hp;
-                    }
-
-                    // 6. lightposition 手柄
-                    if (!hit) {
-                        const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
-                        if (lp) {
-                            const lightHandle = {
-                                x: lp.x,
-                                y: (lp.handleY != null) ? lp.handleY : lp.y,
-                                w: lp.w,
-                                h: (lp.handleH != null) ? lp.handleH : lp.h
-                            };
-                            if (mouseX >= lightHandle.x && mouseX <= lightHandle.x + lightHandle.w &&
-                                mouseY >= lightHandle.y && mouseY <= lightHandle.y + lightHandle.h) {
-                                hit = lp;
-                            }
-                        }
-                    }
-
-                    // 7. lighting (LightingN / LightingL)
-                    if (!hit) {
-                        for (const item of canvasInteractiveElements) {
-                            if (item.dragType !== 'lighting_width') continue;
-                            // 已选中时外扩一点，方便直接抓住白色高亮边框向外/向内拉伸宽度
-                            const lwPad = (selectedCanvasElement && selectedCanvasElement.id === item.id) ? 8 : 0;
-                            if (mouseX >= item.x - lwPad && mouseX <= item.x + item.w + lwPad &&
-                                mouseY >= item.y - lwPad && mouseY <= item.y + item.h + lwPad) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 8. mania-stage-light 可见光柱本体
-                    if (!hit) {
-                        const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
-                        if (lp && lp.visibleY != null && lp.visibleH > 0 &&
-                            mouseX >= lp.x && mouseX <= lp.x + lp.w &&
-                            mouseY >= lp.visibleY && mouseY <= lp.visibleY + lp.visibleH) {
-                            hit = lp;
-                        }
-                    }
-
-                    // 9. KeyImage 贴图本体
-                    if (!hit) {
-                        for (const item of canvasInteractiveElements) {
-                            if (!item.id.startsWith('key_')) continue;
-                            if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                mouseY >= item.y && mouseY <= item.y + item.h) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 10. 轨道（最低；选中轨道的边缘手柄也属于轨道层级）
-                    if (!hit) {
-                        for (const item of canvasInteractiveElements) {
-                            if (!item.id.startsWith('track_col_')) continue;
-                            const isSelected = selectedCanvasElement && selectedCanvasElement.id === item.id;
-                            const pad = isSelected ? 12 : 6;
-                            if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
-                                mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
-
-                    // 舞台边界不在指定顺序内，放在轨道同层附近，且不会抢占任何贴图。
-                    if (!hit) {
-                        const stageEdgePad = Math.max(18, Math.round(22 * (canvas.height / 480)));
-                        for (const item of canvasInteractiveElements) {
-                            const isStageEdge = item.id.startsWith('stageLeft') || item.id.startsWith('stageRight');
-                            if (!isStageEdge) continue;
-                            const isSelected = selectedCanvasElement && selectedCanvasElement.id === item.id;
-                            const padX = isSelected ? Math.round(stageEdgePad * 1.35) : stageEdgePad;
-                            const padY = Math.round(stageEdgePad * 0.55);
-                            if (mouseX >= item.x - padX && mouseX <= item.x + item.w + padX &&
-                                mouseY >= item.y - padY && mouseY <= item.y + item.h + padY) {
-                                hit = item;
-                                break;
-                            }
-                        }
-                    }
+                    const { hit, keyImageHeightHandleHit } = hitTestCanvasInteractiveElement(
+                        mouseX,
+                        mouseY,
+                        { includeStageEdges: true }
+                    );
 
                     if (hit) {
                         const isDifferentElement = !selectedCanvasElement ||
@@ -37755,149 +37779,12 @@ void primeDefaultSkin();
                         }
                     } else {
                         // 鼠标悬停改变指针图标 (同样遵循分级检测原则)
-                        let hoverHit = null;
-                        let hoveringKeyImageHeightHandle = false;
-
-                        // KeyImage 高度手柄与 mousedown 保持一致，始终最先命中。
-                        const keyImageHandlePad = Math.max(8, 12 * (canvas.height / 480));
-                        for (const item of canvasInteractiveElements) {
-                            if (!item.id.startsWith('key_') || !item.keyImageHeightAdjustable ||
-                                item.keyImageResizeEdgeY == null) continue;
-                            if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                Math.abs(mouseY - item.keyImageResizeEdgeY) <= keyImageHandlePad) {
-                                hoverHit = item;
-                                hoveringKeyImageHeightHandle = true;
-                                break;
-                            }
-                        }
-
-                        // 与 mousedown 保持相同的高到低优先级。
-                        if (!hoverHit) {
-                            const item = canvasInteractiveElements.find(el => el.id === 'judgement');
-                            if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                                hoverHit = item;
-                            }
-                        }
-                        if (!hoverHit) {
-                            const item = canvasInteractiveElements.find(el => el.id === 'combo');
-                            if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                                hoverHit = item;
-                            }
-                        }
-                        if (!hoverHit) {
-                            const item = canvasInteractiveElements.find(el => el.id === 'healthDisplay');
-                            if (item && mouseX >= item.x && mouseX <= item.x + item.w && mouseY >= item.y && mouseY <= item.y + item.h) {
-                                hoverHit = item;
-                            }
-                        }
-                        if (!hoverHit) {
-                            for (const item of canvasInteractiveElements) {
-                                if (!item.id.startsWith('hud_')) continue;
-                                const pad = 3;
-                                if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
-                                    mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
-                                    hoverHit = item;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // note / hold
-                        if (!hoverHit && !isPlaying) {
-                            let bestHover = null;
-                            let minHoverDist = Infinity;
-                            for (let i = canvasInteractiveElements.length - 1; i >= 0; i--) {
-                                const item = canvasInteractiveElements[i];
-                                if (!item.id.startsWith('note_') && !item.id.startsWith('hold_')) continue;
-                                if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                    mouseY >= item.y && mouseY <= item.y + item.h) {
-                                    const centerY = item.y + item.h / 2;
-                                    const dist = Math.abs(mouseY - centerY);
-                                    if (dist < minHoverDist) {
-                                        minHoverDist = dist;
-                                        bestHover = item;
-                                    }
-                                }
-                            }
-                            if (bestHover) {
-                                hoverHit = bestHover;
-                            }
-                        }
-
-                        // hitposition
-                        if (!hoverHit) {
-                            const hp = canvasInteractiveElements.find(el => el.id === 'hitPosition');
-                            if (hp && mouseX >= hp.x && mouseX <= hp.x + hp.w && mouseY >= hp.y && mouseY <= hp.y + hp.h) {
-                                hoverHit = hp;
-                            }
-                        }
-
-                        // lightposition 手柄
-                        if (!hoverHit) {
-                            const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
-                            if (lp) {
-                                const lightHandle = {
-                                    x: lp.x,
-                                    y: (lp.handleY != null) ? lp.handleY : lp.y,
-                                    w: lp.w,
-                                    h: (lp.handleH != null) ? lp.handleH : lp.h
-                                };
-                                if (mouseX >= lightHandle.x && mouseX <= lightHandle.x + lightHandle.w &&
-                                    mouseY >= lightHandle.y && mouseY <= lightHandle.y + lightHandle.h) {
-                                    hoverHit = lp;
-                                }
-                            }
-                        }
-
-                        // lighting
-                        if (!hoverHit) {
-                            for (const item of canvasInteractiveElements) {
-                                if (item.dragType !== 'lighting_width') continue;
-                                const lwPad = (selectedCanvasElement && selectedCanvasElement.id === item.id) ? 8 : 0;
-                                if (mouseX >= item.x - lwPad && mouseX <= item.x + item.w + lwPad &&
-                                    mouseY >= item.y - lwPad && mouseY <= item.y + item.h + lwPad) {
-                                    hoverHit = item;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // mania-stage-light 可见光柱本体
-                        if (!hoverHit) {
-                            const lp = canvasInteractiveElements.find(el => el.id === 'lightPosition');
-                            if (lp) {
-                                if (lp.visibleY != null && lp.visibleH > 0 &&
-                                    mouseX >= lp.x && mouseX <= lp.x + lp.w &&
-                                    mouseY >= lp.visibleY && mouseY <= lp.visibleY + lp.visibleH) {
-                                    hoverHit = lp;
-                                }
-                            }
-                        }
-
-                        // KeyImage 贴图本体
-                        if (!hoverHit) {
-                            for (const item of canvasInteractiveElements) {
-                                if (!item.id.startsWith('key_')) continue;
-                                if (mouseX >= item.x && mouseX <= item.x + item.w &&
-                                    mouseY >= item.y && mouseY <= item.y + item.h) {
-                                    hoverHit = item;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // 轨道
-                        if (!hoverHit) {
-                            for (const item of canvasInteractiveElements) {
-                                if (!item.id.startsWith('track_col_')) continue;
-                                const pad = (selectedCanvasElement && selectedCanvasElement.id === item.id) ? 12 : 6;
-                                if (mouseX >= item.x - pad && mouseX <= item.x + item.w + pad &&
-                                    mouseY >= item.y - pad && mouseY <= item.y + item.h + pad) {
-                                    hoverHit = item;
-                                    break;
-                                }
-                            }
-                        }
+                        const {
+                            hit: hoverHit,
+                            keyImageHeightHandleHit: hoveringKeyImageHeightHandle
+                        } = hitTestCanvasInteractiveElement(mouseX, mouseY, {
+                            includeStageEdges: false
+                        });
 
                         if (hoverHit) {
                             if (hoveringKeyImageHeightHandle) {
@@ -38509,16 +38396,17 @@ void primeDefaultSkin();
             const keysToHighlight = Array.isArray(paramKey) ? paramKey : [paramKey];
             const primaryKey = keysToHighlight[0] || 'ColumnWidth';
 
+            const resolveSchemaCardKey = (k) => {
+                const parsed = typeof parseManiaTextureParamKey === 'function'
+                    ? parseManiaTextureParamKey(k)
+                    : null;
+                return parsed ? parsed.baseParamKey : String(k || '').replace(/\d+[A-Za-z]?$/, '');
+            };
+
             let schema = SKIN_INI_PARAM_SCHEMA.find(p => p.key === primaryKey);
             let targetCardKey = primaryKey;
             if (!schema) {
-                let baseKey = primaryKey.replace(/\d+[A-Za-z]?$/, '');
-                if (/^noteimage\d+h$/i.test(primaryKey) || /^holdnotehead/i.test(primaryKey)) baseKey = 'HoldNoteHeadImage';
-                else if (/^noteimage\d+l$/i.test(primaryKey) || /^holdnotebody/i.test(primaryKey)) baseKey = 'HoldNoteBodyImage';
-                else if (/^noteimage\d+t$/i.test(primaryKey) || /^holdnotetail/i.test(primaryKey)) baseKey = 'HoldNoteTailImage';
-                else if (/^keyimage\d+d$/i.test(primaryKey) || /^keyimagedown/i.test(primaryKey)) baseKey = 'KeyImageDown';
-                else if (/^keyimage\d+$/i.test(primaryKey)) baseKey = 'KeyImage';
-                else if (/^noteimage\d+$/i.test(primaryKey)) baseKey = 'NoteImage';
+                const baseKey = resolveSchemaCardKey(primaryKey);
                 schema = SKIN_INI_PARAM_SCHEMA.find(p => p.key === baseKey);
                 if (schema) targetCardKey = schema.key;
             }
@@ -38558,13 +38446,7 @@ void primeDefaultSkin();
                 keysToHighlight.forEach((k) => {
                     let card = document.getElementById(`param-card-${k}`);
                     if (!card) {
-                        let baseKey = k.replace(/\d+[A-Za-z]?$/, '');
-                        if (/^noteimage\d+h$/i.test(k) || /^holdnotehead/i.test(k)) baseKey = 'HoldNoteHeadImage';
-                        else if (/^noteimage\d+l$/i.test(k) || /^holdnotebody/i.test(k)) baseKey = 'HoldNoteBodyImage';
-                        else if (/^noteimage\d+t$/i.test(k) || /^holdnotetail/i.test(k)) baseKey = 'HoldNoteTailImage';
-                        else if (/^keyimage\d+d$/i.test(k) || /^keyimagedown/i.test(k)) baseKey = 'KeyImageDown';
-                        else if (/^keyimage\d+$/i.test(k)) baseKey = 'KeyImage';
-                        else if (/^noteimage\d+$/i.test(k)) baseKey = 'NoteImage';
+                        const baseKey = resolveSchemaCardKey(k);
                         card = document.getElementById(`param-card-${baseKey}`);
                     }
                     if (card) {
@@ -38733,183 +38615,23 @@ void primeDefaultSkin();
         })();
 // --- END ui/unsaved-exit-prompt.js ---
 
-// --- BEGIN ui/agent-session.js ---
+// --- BEGIN ui/agent-session-config-hitsounds.js ---
 // ============================================================================
-// agent-session.js - Agent 可调用的语义化皮肤会话
-// 依赖：core/state.js、ui/history.js、ui/texture-upload.js、ui/export.js
+// agent-session-config-hitsounds.js - Agent 会话参数配置与打击音效操作
+// 从 ui/agent-session.js 按业务域拆分；所有脚本共享既有经典脚本作用域。
 // ============================================================================
 
-        const skinAgentSession = (() => {
-            let revision = 1;
-            let transactionActive = false;
-            let lastMutation = '';
-            let bridgeInstalled = false;
-
-            const MAX_OPERATIONS = 64;
-            const MAX_IMAGE_BASE64_LENGTH = 24 * 1024 * 1024;
-
-            function createSessionError(code, message, details = null) {
-                const err = new Error(message);
-                err.code = code;
-                err.details = details;
-                return err;
-            }
-
-            function serializeError(error) {
-                return {
-                    code: (error && error.code) || 'AGENT_SESSION_ERROR',
-                    message: (error && error.message) || 'Unknown agent session error',
-                    details: error && error.details ? error.details : null
-                };
-            }
-
-            function isEditingWorkspaceReady() {
-                if (typeof isSkinEditingWorkspaceReady === 'function') {
-                    return isSkinEditingWorkspaceReady();
-                }
-                return typeof maniaSkinConfigurations !== 'undefined' &&
-                    maniaSkinConfigurations instanceof Map &&
-                    maniaSkinConfigurations.size > 0;
-            }
-
-            async function ensureEditingWorkspaceReady() {
-                const deadline = performance.now() + 15000;
-                while (performance.now() < deadline) {
-                    if (isEditingWorkspaceReady() && !isSkinLoading) return;
-                    await new Promise((resolve) => setTimeout(resolve, 50));
-                }
-                throw createSessionError(
-                    'EDITOR_NOT_READY',
-                    '请先导入皮肤或从默认皮肤开始，再运行 Agent。',
-                    { editorReady: isEditingWorkspaceReady(), skinLoading: !!isSkinLoading }
-                );
-            }
-
-            function assertExpectedRevision(expectedRevision) {
-                if (expectedRevision == null) return;
-                const expected = Number(expectedRevision);
-                if (!Number.isFinite(expected)) {
-                    throw createSessionError(
-                        'INVALID_REVISION',
-                        'expectedRevision 必须是数字。'
-                    );
-                }
-                if (expected !== revision) {
-                    throw createSessionError(
-                        'STALE_REVISION',
-                        '皮肤状态已被其他操作修改，请重新读取皮肤描述后再提交。',
-                        { expectedRevision: expected, currentRevision: revision }
-                    );
-                }
-            }
-
-            function normalizeTargetKey(value) {
-                return String(value || '')
-                    .trim()
-                    .replace(/\\/g, '/')
-                    .replace(/\.(png|jpg|jpeg)$/i, '')
-                    .replace(/@2x$/i, '');
-            }
-
-            function sanitizeAssetBaseName(value, fallback) {
-                const clean = String(value || '')
-                    .replace(/\\/g, '/')
-                    .split('/')
-                    .pop()
-                    .replace(/\.(png|jpg|jpeg)$/i, '')
-                    .replace(/@2x$/i, '')
-                    .replace(/[^a-z0-9_-]+/gi, '_')
-                    .replace(/^_+|_+$/g, '')
-                    .toLowerCase();
-                return clean || fallback;
-            }
-
-            function getTargetKeyFromParamKey(paramKey) {
-                const key = String(paramKey || '');
-                if (/^NoteImage\d+[Hh]$/i.test(key) || /^HoldNoteHeadImage\d+$/i.test(key)) {
-                    return LML.HoldNoteHeadImage;
-                }
-                if (/^NoteImage\d+[Ll]$/i.test(key) || /^HoldNoteBodyImage\d+$/i.test(key)) {
-                    return LML.HoldNoteBodyImage;
-                }
-                if (/^NoteImage\d+[Tt]$/i.test(key) || /^HoldNoteTailImage\d+$/i.test(key)) {
-                    return LML.HoldNoteTailImage;
-                }
-                if (/^NoteImage\d*$/i.test(key)) return LML.NoteImage;
-                if (/^KeyImage\d+[Dd]$/i.test(key) || /^KeyImageDown\d*$/i.test(key)) {
-                    return LML.KeyImageDown;
-                }
-                if (/^KeyImage\d*$/i.test(key)) return LML.KeyImage;
-                if (/^StageLeft$/i.test(key)) return LML.LeftStageImage;
-                if (/^StageRight$/i.test(key)) return LML.RightStageImage;
-                if (/^StageBottom$/i.test(key)) return LML.BottomStageImage;
-                if (/^StageHint$/i.test(key)) return LML.HitTargetImage;
-                if (/^StageLight$/i.test(key)) return LML.LightImage;
-                return key || null;
-            }
-
-            function getTrackColumn(paramKey, metadata, explicitColumn) {
-                if (metadata && metadata._trackCol != null) return Number(metadata._trackCol);
-                if (explicitColumn != null && Number.isFinite(Number(explicitColumn))) {
-                    return Number(explicitColumn);
-                }
-                const match = String(paramKey || '').match(
-                    /(?:NoteImage|HoldNoteHeadImage|HoldNoteBodyImage|HoldNoteTailImage|KeyImageDown|KeyImage)(\d+)/i
-                );
-                return match ? Number(match[1]) : null;
-            }
-
-            function canonicalizeTextureParamKey(paramKey, column) {
-                const raw = String(paramKey || '').trim();
-                const normalizedColumn = (column != null && Number.isFinite(Number(column)))
-                    ? Math.max(0, Math.min(17, Number(column)))
-                    : null;
-                const genericSuffixMap = {
-                    HoldNoteHeadImage: 'H',
-                    HoldNoteBodyImage: 'L',
-                    HoldNoteTailImage: 'T'
-                };
-                if (genericSuffixMap[raw] && normalizedColumn != null) {
-                    return `NoteImage${normalizedColumn}${genericSuffixMap[raw]}`;
-                }
-                if (raw === 'NoteImage' && normalizedColumn != null) {
-                    return `NoteImage${normalizedColumn}`;
-                }
-                if (raw === 'KeyImage' && normalizedColumn != null) {
-                    return `KeyImage${normalizedColumn}`;
-                }
-                if (raw === 'KeyImageDown' && normalizedColumn != null) {
-                    return `KeyImage${normalizedColumn}D`;
-                }
-                return raw;
-            }
-
-            function findTextureMetadata(paramKey) {
-                const params = getTextureTabParams();
-                const exact = params.find((item) =>
-                    String(item.key).toLowerCase() === String(paramKey).toLowerCase());
-                if (exact) return exact;
-                const schema = SKIN_INI_PARAM_SCHEMA.find((item) =>
-                    item.type === 'texture' &&
-                    String(item.key).toLowerCase() === String(paramKey).toLowerCase());
-                return schema ? { ...schema } : null;
-            }
-
-            function cloneSerializable(value) {
-                if (value == null || typeof value !== 'object') return value;
-                if (typeof value.r === 'number' && typeof value.g === 'number' && typeof value.b === 'number') {
-                    return {
-                        r: value.r,
-                        g: value.g,
-                        b: value.b,
-                        a: value.a != null ? value.a : 255
-                    };
-                }
-                if (Array.isArray(value)) return value.map(cloneSerializable);
-                const out = {};
-                for (const [key, item] of Object.entries(value)) out[key] = cloneSerializable(item);
-                return out;
-            }
+        function createAgentSessionConfigHitsoundsOps(ctx) {
+            const {
+                getRevision,
+                createSessionError,
+                ensureEditingWorkspaceReady,
+                assertExpectedRevision,
+                cloneSerializable,
+                decodeBase64Bytes,
+                refreshEditorUi,
+                runInHistoryTransaction
+            } = ctx;
 
             function readSchemaParameterValue(schemaItem) {
                 if (!schemaItem) return undefined;
@@ -38937,6 +38659,410 @@ void primeDefaultSkin();
                         currentSkinMetadata.colours[schemaItem.key]);
                 }
                 return undefined;
+            }
+
+            function listConfigParameters() {
+                return SKIN_INI_PARAM_SCHEMA
+                    .filter((item) => item.type !== 'texture' && !item.virtual)
+                    .map((item) => ({
+                        key: item.key,
+                        label: item.zhName || item.enName || item.key,
+                        tab: item.tab,
+                        type: item.type,
+                        value: readSchemaParameterValue(item),
+                        default: cloneSerializable(item.default),
+                        description: item.desc || ''
+                    }));
+            }
+
+            function applyConfigOperation(operation) {
+                const key = String((operation && operation.key) || '').trim();
+                const schemaItem = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === key);
+                if (!schemaItem) {
+                    throw createSessionError(
+                        'UNKNOWN_PARAMETER',
+                        `未知的 skin.ini 参数：${key}`,
+                        { key }
+                    );
+                }
+                if (schemaItem.type === 'texture') {
+                    throw createSessionError(
+                        'PARAMETER_IS_TEXTURE',
+                        `参数 ${key} 是贴图路径，请使用 texture_apply。`,
+                        { key }
+                    );
+                }
+                const appliedValue = onParamChange(key, operation.value);
+                return {
+                    type: 'config.set',
+                    key,
+                    value: cloneSerializable(appliedValue !== undefined ? appliedValue : operation.value)
+                };
+            }
+
+            function parseSchemaDefaultColor(rawDefault, fallback) {
+                if (rawDefault && typeof rawDefault === 'object') {
+                    return {
+                        r: Number(rawDefault.r) || 0,
+                        g: Number(rawDefault.g) || 0,
+                        b: Number(rawDefault.b) || 0,
+                        a: rawDefault.a !== undefined ? Number(rawDefault.a) : 255
+                    };
+                }
+                const parts = String(rawDefault || '').split(',').map((s) => parseInt(s.trim(), 10));
+                if (parts.length >= 3 && !parts.slice(0, 3).some(Number.isNaN)) {
+                    return {
+                        r: parts[0],
+                        g: parts[1],
+                        b: parts[2],
+                        a: parts[3] !== undefined && !Number.isNaN(parts[3]) ? parts[3] : 255
+                    };
+                }
+                return { ...fallback };
+            }
+
+            function buildResetParamValue(p, keys) {
+                if (!p) return undefined;
+                if (p.type === 'array_number') {
+                    const count = p.key === 'ColumnLineWidth'
+                        ? keys + 1
+                        : (p.key === 'ColumnSpacing' ? Math.max(0, keys - 1) : keys);
+                    if (Array.isArray(p.default)) {
+                        const out = [];
+                        for (let i = 0; i < count; i++) {
+                            const item = p.default[i] !== undefined ? Number(p.default[i]) : Number(p.default[0] || 0);
+                            out.push(Number.isFinite(item) ? item : 0);
+                        }
+                        return out;
+                    }
+                    const fillVal = Number.isFinite(Number(p.default)) ? Number(p.default) : 0;
+                    return new Array(count).fill(fillVal);
+                }
+                if (p.type === 'column_colour' || p.type === 'light_colour') {
+                    const fallback = p.type === 'light_colour'
+                        ? { r: 255, g: 255, b: 255, a: 255 }
+                        : { r: 0, g: 0, b: 0, a: 255 };
+                    return {
+                        all: true,
+                        color: parseSchemaDefaultColor(p.default, fallback)
+                    };
+                }
+                if (p.type === 'color' || p.type === 'colour_hold' || p.type === 'colour_barline') {
+                    return parseSchemaDefaultColor(p.default, { r: 255, g: 255, b: 255, a: 255 });
+                }
+                return cloneSerializable(p.default);
+            }
+
+            async function resetConfigCategory(params = {}) {
+                await ensureEditingWorkspaceReady();
+                const tab = params.tab;
+                if (!['mania', 'fonts', 'general'].includes(tab)) {
+                    throw createSessionError('INVALID_CATEGORY', '无效的分类标签，必须为 mania、fonts 或 general。', { tab });
+                }
+                if (params.expectedRevision != null) {
+                    assertExpectedRevision(params.expectedRevision);
+                }
+                const items = SKIN_INI_PARAM_SCHEMA.filter((p) => p.tab === tab && !p.virtual);
+                // ColumnRight 会反推覆盖 ColumnStart；在恢复 mania 分类时先复位 ColumnRight，
+                // 再由 ColumnStart=136 与列宽/间距统一重算一致的 ColumnRight。
+                const orderedItems = tab === 'mania'
+                    ? [...items].sort((a, b) => {
+                        if (a.key === 'ColumnRight' && b.key !== 'ColumnRight') return -1;
+                        if (b.key === 'ColumnRight' && a.key !== 'ColumnRight') return 1;
+                        return 0;
+                    })
+                    : items;
+                return runInHistoryTransaction(`Agent 恢复${tab}分类默认值`, async () => {
+                    const keys = getActiveKeyCount();
+                    for (const p of orderedItems) {
+                        if (typeof onParamChange === 'function') {
+                            onParamChange(p.key, buildResetParamValue(p, keys));
+                        }
+                    }
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision: getRevision(),
+                        tab,
+                        resetCount: items.length
+                    };
+                });
+            }
+
+            async function getSkinIniText() {
+                await ensureEditingWorkspaceReady();
+                if (typeof generateSkinIniText !== 'function') {
+                    throw createSessionError('FEATURE_UNAVAILABLE', 'skin.ini 生成模块不可用。');
+                }
+                const text = generateSkinIniText();
+                return {
+                    ok: true,
+                    revision: getRevision(),
+                    text
+                };
+            }
+
+            async function listHitsounds() {
+                await ensureEditingWorkspaceReady();
+                const catalog = typeof getEffectiveSkinHitsoundCatalog === 'function'
+                    ? getEffectiveSkinHitsoundCatalog()
+                    : (typeof skinHitsoundCatalog !== 'undefined' ? skinHitsoundCatalog : new Map());
+                const items = [];
+                for (const [key, group] of catalog.entries()) {
+                    const replacement = typeof skinHitsoundReplacements !== 'undefined'
+                        ? skinHitsoundReplacements.get(key)
+                        : null;
+                    items.push({
+                        key,
+                        sampleSet: group.sampleSet,
+                        sound: group.sound,
+                        customIndex: group.customIndex || 0,
+                        isReplaced: Boolean(replacement),
+                        effectivePath: replacement ? replacement.path : (group.variants && group.variants[0] ? group.variants[0].path : `${key}.wav`),
+                        extension: replacement ? replacement.extension : (group.variants && group.variants[0] ? group.variants[0].extension : 'wav'),
+                        source: replacement ? 'replacement' : (group.source || 'default')
+                    });
+                }
+                return {
+                    ok: true,
+                    revision: getRevision(),
+                    total: items.length,
+                    replacedCount: typeof skinHitsoundReplacements !== 'undefined' ? skinHitsoundReplacements.size : 0,
+                    hitsounds: items
+                };
+            }
+
+            async function applyHitsound(params = {}) {
+                await ensureEditingWorkspaceReady();
+                const groupKey = String(params.groupKey || '').trim().toLowerCase();
+                const rawAudio = String(params.audioBase64 || '').trim();
+                const fileName = String(params.fileName || `${groupKey}.wav`).trim();
+
+                if (!groupKey) {
+                    throw createSessionError('INVALID_HITSOUND_PARAM', '必须提供 groupKey。');
+                }
+                if (!rawAudio) {
+                    throw createSessionError('INVALID_HITSOUND_PARAM', '必须提供 audioBase64 音频数据。');
+                }
+                if (params.expectedRevision != null) {
+                    assertExpectedRevision(params.expectedRevision);
+                }
+
+                const match = fileName.match(/\.([^.]+)$/);
+                const extension = match ? match[1].toLowerCase() : 'wav';
+                if (!['wav', 'mp3', 'ogg'].includes(extension)) {
+                    throw createSessionError('INVALID_HITSOUND_FORMAT', '仅支持 .wav、.mp3 和 .ogg 音效格式。', { extension });
+                }
+
+                const bytes = decodeBase64Bytes(rawAudio, {
+                    emptyCode: 'INVALID_HITSOUND_PARAM',
+                    emptyMessage: '必须提供 audioBase64 音频数据。',
+                    invalidCode: 'INVALID_HITSOUND_DATA',
+                    invalidMessage: 'audioBase64 不是有效的 Base64 数据。',
+                    rejectEmptyBytes: true,
+                    emptyBytesCode: 'EMPTY_HITSOUND_DATA',
+                    emptyBytesMessage: '音效文件数据为空。',
+                    maxBytes: 32 * 1024 * 1024,
+                    tooLargeBytesCode: 'HITSOUND_TOO_LARGE',
+                    tooLargeBytesMessage: '音效文件大小超过 32MB 限制。'
+                });
+
+                const catalog = typeof getEffectiveSkinHitsoundCatalog === 'function'
+                    ? getEffectiveSkinHitsoundCatalog()
+                    : (typeof skinHitsoundCatalog !== 'undefined' ? skinHitsoundCatalog : new Map());
+                const group = catalog.get(groupKey);
+                if (!group) {
+                    throw createSessionError('HITSOUND_NOT_FOUND', `未找到音效组：${groupKey}`, { groupKey });
+                }
+
+                return runInHistoryTransaction(`Agent 替换音效: ${groupKey}`, async () => {
+                    const previous = typeof skinHitsoundReplacements !== 'undefined' ? skinHitsoundReplacements.get(groupKey) : null;
+                    const replacementPath = `${group.key}.${extension}`;
+                    const mimeType = extension === 'wav' ? 'audio/wav' : (extension === 'mp3' ? 'audio/mpeg' : 'audio/ogg');
+
+                    if (typeof skinHitsoundReplacements !== 'undefined') {
+                        skinHitsoundReplacements.set(groupKey, {
+                            key: groupKey,
+                            sampleSet: group.sampleSet,
+                            sound: group.sound,
+                            customIndex: Number(group.customIndex) || 0,
+                            originalPaths: previous?.originalPaths?.length
+                                ? [...previous.originalPaths]
+                                : (group.variants || []).map((v) => v.path),
+                            path: replacementPath,
+                            extension,
+                            mimeType,
+                            sourceFileName: fileName,
+                            bytes
+                        });
+                    }
+
+                    if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
+                        refreshSkinHitsoundCatalogWithReplacements();
+                    }
+                    if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
+                    refreshEditorUi();
+                    try {
+                        if (typeof refreshManiaHitsoundPlaybackAfterEdit === 'function') {
+                            await refreshManiaHitsoundPlaybackAfterEdit();
+                        }
+                    } catch (playbackError) {
+                        console.warn('音效已替换，但重建播放缓存失败:', playbackError);
+                    }
+
+                    return {
+                        ok: true,
+                        revision: getRevision(),
+                        groupKey,
+                        path: replacementPath,
+                        byteLength: bytes.length
+                    };
+                });
+            }
+
+            async function resetHitsound(params = {}) {
+                await ensureEditingWorkspaceReady();
+                const groupKey = params.groupKey ? String(params.groupKey).trim().toLowerCase() : null;
+                if (params.expectedRevision != null) {
+                    assertExpectedRevision(params.expectedRevision);
+                }
+
+                const label = groupKey ? `Agent 恢复音效: ${groupKey}` : 'Agent 恢复所有音效';
+                return runInHistoryTransaction(label, async (tx) => {
+                    const replacementsAvailable = typeof skinHitsoundReplacements !== 'undefined' &&
+                        skinHitsoundReplacements instanceof Map;
+                    const hasChanges = groupKey
+                        ? (replacementsAvailable && skinHitsoundReplacements.has(groupKey))
+                        : (replacementsAvailable && skinHitsoundReplacements.size > 0);
+                    if (!hasChanges) {
+                        tx.abortNoOp();
+                        return {
+                            ok: true,
+                            revision: getRevision(),
+                            resetAll: !groupKey,
+                            groupKey: groupKey || null,
+                            changed: false
+                        };
+                    }
+
+                    if (groupKey) {
+                        skinHitsoundReplacements.delete(groupKey);
+                    } else if (typeof clearSkinHitsoundReplacements === 'function') {
+                        clearSkinHitsoundReplacements();
+                    } else {
+                        skinHitsoundReplacements.clear();
+                    }
+
+                    if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
+                        refreshSkinHitsoundCatalogWithReplacements();
+                    }
+                    if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
+                    refreshEditorUi();
+                    try {
+                        if (typeof refreshManiaHitsoundPlaybackAfterEdit === 'function') {
+                            await refreshManiaHitsoundPlaybackAfterEdit();
+                        }
+                    } catch (playbackError) {
+                        console.warn('音效已恢复，但重建播放缓存失败:', playbackError);
+                    }
+
+                    return {
+                        ok: true,
+                        revision: getRevision(),
+                        resetAll: !groupKey,
+                        groupKey: groupKey || null,
+                        changed: true
+                    };
+                });
+            }
+
+            return {
+                listConfigParameters,
+                applyConfigOperation,
+                resetConfigCategory,
+                getSkinIniText,
+                listHitsounds,
+                applyHitsound,
+                resetHitsound
+            };
+        }
+// --- END ui/agent-session-config-hitsounds.js ---
+
+// --- BEGIN ui/agent-session-textures.js ---
+// ============================================================================
+// agent-session-textures.js - Agent 会话贴图查询、编辑与自动化操作
+// 从 ui/agent-session.js 按业务域拆分；所有脚本共享既有经典脚本作用域。
+// ============================================================================
+
+        function createAgentSessionTextureOps(ctx) {
+            const {
+                getRevision,
+                maxImageBase64Length,
+                createSessionError,
+                ensureEditingWorkspaceReady,
+                assertExpectedRevision,
+                cloneSerializable,
+                decodeBase64Bytes,
+                refreshEditorUi,
+                runInHistoryTransaction
+            } = ctx;
+
+            function sanitizeAssetBaseName(value, fallback) {
+                const clean = String(value || '')
+                    .replace(/\\/g, '/')
+                    .split('/')
+                    .pop()
+                    .replace(/\.(png|jpg|jpeg)$/i, '')
+                    .replace(/@2x$/i, '')
+                    .replace(/[^a-z0-9_-]+/gi, '_')
+                    .replace(/^_+|_+$/g, '')
+                    .toLowerCase();
+                return clean || fallback;
+            }
+
+            function getTargetKeyFromParamKey(paramKey) {
+                const key = String(paramKey || '');
+                const parsed = typeof parseManiaTextureParamKey === 'function'
+                    ? parseManiaTextureParamKey(key)
+                    : null;
+                if (parsed) return parsed.lookup;
+                const stageMap = {
+                    stageleft: LML.LeftStageImage,
+                    stageright: LML.RightStageImage,
+                    stagebottom: LML.BottomStageImage,
+                    stagehint: LML.HitTargetImage,
+                    stagelight: LML.LightImage
+                };
+                return stageMap[key.toLowerCase()] || key || null;
+            }
+
+            function getTrackColumn(paramKey, metadata, explicitColumn) {
+                if (metadata && metadata._trackCol != null) return Number(metadata._trackCol);
+                if (explicitColumn != null && Number.isFinite(Number(explicitColumn))) {
+                    return Number(explicitColumn);
+                }
+                const parsed = typeof parseManiaTextureParamKey === 'function'
+                    ? parseManiaTextureParamKey(paramKey)
+                    : null;
+                return parsed && parsed.column != null ? parsed.column : null;
+            }
+
+            function canonicalizeTextureParamKey(paramKey, column) {
+                if (typeof canonicalizeTrackTextureParamKey === 'function') {
+                    return canonicalizeTrackTextureParamKey(paramKey, column);
+                }
+                return String(paramKey || '').trim();
+            }
+
+            function findTextureMetadata(paramKey) {
+                const params = getTextureTabParams();
+                const exact = params.find((item) =>
+                    String(item.key).toLowerCase() === String(paramKey).toLowerCase());
+                if (exact) return exact;
+                const schema = SKIN_INI_PARAM_SCHEMA.find((item) =>
+                    item.type === 'texture' &&
+                    String(item.key).toLowerCase() === String(paramKey).toLowerCase());
+                return schema ? { ...schema } : null;
             }
 
             function listTextureTargets() {
@@ -38967,78 +39093,16 @@ void primeDefaultSkin();
                 });
             }
 
-            function listConfigParameters() {
-                return SKIN_INI_PARAM_SCHEMA
-                    .filter((item) => item.type !== 'texture' && !item.virtual)
-                    .map((item) => ({
-                        key: item.key,
-                        label: item.zhName || item.enName || item.key,
-                        tab: item.tab,
-                        type: item.type,
-                        value: readSchemaParameterValue(item),
-                        default: cloneSerializable(item.default),
-                        description: item.desc || ''
-                    }));
-            }
-
-            function getDescription() {
-                return {
-                    ready: isEditingWorkspaceReady(),
-                    revision,
-                    skinName: currentSkinFileName || '',
-                    keyCount: getActiveKeyCount(),
-                    availableKeyCounts: Array.from(maniaSkinConfigurations.keys()).sort((a, b) => a - b),
-                    format: 'osu!stable mania',
-                    coordinateReference: 480,
-                    capabilities: {
-                        defaultSkin: true,
-                        currentWorkspace: true,
-                        importedOskWorkspace: true,
-                        textureApply: true,
-                        textureInspect: true,
-                        textureEdit: true,
-                        textureStretchFix: true,
-                        textureSetBlank: true,
-                        textureReset: true,
-                        textureCreate: true,
-                        textureLongBody: true,
-                        configPatch: true,
-                        preview: true,
-                        validate: true,
-                        editableExport: true,
-                        releaseExport: true,
-                        transactionUndo: true,
-                        undoRedo: true,
-                        revert: true,
-                        configReset: true,
-                        rawIni: true,
-                        hitsounds: true
-                    },
-                    textures: isEditingWorkspaceReady() ? listTextureTargets() : [],
-                    parameters: isEditingWorkspaceReady() ? listConfigParameters() : []
-                };
-            }
-
             function decodeBase64Image(imageBase64) {
-                const raw = String(imageBase64 || '').trim();
-                if (!raw) throw createSessionError('INVALID_IMAGE', 'imageBase64 不能为空。');
-                const comma = raw.indexOf(',');
-                const base64 = raw.startsWith('data:') && comma >= 0 ? raw.slice(comma + 1) : raw;
-                if (base64.length > MAX_IMAGE_BASE64_LENGTH) {
-                    throw createSessionError(
-                        'IMAGE_TOO_LARGE',
-                        '单张贴图 Base64 数据超过限制。',
-                        { maxBase64Length: MAX_IMAGE_BASE64_LENGTH }
-                    );
-                }
-                try {
-                    const binary = atob(base64);
-                    const bytes = new Uint8Array(binary.length);
-                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                    return bytes.buffer;
-                } catch {
-                    throw createSessionError('INVALID_IMAGE', 'imageBase64 不是有效的图片数据。');
-                }
+                return decodeBase64Bytes(imageBase64, {
+                    emptyCode: 'INVALID_IMAGE',
+                    emptyMessage: 'imageBase64 不能为空。',
+                    maxBase64Length: maxImageBase64Length,
+                    tooLargeCode: 'IMAGE_TOO_LARGE',
+                    tooLargeMessage: '单张贴图 Base64 数据超过限制。',
+                    invalidCode: 'INVALID_IMAGE',
+                    invalidMessage: 'imageBase64 不是有效的图片数据。'
+                }).buffer;
             }
 
             function loadImageFromBuffer(arrayBuffer, mimeType) {
@@ -39141,29 +39205,743 @@ void primeDefaultSkin();
                 }
             }
 
-            function applyConfigOperation(operation) {
-                const key = String((operation && operation.key) || '').trim();
-                const schemaItem = SKIN_INI_PARAM_SCHEMA.find((item) => item.key === key);
-                if (!schemaItem) {
-                    throw createSessionError(
-                        'UNKNOWN_PARAMETER',
-                        `未知的 skin.ini 参数：${key}`,
-                        { key }
-                    );
+            async function inspectTexture(params = {}) {
+                await ensureEditingWorkspaceReady();
+                const canonicalKey = canonicalizeTextureParamKey(
+                    params && params.paramKey,
+                    params && params.column
+                );
+                if (!canonicalKey) {
+                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
                 }
-                if (schemaItem.type === 'texture') {
-                    throw createSessionError(
-                        'PARAMETER_IS_TEXTURE',
-                        `参数 ${key} 是贴图路径，请使用 texture_apply。`,
-                        { key }
-                    );
+                const metadata = findTextureMetadata(canonicalKey);
+                const allParams = typeof getTextureTabParams === 'function' ? getTextureTabParams() : [];
+                const p = allParams.find((item) => String(item.key).toLowerCase() === canonicalKey.toLowerCase()) || metadata;
+                if (!p) {
+                    throw createSessionError('UNKNOWN_TEXTURE_TARGET', `未找到贴图目标：${canonicalKey}`, { paramKey: canonicalKey });
                 }
-                const appliedValue = onParamChange(key, operation.value);
+                const target = typeof buildEditorTarget === 'function' ? buildEditorTarget(p) : null;
+                const frame = target && target.frames && target.frames[0];
+                const recipe = target && typeof getStoredTextureEditRecipe === 'function' ? getStoredTextureEditRecipe(target) : null;
+                const stretchFix = target && frame && typeof getStretchFixTarget === 'function' ? getStretchFixTarget(target, frame) : null;
+                const sessionKey = target && typeof getLongBodySessionKey === 'function' ? getLongBodySessionKey(target) : null;
+                const longBody = sessionKey && typeof longBodyComposerSessions !== 'undefined' ? longBodyComposerSessions.get(sessionKey) : null;
                 return {
-                    type: 'config.set',
-                    key,
-                    value: cloneSerializable(appliedValue !== undefined ? appliedValue : operation.value)
+                    ok: true,
+                    revision: getRevision(),
+                    paramKey: canonicalKey,
+                    column: getTrackColumn(canonicalKey, metadata, params && params.column),
+                    effectiveName: (target && target.resolved && target.resolved.name) || (target && target.base) || '',
+                    state: target ? target.state : 'unset',
+                    sourceSize: frame ? { width: frame.width, height: frame.height } : null,
+                    is2x: !!(frame && frame._is2x),
+                    isBlank: !!(frame && (frame._isBlankPlaceholder || frame._isTransparent1x1)),
+                    hasRecipe: !!recipe,
+                    recipe: recipe && recipe.params ? {
+                        left: recipe.params.left,
+                        right: recipe.params.right,
+                        top: recipe.params.top,
+                        bottom: recipe.params.bottom,
+                        imageTransform: cloneSerializable(recipe.params.imageTransform),
+                        rgbAdjustment: cloneSerializable(recipe.params.rgbAdjustment)
+                    } : null,
+                    stretchFix: stretchFix && stretchFix.axis ? {
+                        axis: stretchFix.axis,
+                        size: stretchFix.size,
+                        label: stretchFix.label || null,
+                        reason: stretchFix.reason || null
+                    } : null,
+                    longBody: longBody ? {
+                        targetHeight: longBody.targetHeight,
+                        coverage: longBody.coverage,
+                        fade: longBody.fade,
+                        tailPreset: longBody.tailPreset || 'none',
+                        presetHeight: longBody.presetHeight || 0
+                    } : null
                 };
+            }
+
+            async function withTextureEditorTarget(paramKey, column, fn) {
+                const canonicalKey = canonicalizeTextureParamKey(paramKey, column);
+                if (!canonicalKey) {
+                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
+                }
+                if (!textureImageEditorUi || typeof textureImageEditorUi.selectByParamKey !== 'function') {
+                    throw createSessionError('FEATURE_UNAVAILABLE', '贴图编辑器未就绪。');
+                }
+                const prevTabIds = (typeof tabs !== 'undefined' && Array.isArray(tabs))
+                    ? new Set(tabs.map((tab) => tab.id))
+                    : null;
+                const selected = textureImageEditorUi.selectByParamKey(canonicalKey);
+                if (!selected) {
+                    throw createSessionError(
+                        'UNKNOWN_TEXTURE_TARGET',
+                        `未找到或无法选择贴图目标：${canonicalKey}`,
+                        { paramKey: canonicalKey }
+                    );
+                }
+                const openedTabId = (typeof activeTabId !== 'undefined' &&
+                    prevTabIds &&
+                    !prevTabIds.has(activeTabId))
+                    ? activeTabId
+                    : null;
+                const closeOpenedTab = () => {
+                    if (openedTabId && typeof removeTab === 'function') {
+                        removeTab(openedTabId, { restorePreview: false });
+                    }
+                };
+                try {
+                    return await fn({ canonicalKey, closeOpenedTab });
+                } catch (error) {
+                    closeOpenedTab();
+                    throw error;
+                }
+            }
+
+            async function runTextureEditorTransaction(params, labelPrefix, handler, options = {}) {
+                await ensureEditingWorkspaceReady();
+                if (params && params.expectedRevision != null) {
+                    assertExpectedRevision(params.expectedRevision);
+                }
+                const canonicalKey = options.canonicalKey || canonicalizeTextureParamKey(
+                    params && params.paramKey,
+                    params && params.column
+                );
+                if (!canonicalKey) {
+                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
+                }
+                const column = options.column !== undefined ? options.column : null;
+                if (typeof options.beforeRun === 'function') {
+                    options.beforeRun(canonicalKey);
+                }
+                return runInHistoryTransaction(`${labelPrefix}: ${canonicalKey}`, (tx) =>
+                    withTextureEditorTarget(canonicalKey, column, (targetCtx) =>
+                        handler({ ...targetCtx, tx, canonicalKey })
+                    )
+                );
+            }
+
+            async function editTexture(params = {}) {
+                return runTextureEditorTransaction(params, 'Agent 编辑贴图', async ({ canonicalKey }) => {
+                    if (params.crop) {
+                        const cl = byId('textureImageCropLeft');
+                        const cr = byId('textureImageCropRight');
+                        const ct = byId('textureImageCropTop');
+                        const cb = byId('textureImageCropBottom');
+                        if (cl) cl.value = String(Number(params.crop.left) || 0);
+                        if (cr) cr.value = String(Number(params.crop.right) || 0);
+                        if (ct) ct.value = String(Number(params.crop.top) || 0);
+                        if (cb) cb.value = String(Number(params.crop.bottom) || 0);
+                    }
+
+                    if (params.transform && state && state.imageTransform) {
+                        const scale = Number(params.transform.scalePercent);
+                        if (Number.isFinite(scale) && scale >= 1 && scale <= 5000) {
+                            state.imageTransform.scalePercent = scale;
+                            const el = byId('textureImageScalePercent');
+                            if (el) el.value = String(scale);
+                        }
+                        const sx = Number(params.transform.stretchX);
+                        if (Number.isFinite(sx)) {
+                            state.imageTransform.stretchX = Math.round(sx);
+                            const el = byId('textureImageStretchX');
+                            if (el) el.value = String(Math.round(sx));
+                        }
+                        const sy = Number(params.transform.stretchY);
+                        if (Number.isFinite(sy)) {
+                            state.imageTransform.stretchY = Math.round(sy);
+                            const el = byId('textureImageStretchY');
+                            if (el) el.value = String(Math.round(sy));
+                        }
+                    }
+
+                    if (params.rgb && state && state.rgbAdjustment) {
+                        for (const channel of ['r', 'g', 'b']) {
+                            const val = Number(params.rgb[channel]);
+                            if (Number.isFinite(val)) {
+                                const normalized = Math.max(0, Math.min(200, Math.round(val)));
+                                state.rgbAdjustment[channel] = normalized;
+                                const range = byId(`textureImageRgb${channel.toUpperCase()}`);
+                                const num = byId(`textureImageRgb${channel.toUpperCase()}Value`);
+                                if (range) range.value = String(normalized);
+                                if (num) num.value = String(normalized);
+                            }
+                        }
+                    }
+
+                    if (typeof refreshLivePreview === 'function') {
+                        refreshLivePreview();
+                    }
+
+                    const saved = await applySelectedTexture({
+                        mode: params.mode || 'overwrite',
+                        keyImageScope: params.keyImageScope || 'current',
+                        syncKeyImagePair: params.syncKeyImagePair !== false,
+                        closeTabAfterSave: true,
+                        closeEditorWhenLast: true
+                    });
+                    if (!saved) {
+                        throw createSessionError('TEXTURE_SAVE_FAILED', `贴图编辑保存失败：${canonicalKey}`, { paramKey: canonicalKey });
+                    }
+
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision: getRevision(),
+                        paramKey: canonicalKey,
+                        mode: params.mode || 'overwrite'
+                    };
+                });
+            }
+
+            async function stretchFixTexture(params = {}) {
+                return runTextureEditorTransaction(params, 'Agent 修复贴图拉伸', async ({ tx, canonicalKey, closeOpenedTab }) => {
+                    const currentPreview = (state && state.previewFrames && state.previewFrames[0]) ||
+                        (typeof buildPreviewFrames === 'function' ? buildPreviewFrames()[0] : null) ||
+                        (state && state.workingFrames && state.workingFrames[0]);
+                    const target = (currentPreview && typeof getStretchFixTarget === 'function')
+                        ? getStretchFixTarget(state.selected, currentPreview)
+                        : null;
+
+                    if (!target || !target.axis) {
+                        closeOpenedTab();
+                        tx.abortNoOp();
+                        return {
+                            ok: true,
+                            revision: getRevision(),
+                            fixed: false,
+                            message: target && target.reason ? target.reason : '当前贴图无需修复拉伸',
+                            paramKey: canonicalKey
+                        };
+                    }
+
+                    if (typeof applyStretchFix !== 'function') {
+                        throw createSessionError('FEATURE_UNAVAILABLE', '拉伸修复功能未就绪。');
+                    }
+                    applyStretchFix();
+
+                    const saved = await applySelectedTexture({
+                        mode: params.mode || 'overwrite',
+                        closeTabAfterSave: true,
+                        closeEditorWhenLast: true
+                    });
+                    if (!saved) {
+                        throw createSessionError('TEXTURE_SAVE_FAILED', `贴图拉伸修复保存失败：${canonicalKey}`, { paramKey: canonicalKey });
+                    }
+
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision: getRevision(),
+                        fixed: true,
+                        paramKey: canonicalKey,
+                        axis: target.axis,
+                        targetSize: target.size
+                    };
+                });
+            }
+
+            async function setBlankTexture(params = {}) {
+                return runTextureEditorTransaction(params, 'Agent 设为空白贴图', async ({ canonicalKey }) => {
+                    if (typeof setCurrentTextureBlank !== 'function') {
+                        throw createSessionError('FEATURE_UNAVAILABLE', '设为空白功能未就绪。');
+                    }
+                    const blanked = setCurrentTextureBlank();
+                    if (!blanked) {
+                        throw createSessionError('TEXTURE_SET_BLANK_FAILED', `设为空白操作失败：${canonicalKey}`);
+                    }
+
+                    const saved = await applySelectedTexture({
+                        mode: params.mode || 'overwrite',
+                        keyImageScope: params.scope || 'current',
+                        closeTabAfterSave: true,
+                        closeEditorWhenLast: true
+                    });
+                    if (!saved) {
+                        throw createSessionError('TEXTURE_SAVE_FAILED', `设为空白保存失败：${canonicalKey}`);
+                    }
+
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision: getRevision(),
+                        paramKey: canonicalKey,
+                        isBlank: true
+                    };
+                });
+            }
+
+            async function resetTexture(params = {}) {
+                return runTextureEditorTransaction(params, 'Agent 重置贴图', async ({ canonicalKey }) => {
+                    if (typeof resetCurrentTexture !== 'function') {
+                        throw createSessionError('FEATURE_UNAVAILABLE', '重置贴图功能未就绪。');
+                    }
+                    resetCurrentTexture();
+
+                    const saved = await applySelectedTexture({
+                        mode: 'overwrite',
+                        closeTabAfterSave: true,
+                        closeEditorWhenLast: true
+                    });
+                    if (!saved) {
+                        throw createSessionError('TEXTURE_SAVE_FAILED', `重置贴图保存失败：${canonicalKey}`);
+                    }
+
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision: getRevision(),
+                        paramKey: canonicalKey,
+                        reset: true
+                    };
+                });
+            }
+
+            async function createTexture(params = {}) {
+                await ensureEditingWorkspaceReady();
+                if (params.expectedRevision != null) {
+                    assertExpectedRevision(params.expectedRevision);
+                }
+                const canonicalKey = params.paramKey
+                    ? canonicalizeTextureParamKey(params.paramKey, params.column)
+                    : null;
+                const cleanName = sanitizeAssetBaseName(
+                    params.name,
+                    canonicalKey ? `created_${canonicalKey}` : 'created_texture'
+                );
+
+                if (typeof saveSolidTextureToLibrary !== 'function' || typeof normalizeTextureShape !== 'function') {
+                    throw createSessionError('FEATURE_UNAVAILABLE', '纯色贴图创建模块未就绪。');
+                }
+
+                const payload = {
+                    name: cleanName,
+                    spec: params.spec === '2x' ? '2x' : '1x',
+                    width: Math.max(1, Math.min(50000, Number(params.width) || 256)),
+                    height: Math.max(1, Math.min(50000, Number(params.height) || 256)),
+                    shape: normalizeTextureShape(params.shape || 'rectangle'),
+                    color: typeof normalizeTextureHexColor === 'function'
+                        ? normalizeTextureHexColor(params.color || '#ffffff')
+                        : (params.color || '#ffffff'),
+                    alpha: Math.max(0, Math.min(100, Number(params.alpha != null ? params.alpha : 100))),
+                    cornerRadius: Math.max(0, Number(params.cornerRadius != null ? params.cornerRadius : 24)),
+                    arrowThickness: Math.max(8, Math.min(50, Number(params.arrowThickness != null ? params.arrowThickness : 20))),
+                    arrowRoundness: Math.max(0, Math.min(100, Number(params.arrowRoundness != null ? params.arrowRoundness : 50))),
+                    strokeEnabled: !!params.strokeEnabled,
+                    strokeColor: typeof normalizeTextureHexColor === 'function'
+                        ? normalizeTextureHexColor(params.strokeColor || '#000000')
+                        : (params.strokeColor || '#000000'),
+                    strokeWidth: Math.max(0, Math.min(64, Number(params.strokeWidth || 0))),
+                    strokeAlpha: Math.max(0, Math.min(100, Number(params.strokeAlpha != null ? params.strokeAlpha : 100))),
+                    fillTransparentColor: typeof normalizeTextureHexColor === 'function'
+                        ? normalizeTextureHexColor(params.fillTransparentColor || '#000000')
+                        : (params.fillTransparentColor || '#000000'),
+                    fillTransparentAlpha: Math.max(0, Math.min(100, Number(params.fillTransparentAlpha || 0)))
+                };
+
+                return runInHistoryTransaction(`Agent 创建贴图: ${cleanName}`, async () => {
+                    const result = await saveSolidTextureToLibrary(payload, { oldPath: null });
+                    if (canonicalKey && typeof pointTextureEditParamToPath === 'function') {
+                        pointTextureEditParamToPath(canonicalKey, result.path);
+                    }
+
+                    if (typeof updateEditorBaseAfterSave === 'function') {
+                        updateEditorBaseAfterSave();
+                    }
+                    refreshEditorUi();
+                    return {
+                        ok: true,
+                        revision: getRevision(),
+                        path: result.path,
+                        paramKey: canonicalKey || null,
+                        spec: payload.spec,
+                        width: payload.width,
+                        height: payload.height,
+                        shape: payload.shape
+                    };
+                });
+            }
+
+            async function applyLongbody(params = {}) {
+                const parsedCol = Number(params.column);
+                const col = (params.column != null && Number.isFinite(parsedCol))
+                    ? Math.max(0, Math.min(17, Math.round(parsedCol)))
+                    : 0;
+                const bodyParamKey = canonicalizeTextureParamKey('HoldNoteBodyImage', col);
+
+                return runTextureEditorTransaction(
+                    params,
+                    'Agent 应用一键投皮',
+                    async () => {
+                        const enabled = (state && state.longBodyComposer && state.longBodyComposer.active)
+                            ? true
+                            : enableLongBodyComposer();
+                        if (!enabled) {
+                            throw createSessionError(
+                                'LONGBODY_NOT_ELIGIBLE',
+                                `当前轨道长条身体不满足一键投皮启用条件：${bodyParamKey}`,
+                                { paramKey: bodyParamKey, column: col }
+                            );
+                        }
+
+                        if (state && state.longBodyComposer) {
+                            if (params.targetHeight != null) {
+                                state.longBodyComposer.targetHeight = Math.max(1, Math.min(50000, Number(params.targetHeight) || 40000));
+                            }
+                            if (params.coverage != null) {
+                                state.longBodyComposer.coverage = Math.max(0, Number(params.coverage) || 0);
+                            }
+                            if (params.fade != null) {
+                                state.longBodyComposer.fade = Math.max(0, Math.min(100, Number(params.fade) || 0));
+                            }
+                            if (params.tailPreset != null) {
+                                state.longBodyComposer.tailPreset = ['sharp', 'round'].includes(params.tailPreset)
+                                    ? params.tailPreset
+                                    : 'none';
+                            }
+                            if (params.presetHeight != null) {
+                                state.longBodyComposer.presetHeight = Math.max(0, Number(params.presetHeight) || 0);
+                            }
+                        }
+
+                        const appliedTargetHeight = (state && state.longBodyComposer && state.longBodyComposer.targetHeight) || 40000;
+                        const appliedTailPreset = (state && state.longBodyComposer && state.longBodyComposer.tailPreset) || 'none';
+
+                        const saved = await applySelectedTexture({
+                            scope: params.scope || 'current',
+                            longBodyScope: params.scope || 'current',
+                            closeTabAfterSave: true,
+                            closeEditorWhenLast: true
+                        });
+                        if (!saved) {
+                            throw createSessionError('TEXTURE_SAVE_FAILED', `一键投皮应用失败：${bodyParamKey}`);
+                        }
+
+                        refreshEditorUi();
+                        return {
+                            ok: true,
+                            revision: getRevision(),
+                            column: col,
+                            paramKey: bodyParamKey,
+                            targetHeight: appliedTargetHeight,
+                            tailPreset: appliedTailPreset,
+                            scope: params.scope || 'current'
+                        };
+                    },
+                    {
+                        canonicalKey: bodyParamKey,
+                        column: col,
+                        beforeRun: () => {
+                            if (typeof enableLongBodyComposer !== 'function') {
+                                throw createSessionError('FEATURE_UNAVAILABLE', '一键投皮功能未就绪。');
+                            }
+                        }
+                    }
+                );
+            }
+
+            return {
+                listTextureTargets,
+                applyTextureOperation,
+                inspectTexture,
+                editTexture,
+                stretchFixTexture,
+                setBlankTexture,
+                resetTexture,
+                createTexture,
+                applyLongbody
+            };
+        }
+// --- END ui/agent-session-textures.js ---
+
+// --- BEGIN ui/agent-session-preview-export.js ---
+// ============================================================================
+// agent-session-preview-export.js - Agent 会话预览捕获、皮肤校验与打包导出
+// 从 ui/agent-session.js 按业务域拆分；所有脚本共享既有经典脚本作用域。
+// ============================================================================
+
+        function createAgentSessionPreviewExportOps(ctx) {
+            const {
+                getRevision,
+                createSessionError,
+                isEditingWorkspaceReady,
+                ensureEditingWorkspaceReady
+            } = ctx;
+
+            async function capturePreview(params = {}) {
+                await ensureEditingWorkspaceReady();
+                const previewState = params.state === 'hold' ? 'hold' : 'idle';
+                const previousHoldUntil = testHoldingUntil;
+                if (previewState === 'hold') {
+                    testHoldingUntil = performance.now() + 2000;
+                } else {
+                    testHoldingUntil = 0;
+                }
+                try {
+                    drawFrame();
+                    await new Promise((resolve) => requestAnimationFrame(resolve));
+                    drawFrame();
+                    const gameCanvas = document.getElementById('gameCanvas');
+                    if (!gameCanvas) {
+                        throw createSessionError('CANVAS_NOT_FOUND', '找不到游戏画布。');
+                    }
+                    const dataUrl = gameCanvas.toDataURL('image/png');
+                    const comma = dataUrl.indexOf(',');
+                    return {
+                        revision: getRevision(),
+                        state: previewState,
+                        width: gameCanvas.width,
+                        height: gameCanvas.height,
+                        mimeType: 'image/png',
+                        imageBase64: comma >= 0 ? dataUrl.slice(comma + 1) : ''
+                    };
+                } catch (error) {
+                    if (error && error.name === 'SecurityError') {
+                        throw createSessionError(
+                            'PREVIEW_TAINTED',
+                            '画布包含无法导出的跨源资源。',
+                            { originalMessage: error.message }
+                        );
+                    }
+                    throw error;
+                } finally {
+                    testHoldingUntil = previousHoldUntil;
+                    drawFrame();
+                }
+            }
+
+            function validateCurrentSkin() {
+                if (!isEditingWorkspaceReady()) {
+                    return {
+                        ok: false,
+                        revision: getRevision(),
+                        errors: [{
+                            code: 'EDITOR_NOT_READY',
+                            message: '请先导入皮肤或从默认皮肤开始。'
+                        }],
+                        warnings: [],
+                        summary: { textureCount: 0, missingCount: 0, warningCount: 1 }
+                    };
+                }
+
+                const errors = [];
+                const warnings = [];
+                const targets = getTextureTabParams();
+                for (const target of targets) {
+                    const resolved = resolveTextureParam(activeEditorKeyCount, target);
+                    if (resolved && resolved.state === 'missing') {
+                        errors.push({
+                            code: 'MISSING_TEXTURE',
+                            message: `${target.key} 指向的贴图不存在：${resolved.name}`,
+                            paramKey: target.key,
+                            path: resolved.name
+                        });
+                    } else if (resolved && resolved.state === 'unset') {
+                        warnings.push({
+                            code: 'UNSET_TEXTURE',
+                            message: `${target.key} 没有解析到明确贴图，但 stable 可能使用内置回退。`,
+                            paramKey: target.key
+                        });
+                    }
+                    const width = resolved && resolved.img
+                        ? (resolved.img.naturalWidth || resolved.img.width || 0)
+                        : 0;
+                    const height = resolved && resolved.img
+                        ? (resolved.img.naturalHeight || resolved.img.height || 0)
+                        : 0;
+                    if (width > 4096 || height > 4096) {
+                        warnings.push({
+                            code: 'LARGE_TEXTURE',
+                            message: `${target.key} 尺寸较大：${width}×${height}。`,
+                            paramKey: target.key,
+                            width,
+                            height
+                        });
+                    }
+                }
+                return {
+                    ok: errors.length === 0,
+                    revision: getRevision(),
+                    errors,
+                    warnings,
+                    summary: {
+                        textureCount: targets.length,
+                        missingCount: errors.length,
+                        warningCount: warnings.length
+                    }
+                };
+            }
+
+            function arrayBufferToBase64(buffer) {
+                const bytes = new Uint8Array(buffer);
+                const chunkSize = 0x8000;
+                let binary = '';
+                for (let i = 0; i < bytes.length; i += chunkSize) {
+                    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+                }
+                return btoa(binary);
+            }
+
+            async function exportPackage(params = {}) {
+                await ensureEditingWorkspaceReady();
+                const format = params.format === 'zip' ? 'zip' : 'osk';
+                const mode = params.mode === 'release' ? 'release' : 'editable';
+                showProgress(`Agent 正在打包 ${format.toUpperCase()} 皮肤...`);
+                try {
+                    const result = await buildSkinArchiveBlob(format, { mode });
+                    const arrayBuffer = await result.blob.arrayBuffer();
+                    if (window.skinWorkspaceRevision) window.skinWorkspaceRevision.markExported();
+                    return {
+                        revision: getRevision(),
+                        format,
+                        mode,
+                        fileName: result.exportFileName,
+                        byteLength: arrayBuffer.byteLength,
+                        projectSummary: result.projectSummary || null,
+                        archiveBase64: arrayBufferToBase64(arrayBuffer)
+                    };
+                } finally {
+                    hideProgress();
+                }
+            }
+
+            return {
+                capturePreview,
+                validateCurrentSkin,
+                exportPackage
+            };
+        }
+// --- END ui/agent-session-preview-export.js ---
+
+// --- BEGIN ui/agent-session.js ---
+// ============================================================================
+// agent-session.js - Agent 可调用的语义化皮肤会话核心与桥接调度
+// 依赖：core/state.js、ui/history.js、ui/texture-upload.js、ui/export.js、
+//       ui/agent-session-config-hitsounds.js、ui/agent-session-textures.js、
+//       ui/agent-session-preview-export.js
+// ============================================================================
+
+        const skinAgentSession = (() => {
+            let revision = 1;
+            let transactionActive = false;
+            let lastMutation = '';
+            let bridgeInstalled = false;
+
+            const MAX_OPERATIONS = 64;
+            const MAX_IMAGE_BASE64_LENGTH = 24 * 1024 * 1024;
+
+            function createSessionError(code, message, details = null) {
+                const err = new Error(message);
+                err.code = code;
+                err.details = details;
+                return err;
+            }
+
+            function serializeError(error) {
+                return {
+                    code: (error && error.code) || 'AGENT_SESSION_ERROR',
+                    message: (error && error.message) || 'Unknown agent session error',
+                    details: error && error.details ? error.details : null
+                };
+            }
+
+            function isEditingWorkspaceReady() {
+                if (typeof isSkinEditingWorkspaceReady === 'function') {
+                    return isSkinEditingWorkspaceReady();
+                }
+                return typeof maniaSkinConfigurations !== 'undefined' &&
+                    maniaSkinConfigurations instanceof Map &&
+                    maniaSkinConfigurations.size > 0;
+            }
+
+            async function ensureEditingWorkspaceReady() {
+                const deadline = performance.now() + 15000;
+                while (performance.now() < deadline) {
+                    if (isEditingWorkspaceReady() && !isSkinLoading) return;
+                    await new Promise((resolve) => setTimeout(resolve, 50));
+                }
+                throw createSessionError(
+                    'EDITOR_NOT_READY',
+                    '请先导入皮肤或从默认皮肤开始，再运行 Agent。',
+                    { editorReady: isEditingWorkspaceReady(), skinLoading: !!isSkinLoading }
+                );
+            }
+
+            function assertExpectedRevision(expectedRevision) {
+                if (expectedRevision == null) return;
+                const expected = Number(expectedRevision);
+                if (!Number.isFinite(expected)) {
+                    throw createSessionError(
+                        'INVALID_REVISION',
+                        'expectedRevision 必须是数字。'
+                    );
+                }
+                if (expected !== revision) {
+                    throw createSessionError(
+                        'STALE_REVISION',
+                        '皮肤状态已被其他操作修改，请重新读取皮肤描述后再提交。',
+                        { expectedRevision: expected, currentRevision: revision }
+                    );
+                }
+            }
+
+            function cloneSerializable(value) {
+                if (value == null || typeof value !== 'object') return value;
+                if (typeof value.r === 'number' && typeof value.g === 'number' && typeof value.b === 'number') {
+                    return {
+                        r: value.r,
+                        g: value.g,
+                        b: value.b,
+                        a: value.a != null ? value.a : 255
+                    };
+                }
+                if (Array.isArray(value)) return value.map(cloneSerializable);
+                const out = {};
+                for (const [key, item] of Object.entries(value)) out[key] = cloneSerializable(item);
+                return out;
+            }
+
+            function decodeBase64Bytes(rawBase64, options = {}) {
+                const raw = String(rawBase64 || '').trim();
+                if (!raw) {
+                    throw createSessionError(
+                        options.emptyCode || 'INVALID_DATA',
+                        options.emptyMessage || 'Base64 数据不能为空。'
+                    );
+                }
+                const comma = raw.indexOf(',');
+                const base64 = raw.startsWith('data:') && comma >= 0 ? raw.slice(comma + 1) : raw;
+                if (options.maxBase64Length && base64.length > options.maxBase64Length) {
+                    throw createSessionError(
+                        options.tooLargeCode || 'DATA_TOO_LARGE',
+                        options.tooLargeMessage || 'Base64 数据超过限制。',
+                        { maxBase64Length: options.maxBase64Length }
+                    );
+                }
+                let bytes;
+                try {
+                    const binary = atob(base64);
+                    bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                } catch {
+                    throw createSessionError(
+                        options.invalidCode || 'INVALID_DATA',
+                        options.invalidMessage || '不是有效的 Base64 数据。'
+                    );
+                }
+                if (options.rejectEmptyBytes && bytes.length === 0) {
+                    throw createSessionError(
+                        options.emptyBytesCode || 'EMPTY_DATA',
+                        options.emptyBytesMessage || '文件数据为空。'
+                    );
+                }
+                if (options.maxBytes && bytes.length > options.maxBytes) {
+                    throw createSessionError(
+                        options.tooLargeBytesCode || 'DATA_TOO_LARGE',
+                        options.tooLargeBytesMessage || '文件大小超过限制。'
+                    );
+                }
+                return bytes;
             }
 
             function refreshEditorUi() {
@@ -39256,6 +40034,67 @@ void primeDefaultSkin();
                 }
             }
 
+            function notifyExternalMutation(description) {
+                if (transactionActive) return;
+                revision += 1;
+                lastMutation = description || 'external';
+            }
+
+            const sharedContext = {
+                getRevision: () => revision,
+                maxImageBase64Length: MAX_IMAGE_BASE64_LENGTH,
+                createSessionError,
+                isEditingWorkspaceReady,
+                ensureEditingWorkspaceReady,
+                assertExpectedRevision,
+                cloneSerializable,
+                decodeBase64Bytes,
+                refreshEditorUi,
+                runInHistoryTransaction
+            };
+
+            const configHitsoundsOps = createAgentSessionConfigHitsoundsOps(sharedContext);
+            const textureOps = createAgentSessionTextureOps(sharedContext);
+            const previewExportOps = createAgentSessionPreviewExportOps(sharedContext);
+
+            function getDescription() {
+                return {
+                    ready: isEditingWorkspaceReady(),
+                    revision,
+                    skinName: currentSkinFileName || '',
+                    keyCount: getActiveKeyCount(),
+                    availableKeyCounts: Array.from(maniaSkinConfigurations.keys()).sort((a, b) => a - b),
+                    format: 'osu!stable mania',
+                    coordinateReference: 480,
+                    capabilities: {
+                        defaultSkin: true,
+                        currentWorkspace: true,
+                        importedOskWorkspace: true,
+                        textureApply: true,
+                        textureInspect: true,
+                        textureEdit: true,
+                        textureStretchFix: true,
+                        textureSetBlank: true,
+                        textureReset: true,
+                        textureCreate: true,
+                        textureLongBody: true,
+                        configPatch: true,
+                        preview: true,
+                        validate: true,
+                        editableExport: true,
+                        releaseExport: true,
+                        transactionUndo: true,
+                        undoRedo: true,
+                        revert: true,
+                        configReset: true,
+                        rawIni: true,
+                        hitsounds: true
+                    },
+                    textures: isEditingWorkspaceReady() ? textureOps.listTextureTargets() : [],
+                    parameters: isEditingWorkspaceReady() ? configHitsoundsOps.listConfigParameters() : []
+                };
+            }
+
             async function applyOperations(operations, label, expectedRevision) {
                 await ensureEditingWorkspaceReady();
                 assertExpectedRevision(expectedRevision);
@@ -39280,9 +40119,9 @@ void primeDefaultSkin();
                             );
                         }
                         if (operation.type === 'texture.set') {
-                            applied.push(await applyTextureOperation(operation));
+                            applied.push(await textureOps.applyTextureOperation(operation));
                         } else if (operation.type === 'config.set') {
-                            applied.push(applyConfigOperation(operation));
+                            applied.push(configHitsoundsOps.applyConfigOperation(operation));
                         } else {
                             throw createSessionError(
                                 'UNSUPPORTED_OPERATION',
@@ -39321,149 +40160,6 @@ void primeDefaultSkin();
                     await ensureEditingWorkspaceReady();
                 }
                 return getDescription();
-            }
-
-            async function capturePreview(params = {}) {
-                await ensureEditingWorkspaceReady();
-                const previewState = params.state === 'hold' ? 'hold' : 'idle';
-                const previousHoldUntil = testHoldingUntil;
-                if (previewState === 'hold') {
-                    testHoldingUntil = performance.now() + 2000;
-                } else {
-                    testHoldingUntil = 0;
-                }
-                try {
-                    drawFrame();
-                    await new Promise((resolve) => requestAnimationFrame(resolve));
-                    drawFrame();
-                    const gameCanvas = document.getElementById('gameCanvas');
-                    if (!gameCanvas) {
-                        throw createSessionError('CANVAS_NOT_FOUND', '找不到游戏画布。');
-                    }
-                    const dataUrl = gameCanvas.toDataURL('image/png');
-                    const comma = dataUrl.indexOf(',');
-                    return {
-                        revision,
-                        state: previewState,
-                        width: gameCanvas.width,
-                        height: gameCanvas.height,
-                        mimeType: 'image/png',
-                        imageBase64: comma >= 0 ? dataUrl.slice(comma + 1) : ''
-                    };
-                } catch (error) {
-                    if (error && error.name === 'SecurityError') {
-                        throw createSessionError(
-                            'PREVIEW_TAINTED',
-                            '画布包含无法导出的跨源资源。',
-                            { originalMessage: error.message }
-                        );
-                    }
-                    throw error;
-                } finally {
-                    testHoldingUntil = previousHoldUntil;
-                    drawFrame();
-                }
-            }
-
-            function validateCurrentSkin() {
-                if (!isEditingWorkspaceReady()) {
-                    return {
-                        ok: false,
-                        revision,
-                        errors: [{
-                            code: 'EDITOR_NOT_READY',
-                            message: '请先导入皮肤或从默认皮肤开始。'
-                        }],
-                        warnings: [],
-                        summary: { textureCount: 0, missingCount: 0, warningCount: 1 }
-                    };
-                }
-
-                const errors = [];
-                const warnings = [];
-                const targets = getTextureTabParams();
-                for (const target of targets) {
-                    const resolved = resolveTextureParam(activeEditorKeyCount, target);
-                    if (resolved && resolved.state === 'missing') {
-                        errors.push({
-                            code: 'MISSING_TEXTURE',
-                            message: `${target.key} 指向的贴图不存在：${resolved.name}`,
-                            paramKey: target.key,
-                            path: resolved.name
-                        });
-                    } else if (resolved && resolved.state === 'unset') {
-                        warnings.push({
-                            code: 'UNSET_TEXTURE',
-                            message: `${target.key} 没有解析到明确贴图，但 stable 可能使用内置回退。`,
-                            paramKey: target.key
-                        });
-                    }
-                    const width = resolved && resolved.img
-                        ? (resolved.img.naturalWidth || resolved.img.width || 0)
-                        : 0;
-                    const height = resolved && resolved.img
-                        ? (resolved.img.naturalHeight || resolved.img.height || 0)
-                        : 0;
-                    if (width > 4096 || height > 4096) {
-                        warnings.push({
-                            code: 'LARGE_TEXTURE',
-                            message: `${target.key} 尺寸较大：${width}×${height}。`,
-                            paramKey: target.key,
-                            width,
-                            height
-                        });
-                    }
-                }
-                return {
-                    ok: errors.length === 0,
-                    revision,
-                    errors,
-                    warnings,
-                    summary: {
-                        textureCount: targets.length,
-                        missingCount: errors.length,
-                        warningCount: warnings.length
-                    }
-                };
-            }
-
-            function arrayBufferToBase64(buffer) {
-                const bytes = new Uint8Array(buffer);
-                const chunkSize = 0x8000;
-                let binary = '';
-                for (let i = 0; i < bytes.length; i += chunkSize) {
-                    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-                }
-                return btoa(binary);
-            }
-
-            async function exportPackage(params = {}) {
-                await ensureEditingWorkspaceReady();
-                const format = params.format === 'zip' ? 'zip' : 'osk';
-                const mode = params.mode === 'release' ? 'release' : 'editable';
-                showProgress(`Agent 正在打包 ${format.toUpperCase()} 皮肤...`);
-                try {
-                    const result = await buildSkinArchiveBlob(format, { mode });
-                    const arrayBuffer = await result.blob.arrayBuffer();
-                    if (window.skinWorkspaceRevision) window.skinWorkspaceRevision.markExported();
-                    return {
-                        revision,
-                        format,
-                        mode,
-                        fileName: result.exportFileName,
-                        byteLength: arrayBuffer.byteLength,
-                        projectSummary: result.projectSummary || null,
-                        archiveBase64: arrayBufferToBase64(arrayBuffer)
-                    };
-                } finally {
-                    hideProgress();
-                }
-            }
-
-            function notifyExternalMutation(description) {
-                if (transactionActive) return;
-                revision += 1;
-                lastMutation = description || 'external';
             }
 
             function getDebugState() {
@@ -39556,749 +40252,6 @@ void primeDefaultSkin();
                 });
             }
 
-            function parseSchemaDefaultColor(rawDefault, fallback) {
-                if (rawDefault && typeof rawDefault === 'object') {
-                    return {
-                        r: Number(rawDefault.r) || 0,
-                        g: Number(rawDefault.g) || 0,
-                        b: Number(rawDefault.b) || 0,
-                        a: rawDefault.a !== undefined ? Number(rawDefault.a) : 255
-                    };
-                }
-                const parts = String(rawDefault || '').split(',').map((s) => parseInt(s.trim(), 10));
-                if (parts.length >= 3 && !parts.slice(0, 3).some(Number.isNaN)) {
-                    return {
-                        r: parts[0],
-                        g: parts[1],
-                        b: parts[2],
-                        a: parts[3] !== undefined && !Number.isNaN(parts[3]) ? parts[3] : 255
-                    };
-                }
-                return { ...fallback };
-            }
-
-            function buildResetParamValue(p, keys) {
-                if (!p) return undefined;
-                if (p.type === 'array_number') {
-                    const count = p.key === 'ColumnLineWidth'
-                        ? keys + 1
-                        : (p.key === 'ColumnSpacing' ? Math.max(0, keys - 1) : keys);
-                    if (Array.isArray(p.default)) {
-                        const out = [];
-                        for (let i = 0; i < count; i++) {
-                            const item = p.default[i] !== undefined ? Number(p.default[i]) : Number(p.default[0] || 0);
-                            out.push(Number.isFinite(item) ? item : 0);
-                        }
-                        return out;
-                    }
-                    const fillVal = Number.isFinite(Number(p.default)) ? Number(p.default) : 0;
-                    return new Array(count).fill(fillVal);
-                }
-                if (p.type === 'column_colour' || p.type === 'light_colour') {
-                    const fallback = p.type === 'light_colour'
-                        ? { r: 255, g: 255, b: 255, a: 255 }
-                        : { r: 0, g: 0, b: 0, a: 255 };
-                    return {
-                        all: true,
-                        color: parseSchemaDefaultColor(p.default, fallback)
-                    };
-                }
-                if (p.type === 'color' || p.type === 'colour_hold' || p.type === 'colour_barline') {
-                    return parseSchemaDefaultColor(p.default, { r: 255, g: 255, b: 255, a: 255 });
-                }
-                return cloneSerializable(p.default);
-            }
-
-            async function resetConfigCategory(params = {}) {
-                await ensureEditingWorkspaceReady();
-                const tab = params.tab;
-                if (!['mania', 'fonts', 'general'].includes(tab)) {
-                    throw createSessionError('INVALID_CATEGORY', '无效的分类标签，必须为 mania、fonts 或 general。', { tab });
-                }
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-                const items = SKIN_INI_PARAM_SCHEMA.filter((p) => p.tab === tab && !p.virtual);
-                // ColumnRight 会反推覆盖 ColumnStart；在恢复 mania 分类时先复位 ColumnRight，
-                // 再由 ColumnStart=136 与列宽/间距统一重算一致的 ColumnRight。
-                const orderedItems = tab === 'mania'
-                    ? [...items].sort((a, b) => {
-                        if (a.key === 'ColumnRight' && b.key !== 'ColumnRight') return -1;
-                        if (b.key === 'ColumnRight' && a.key !== 'ColumnRight') return 1;
-                        return 0;
-                    })
-                    : items;
-                return runInHistoryTransaction(`Agent 恢复${tab}分类默认值`, async () => {
-                    const keys = getActiveKeyCount();
-                    for (const p of orderedItems) {
-                        if (typeof onParamChange === 'function') {
-                            onParamChange(p.key, buildResetParamValue(p, keys));
-                        }
-                    }
-                    refreshEditorUi();
-                    return {
-                        ok: true,
-                        revision,
-                        tab,
-                        resetCount: items.length
-                    };
-                });
-            }
-
-            async function getSkinIniText() {
-                await ensureEditingWorkspaceReady();
-                if (typeof generateSkinIniText !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', 'skin.ini 生成模块不可用。');
-                }
-                const text = generateSkinIniText();
-                return {
-                    ok: true,
-                    revision,
-                    text
-                };
-            }
-
-            async function listHitsounds() {
-                await ensureEditingWorkspaceReady();
-                const catalog = typeof getEffectiveSkinHitsoundCatalog === 'function'
-                    ? getEffectiveSkinHitsoundCatalog()
-                    : (typeof skinHitsoundCatalog !== 'undefined' ? skinHitsoundCatalog : new Map());
-                const items = [];
-                for (const [key, group] of catalog.entries()) {
-                    const replacement = typeof skinHitsoundReplacements !== 'undefined'
-                        ? skinHitsoundReplacements.get(key)
-                        : null;
-                    items.push({
-                        key,
-                        sampleSet: group.sampleSet,
-                        sound: group.sound,
-                        customIndex: group.customIndex || 0,
-                        isReplaced: Boolean(replacement),
-                        effectivePath: replacement ? replacement.path : (group.variants && group.variants[0] ? group.variants[0].path : `${key}.wav`),
-                        extension: replacement ? replacement.extension : (group.variants && group.variants[0] ? group.variants[0].extension : 'wav'),
-                        source: replacement ? 'replacement' : (group.source || 'default')
-                    });
-                }
-                return {
-                    ok: true,
-                    revision,
-                    total: items.length,
-                    replacedCount: typeof skinHitsoundReplacements !== 'undefined' ? skinHitsoundReplacements.size : 0,
-                    hitsounds: items
-                };
-            }
-
-            async function applyHitsound(params = {}) {
-                await ensureEditingWorkspaceReady();
-                const groupKey = String(params.groupKey || '').trim().toLowerCase();
-                const rawAudio = String(params.audioBase64 || '').trim();
-                const fileName = String(params.fileName || `${groupKey}.wav`).trim();
-
-                if (!groupKey) {
-                    throw createSessionError('INVALID_HITSOUND_PARAM', '必须提供 groupKey。');
-                }
-                if (!rawAudio) {
-                    throw createSessionError('INVALID_HITSOUND_PARAM', '必须提供 audioBase64 音频数据。');
-                }
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-
-                const comma = rawAudio.indexOf(',');
-                const base64 = rawAudio.startsWith('data:') && comma >= 0 ? rawAudio.slice(comma + 1) : rawAudio;
-
-                const match = fileName.match(/\.([^.]+)$/);
-                const extension = match ? match[1].toLowerCase() : 'wav';
-                if (!['wav', 'mp3', 'ogg'].includes(extension)) {
-                    throw createSessionError('INVALID_HITSOUND_FORMAT', '仅支持 .wav、.mp3 和 .ogg 音效格式。', { extension });
-                }
-
-                let bytes;
-                try {
-                    const binary = atob(base64);
-                    bytes = new Uint8Array(binary.length);
-                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                } catch {
-                    throw createSessionError('INVALID_HITSOUND_DATA', 'audioBase64 不是有效的 Base64 数据。');
-                }
-
-                if (bytes.length === 0) {
-                    throw createSessionError('EMPTY_HITSOUND_DATA', '音效文件数据为空。');
-                }
-                if (bytes.length > 32 * 1024 * 1024) {
-                    throw createSessionError('HITSOUND_TOO_LARGE', '音效文件大小超过 32MB 限制。');
-                }
-
-                const catalog = typeof getEffectiveSkinHitsoundCatalog === 'function'
-                    ? getEffectiveSkinHitsoundCatalog()
-                    : (typeof skinHitsoundCatalog !== 'undefined' ? skinHitsoundCatalog : new Map());
-                const group = catalog.get(groupKey);
-                if (!group) {
-                    throw createSessionError('HITSOUND_NOT_FOUND', `未找到音效组：${groupKey}`, { groupKey });
-                }
-
-                return runInHistoryTransaction(`Agent 替换音效: ${groupKey}`, async () => {
-                    const previous = typeof skinHitsoundReplacements !== 'undefined' ? skinHitsoundReplacements.get(groupKey) : null;
-                    const replacementPath = `${group.key}.${extension}`;
-                    const mimeType = extension === 'wav' ? 'audio/wav' : (extension === 'mp3' ? 'audio/mpeg' : 'audio/ogg');
-
-                    if (typeof skinHitsoundReplacements !== 'undefined') {
-                        skinHitsoundReplacements.set(groupKey, {
-                            key: groupKey,
-                            sampleSet: group.sampleSet,
-                            sound: group.sound,
-                            customIndex: Number(group.customIndex) || 0,
-                            originalPaths: previous?.originalPaths?.length
-                                ? [...previous.originalPaths]
-                                : (group.variants || []).map((v) => v.path),
-                            path: replacementPath,
-                            extension,
-                            mimeType,
-                            sourceFileName: fileName,
-                            bytes
-                        });
-                    }
-
-                    if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
-                        refreshSkinHitsoundCatalogWithReplacements();
-                    }
-                    if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
-                    refreshEditorUi();
-                    try {
-                        if (typeof refreshManiaHitsoundPlaybackAfterEdit === 'function') {
-                            await refreshManiaHitsoundPlaybackAfterEdit();
-                        }
-                    } catch (playbackError) {
-                        console.warn('音效已替换，但重建播放缓存失败:', playbackError);
-                    }
-
-                    return {
-                        ok: true,
-                        revision,
-                        groupKey,
-                        path: replacementPath,
-                        byteLength: bytes.length
-                    };
-                });
-            }
-
-            async function resetHitsound(params = {}) {
-                await ensureEditingWorkspaceReady();
-                const groupKey = params.groupKey ? String(params.groupKey).trim().toLowerCase() : null;
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-
-                const label = groupKey ? `Agent 恢复音效: ${groupKey}` : 'Agent 恢复所有音效';
-                return runInHistoryTransaction(label, async (tx) => {
-                    const replacementsAvailable = typeof skinHitsoundReplacements !== 'undefined' &&
-                        skinHitsoundReplacements instanceof Map;
-                    const hasChanges = groupKey
-                        ? (replacementsAvailable && skinHitsoundReplacements.has(groupKey))
-                        : (replacementsAvailable && skinHitsoundReplacements.size > 0);
-                    if (!hasChanges) {
-                        tx.abortNoOp();
-                        return {
-                            ok: true,
-                            revision,
-                            resetAll: !groupKey,
-                            groupKey: groupKey || null,
-                            changed: false
-                        };
-                    }
-
-                    if (groupKey) {
-                        skinHitsoundReplacements.delete(groupKey);
-                    } else if (typeof clearSkinHitsoundReplacements === 'function') {
-                        clearSkinHitsoundReplacements();
-                    } else {
-                        skinHitsoundReplacements.clear();
-                    }
-
-                    if (typeof refreshSkinHitsoundCatalogWithReplacements === 'function') {
-                        refreshSkinHitsoundCatalogWithReplacements();
-                    }
-                    if (typeof updateSkinInfoDisplay === 'function') updateSkinInfoDisplay();
-                    refreshEditorUi();
-                    try {
-                        if (typeof refreshManiaHitsoundPlaybackAfterEdit === 'function') {
-                            await refreshManiaHitsoundPlaybackAfterEdit();
-                        }
-                    } catch (playbackError) {
-                        console.warn('音效已恢复，但重建播放缓存失败:', playbackError);
-                    }
-
-                    return {
-                        ok: true,
-                        revision,
-                        resetAll: !groupKey,
-                        groupKey: groupKey || null,
-                        changed: true
-                    };
-                });
-            }
-
-            async function inspectTexture(params = {}) {
-                await ensureEditingWorkspaceReady();
-                const canonicalKey = canonicalizeTextureParamKey(
-                    params && params.paramKey,
-                    params && params.column
-                );
-                if (!canonicalKey) {
-                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
-                }
-                const metadata = findTextureMetadata(canonicalKey);
-                const allParams = typeof getTextureTabParams === 'function' ? getTextureTabParams() : [];
-                const p = allParams.find((item) => String(item.key).toLowerCase() === canonicalKey.toLowerCase()) || metadata;
-                if (!p) {
-                    throw createSessionError('UNKNOWN_TEXTURE_TARGET', `未找到贴图目标：${canonicalKey}`, { paramKey: canonicalKey });
-                }
-                const target = typeof buildEditorTarget === 'function' ? buildEditorTarget(p) : null;
-                const frame = target && target.frames && target.frames[0];
-                const recipe = target && typeof getStoredTextureEditRecipe === 'function' ? getStoredTextureEditRecipe(target) : null;
-                const stretchFix = target && frame && typeof getStretchFixTarget === 'function' ? getStretchFixTarget(target, frame) : null;
-                const sessionKey = target && typeof getLongBodySessionKey === 'function' ? getLongBodySessionKey(target) : null;
-                const longBody = sessionKey && typeof longBodyComposerSessions !== 'undefined' ? longBodyComposerSessions.get(sessionKey) : null;
-                return {
-                    ok: true,
-                    revision,
-                    paramKey: canonicalKey,
-                    column: getTrackColumn(canonicalKey, metadata, params && params.column),
-                    effectiveName: (target && target.resolved && target.resolved.name) || (target && target.base) || '',
-                    state: target ? target.state : 'unset',
-                    sourceSize: frame ? { width: frame.width, height: frame.height } : null,
-                    is2x: !!(frame && frame._is2x),
-                    isBlank: !!(frame && (frame._isBlankPlaceholder || frame._isTransparent1x1)),
-                    hasRecipe: !!recipe,
-                    recipe: recipe && recipe.params ? {
-                        left: recipe.params.left,
-                        right: recipe.params.right,
-                        top: recipe.params.top,
-                        bottom: recipe.params.bottom,
-                        imageTransform: cloneSerializable(recipe.params.imageTransform),
-                        rgbAdjustment: cloneSerializable(recipe.params.rgbAdjustment)
-                    } : null,
-                    stretchFix: stretchFix && stretchFix.axis ? {
-                        axis: stretchFix.axis,
-                        size: stretchFix.size,
-                        label: stretchFix.label || null,
-                        reason: stretchFix.reason || null
-                    } : null,
-                    longBody: longBody ? {
-                        targetHeight: longBody.targetHeight,
-                        coverage: longBody.coverage,
-                        fade: longBody.fade,
-                        tailPreset: longBody.tailPreset || 'none',
-                        presetHeight: longBody.presetHeight || 0
-                    } : null
-                };
-            }
-
-            async function withTextureEditorTarget(paramKey, column, fn) {
-                const canonicalKey = canonicalizeTextureParamKey(paramKey, column);
-                if (!canonicalKey) {
-                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
-                }
-                if (!textureImageEditorUi || typeof textureImageEditorUi.selectByParamKey !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '贴图编辑器未就绪。');
-                }
-                const prevTabIds = (typeof tabs !== 'undefined' && Array.isArray(tabs))
-                    ? new Set(tabs.map((tab) => tab.id))
-                    : null;
-                const selected = textureImageEditorUi.selectByParamKey(canonicalKey);
-                if (!selected) {
-                    throw createSessionError(
-                        'UNKNOWN_TEXTURE_TARGET',
-                        `未找到或无法选择贴图目标：${canonicalKey}`,
-                        { paramKey: canonicalKey }
-                    );
-                }
-                const openedTabId = (typeof activeTabId !== 'undefined' &&
-                    prevTabIds &&
-                    !prevTabIds.has(activeTabId))
-                    ? activeTabId
-                    : null;
-                const closeOpenedTab = () => {
-                    if (openedTabId && typeof removeTab === 'function') {
-                        removeTab(openedTabId, { restorePreview: false });
-                    }
-                };
-                try {
-                    return await fn({ canonicalKey, closeOpenedTab });
-                } catch (error) {
-                    closeOpenedTab();
-                    throw error;
-                }
-            }
-
-            async function editTexture(params = {}) {
-                await ensureEditingWorkspaceReady();
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-                const canonicalKey = canonicalizeTextureParamKey(
-                    params && params.paramKey,
-                    params && params.column
-                );
-                if (!canonicalKey) {
-                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
-                }
-                return runInHistoryTransaction(`Agent 编辑贴图: ${canonicalKey}`, () =>
-                    withTextureEditorTarget(canonicalKey, null, async () => {
-                        if (params.crop) {
-                            const cl = byId('textureImageCropLeft');
-                            const cr = byId('textureImageCropRight');
-                            const ct = byId('textureImageCropTop');
-                            const cb = byId('textureImageCropBottom');
-                            if (cl) cl.value = String(Number(params.crop.left) || 0);
-                            if (cr) cr.value = String(Number(params.crop.right) || 0);
-                            if (ct) ct.value = String(Number(params.crop.top) || 0);
-                            if (cb) cb.value = String(Number(params.crop.bottom) || 0);
-                        }
-
-                        if (params.transform && state && state.imageTransform) {
-                            const scale = Number(params.transform.scalePercent);
-                            if (Number.isFinite(scale) && scale >= 1 && scale <= 5000) {
-                                state.imageTransform.scalePercent = scale;
-                                const el = byId('textureImageScalePercent');
-                                if (el) el.value = String(scale);
-                            }
-                            const sx = Number(params.transform.stretchX);
-                            if (Number.isFinite(sx)) {
-                                state.imageTransform.stretchX = Math.round(sx);
-                                const el = byId('textureImageStretchX');
-                                if (el) el.value = String(Math.round(sx));
-                            }
-                            const sy = Number(params.transform.stretchY);
-                            if (Number.isFinite(sy)) {
-                                state.imageTransform.stretchY = Math.round(sy);
-                                const el = byId('textureImageStretchY');
-                                if (el) el.value = String(Math.round(sy));
-                            }
-                        }
-
-                        if (params.rgb && state && state.rgbAdjustment) {
-                            for (const channel of ['r', 'g', 'b']) {
-                                const val = Number(params.rgb[channel]);
-                                if (Number.isFinite(val)) {
-                                    const normalized = Math.max(0, Math.min(200, Math.round(val)));
-                                    state.rgbAdjustment[channel] = normalized;
-                                    const range = byId(`textureImageRgb${channel.toUpperCase()}`);
-                                    const num = byId(`textureImageRgb${channel.toUpperCase()}Value`);
-                                    if (range) range.value = String(normalized);
-                                    if (num) num.value = String(normalized);
-                                }
-                            }
-                        }
-
-                        if (typeof refreshLivePreview === 'function') {
-                            refreshLivePreview();
-                        }
-
-                        const saved = await applySelectedTexture({
-                            mode: params.mode || 'overwrite',
-                            keyImageScope: params.keyImageScope || 'current',
-                            syncKeyImagePair: params.syncKeyImagePair !== false,
-                            closeTabAfterSave: true,
-                            closeEditorWhenLast: true
-                        });
-                        if (!saved) {
-                            throw createSessionError('TEXTURE_SAVE_FAILED', `贴图编辑保存失败：${canonicalKey}`, { paramKey: canonicalKey });
-                        }
-
-                        refreshEditorUi();
-                        return {
-                            ok: true,
-                            revision,
-                            paramKey: canonicalKey,
-                            mode: params.mode || 'overwrite'
-                        };
-                    })
-                );
-            }
-
-            async function stretchFixTexture(params = {}) {
-                await ensureEditingWorkspaceReady();
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-                const canonicalKey = canonicalizeTextureParamKey(
-                    params && params.paramKey,
-                    params && params.column
-                );
-                if (!canonicalKey) {
-                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
-                }
-                return runInHistoryTransaction(`Agent 修复贴图拉伸: ${canonicalKey}`, (tx) =>
-                    withTextureEditorTarget(canonicalKey, null, async ({ closeOpenedTab }) => {
-                        const currentPreview = (state && state.previewFrames && state.previewFrames[0]) ||
-                            (typeof buildPreviewFrames === 'function' ? buildPreviewFrames()[0] : null) ||
-                            (state && state.workingFrames && state.workingFrames[0]);
-                        const target = (currentPreview && typeof getStretchFixTarget === 'function')
-                            ? getStretchFixTarget(state.selected, currentPreview)
-                            : null;
-
-                        if (!target || !target.axis) {
-                            closeOpenedTab();
-                            tx.abortNoOp();
-                            return {
-                                ok: true,
-                                revision,
-                                fixed: false,
-                                message: target && target.reason ? target.reason : '当前贴图无需修复拉伸',
-                                paramKey: canonicalKey
-                            };
-                        }
-
-                        if (typeof applyStretchFix !== 'function') {
-                            throw createSessionError('FEATURE_UNAVAILABLE', '拉伸修复功能未就绪。');
-                        }
-                        applyStretchFix();
-
-                        const saved = await applySelectedTexture({
-                            mode: params.mode || 'overwrite',
-                            closeTabAfterSave: true,
-                            closeEditorWhenLast: true
-                        });
-                        if (!saved) {
-                            throw createSessionError('TEXTURE_SAVE_FAILED', `贴图拉伸修复保存失败：${canonicalKey}`, { paramKey: canonicalKey });
-                        }
-
-                        refreshEditorUi();
-                        return {
-                            ok: true,
-                            revision,
-                            fixed: true,
-                            paramKey: canonicalKey,
-                            axis: target.axis,
-                            targetSize: target.size
-                        };
-                    })
-                );
-            }
-
-            async function setBlankTexture(params = {}) {
-                await ensureEditingWorkspaceReady();
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-                const canonicalKey = canonicalizeTextureParamKey(
-                    params && params.paramKey,
-                    params && params.column
-                );
-                if (!canonicalKey) {
-                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
-                }
-                return runInHistoryTransaction(`Agent 设为空白贴图: ${canonicalKey}`, () =>
-                    withTextureEditorTarget(canonicalKey, null, async () => {
-                        if (typeof setCurrentTextureBlank !== 'function') {
-                            throw createSessionError('FEATURE_UNAVAILABLE', '设为空白功能未就绪。');
-                        }
-                        const blanked = setCurrentTextureBlank();
-                        if (!blanked) {
-                            throw createSessionError('TEXTURE_SET_BLANK_FAILED', `设为空白操作失败：${canonicalKey}`);
-                        }
-
-                        const saved = await applySelectedTexture({
-                            mode: params.mode || 'overwrite',
-                            keyImageScope: params.scope || 'current',
-                            closeTabAfterSave: true,
-                            closeEditorWhenLast: true
-                        });
-                        if (!saved) {
-                            throw createSessionError('TEXTURE_SAVE_FAILED', `设为空白保存失败：${canonicalKey}`);
-                        }
-
-                        refreshEditorUi();
-                        return {
-                            ok: true,
-                            revision,
-                            paramKey: canonicalKey,
-                            isBlank: true
-                        };
-                    })
-                );
-            }
-
-            async function resetTexture(params = {}) {
-                await ensureEditingWorkspaceReady();
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-                const canonicalKey = canonicalizeTextureParamKey(
-                    params && params.paramKey,
-                    params && params.column
-                );
-                if (!canonicalKey) {
-                    throw createSessionError('INVALID_TEXTURE_TARGET', '缺少 paramKey。');
-                }
-                return runInHistoryTransaction(`Agent 重置贴图: ${canonicalKey}`, () =>
-                    withTextureEditorTarget(canonicalKey, null, async () => {
-                        if (typeof resetCurrentTexture !== 'function') {
-                            throw createSessionError('FEATURE_UNAVAILABLE', '重置贴图功能未就绪。');
-                        }
-                        resetCurrentTexture();
-
-                        const saved = await applySelectedTexture({
-                            mode: 'overwrite',
-                            closeTabAfterSave: true,
-                            closeEditorWhenLast: true
-                        });
-                        if (!saved) {
-                            throw createSessionError('TEXTURE_SAVE_FAILED', `重置贴图保存失败：${canonicalKey}`);
-                        }
-
-                        refreshEditorUi();
-                        return {
-                            ok: true,
-                            revision,
-                            paramKey: canonicalKey,
-                            reset: true
-                        };
-                    })
-                );
-            }
-
-            async function createTexture(params = {}) {
-                await ensureEditingWorkspaceReady();
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-                const canonicalKey = params.paramKey
-                    ? canonicalizeTextureParamKey(params.paramKey, params.column)
-                    : null;
-                const cleanName = sanitizeAssetBaseName(
-                    params.name,
-                    canonicalKey ? `created_${canonicalKey}` : 'created_texture'
-                );
-
-                if (typeof saveSolidTextureToLibrary !== 'function' || typeof normalizeTextureShape !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '纯色贴图创建模块未就绪。');
-                }
-
-                const payload = {
-                    name: cleanName,
-                    spec: params.spec === '2x' ? '2x' : '1x',
-                    width: Math.max(1, Math.min(50000, Number(params.width) || 256)),
-                    height: Math.max(1, Math.min(50000, Number(params.height) || 256)),
-                    shape: normalizeTextureShape(params.shape || 'rectangle'),
-                    color: typeof normalizeTextureHexColor === 'function'
-                        ? normalizeTextureHexColor(params.color || '#ffffff')
-                        : (params.color || '#ffffff'),
-                    alpha: Math.max(0, Math.min(100, Number(params.alpha != null ? params.alpha : 100))),
-                    cornerRadius: Math.max(0, Number(params.cornerRadius != null ? params.cornerRadius : 24)),
-                    arrowThickness: Math.max(8, Math.min(50, Number(params.arrowThickness != null ? params.arrowThickness : 20))),
-                    arrowRoundness: Math.max(0, Math.min(100, Number(params.arrowRoundness != null ? params.arrowRoundness : 50))),
-                    strokeEnabled: !!params.strokeEnabled,
-                    strokeColor: typeof normalizeTextureHexColor === 'function'
-                        ? normalizeTextureHexColor(params.strokeColor || '#000000')
-                        : (params.strokeColor || '#000000'),
-                    strokeWidth: Math.max(0, Math.min(64, Number(params.strokeWidth || 0))),
-                    strokeAlpha: Math.max(0, Math.min(100, Number(params.strokeAlpha != null ? params.strokeAlpha : 100))),
-                    fillTransparentColor: typeof normalizeTextureHexColor === 'function'
-                        ? normalizeTextureHexColor(params.fillTransparentColor || '#000000')
-                        : (params.fillTransparentColor || '#000000'),
-                    fillTransparentAlpha: Math.max(0, Math.min(100, Number(params.fillTransparentAlpha || 0)))
-                };
-
-                return runInHistoryTransaction(`Agent 创建贴图: ${cleanName}`, async () => {
-                    const result = await saveSolidTextureToLibrary(payload, { oldPath: null });
-                    if (canonicalKey && typeof pointTextureEditParamToPath === 'function') {
-                        pointTextureEditParamToPath(canonicalKey, result.path);
-                    }
-
-                    if (typeof updateEditorBaseAfterSave === 'function') {
-                        updateEditorBaseAfterSave();
-                    }
-                    refreshEditorUi();
-                    return {
-                        ok: true,
-                        revision,
-                        path: result.path,
-                        paramKey: canonicalKey || null,
-                        spec: payload.spec,
-                        width: payload.width,
-                        height: payload.height,
-                        shape: payload.shape
-                    };
-                });
-            }
-
-            async function applyLongbody(params = {}) {
-                await ensureEditingWorkspaceReady();
-                if (params.expectedRevision != null) {
-                    assertExpectedRevision(params.expectedRevision);
-                }
-                const parsedCol = Number(params.column);
-                const col = (params.column != null && Number.isFinite(parsedCol))
-                    ? Math.max(0, Math.min(17, Math.round(parsedCol)))
-                    : 0;
-                const bodyParamKey = canonicalizeTextureParamKey('HoldNoteBodyImage', col);
-
-                if (typeof enableLongBodyComposer !== 'function') {
-                    throw createSessionError('FEATURE_UNAVAILABLE', '一键投皮功能未就绪。');
-                }
-
-                return runInHistoryTransaction(`Agent 应用一键投皮: ${bodyParamKey}`, () =>
-                    withTextureEditorTarget(bodyParamKey, col, async () => {
-                        const enabled = (state && state.longBodyComposer && state.longBodyComposer.active)
-                            ? true
-                            : enableLongBodyComposer();
-                        if (!enabled) {
-                            throw createSessionError(
-                                'LONGBODY_NOT_ELIGIBLE',
-                                `当前轨道长条身体不满足一键投皮启用条件：${bodyParamKey}`,
-                                { paramKey: bodyParamKey, column: col }
-                            );
-                        }
-
-                        if (state && state.longBodyComposer) {
-                            if (params.targetHeight != null) {
-                                state.longBodyComposer.targetHeight = Math.max(1, Math.min(50000, Number(params.targetHeight) || 40000));
-                            }
-                            if (params.coverage != null) {
-                                state.longBodyComposer.coverage = Math.max(0, Number(params.coverage) || 0);
-                            }
-                            if (params.fade != null) {
-                                state.longBodyComposer.fade = Math.max(0, Math.min(100, Number(params.fade) || 0));
-                            }
-                            if (params.tailPreset != null) {
-                                state.longBodyComposer.tailPreset = ['sharp', 'round'].includes(params.tailPreset)
-                                    ? params.tailPreset
-                                    : 'none';
-                            }
-                            if (params.presetHeight != null) {
-                                state.longBodyComposer.presetHeight = Math.max(0, Number(params.presetHeight) || 0);
-                            }
-                        }
-
-                        const appliedTargetHeight = (state && state.longBodyComposer && state.longBodyComposer.targetHeight) || 40000;
-                        const appliedTailPreset = (state && state.longBodyComposer && state.longBodyComposer.tailPreset) || 'none';
-
-                        const saved = await applySelectedTexture({
-                            scope: params.scope || 'current',
-                            longBodyScope: params.scope || 'current',
-                            closeTabAfterSave: true,
-                            closeEditorWhenLast: true
-                        });
-                        if (!saved) {
-                            throw createSessionError('TEXTURE_SAVE_FAILED', `一键投皮应用失败：${bodyParamKey}`);
-                        }
-
-                        refreshEditorUi();
-                        return {
-                            ok: true,
-                            revision,
-                            column: col,
-                            paramKey: bodyParamKey,
-                            targetHeight: appliedTargetHeight,
-                            tailPreset: appliedTailPreset,
-                            scope: params.scope || 'current'
-                        };
-                    })
-                );
-            }
-
             async function dispatch(method, params = {}) {
                 switch (method) {
                     case 'skin_open':
@@ -40324,9 +40277,9 @@ void primeDefaultSkin();
                             params.expectedRevision
                         );
                     case 'skin_config_reset':
-                        return resetConfigCategory(params);
+                        return configHitsoundsOps.resetConfigCategory(params);
                     case 'skin_ini_get':
-                        return getSkinIniText();
+                        return configHitsoundsOps.getSkinIniText();
                     case 'skin_undo':
                         return undoSkin();
                     case 'skin_redo':
@@ -40334,31 +40287,31 @@ void primeDefaultSkin();
                     case 'skin_revert':
                         return revertSkin(params);
                     case 'skin_hitsound_list':
-                        return listHitsounds();
+                        return configHitsoundsOps.listHitsounds();
                     case 'skin_hitsound_apply':
-                        return applyHitsound(params);
+                        return configHitsoundsOps.applyHitsound(params);
                     case 'skin_hitsound_reset':
-                        return resetHitsound(params);
+                        return configHitsoundsOps.resetHitsound(params);
                     case 'texture_inspect':
-                        return inspectTexture(params);
+                        return textureOps.inspectTexture(params);
                     case 'texture_edit':
-                        return editTexture(params);
+                        return textureOps.editTexture(params);
                     case 'texture_stretch_fix':
-                        return stretchFixTexture(params);
+                        return textureOps.stretchFixTexture(params);
                     case 'texture_set_blank':
-                        return setBlankTexture(params);
+                        return textureOps.setBlankTexture(params);
                     case 'texture_reset':
-                        return resetTexture(params);
+                        return textureOps.resetTexture(params);
                     case 'texture_create':
-                        return createTexture(params);
+                        return textureOps.createTexture(params);
                     case 'texture_longbody_apply':
-                        return applyLongbody(params);
+                        return textureOps.applyLongbody(params);
                     case 'skin_preview':
-                        return capturePreview(params);
+                        return previewExportOps.capturePreview(params);
                     case 'skin_validate':
-                        return validateCurrentSkin();
+                        return previewExportOps.validateCurrentSkin();
                     case 'skin_export':
-                        return exportPackage(params);
+                        return previewExportOps.exportPackage(params);
                     default:
                         throw createSessionError(
                             'UNKNOWN_METHOD',
@@ -40403,9 +40356,9 @@ void primeDefaultSkin();
                 openSkin,
                 getDescription,
                 applyOperations,
-                capturePreview,
-                validate: validateCurrentSkin,
-                exportPackage,
+                capturePreview: previewExportOps.capturePreview,
+                validate: previewExportOps.validateCurrentSkin,
+                exportPackage: previewExportOps.exportPackage,
                 dispatch,
                 notifyExternalMutation,
                 isApplying: () => transactionActive,

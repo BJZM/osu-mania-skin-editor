@@ -3,35 +3,31 @@
 // 依赖：skin/parameter-schema.js、skin/mania-config.js
 // ============================================================================
 
+        const CANONICAL_STATIC_IMAGE_KEYS = {
+            stageleft: 'StageLeft',
+            stageright: 'StageRight',
+            stagebottom: 'StageBottom',
+            stagehint: 'StageHint',
+            stagelight: 'StageLight',
+            lightingn: 'LightingN',
+            lightingl: 'LightingL',
+            warningarrow: 'WarningArrow',
+            hit300g: 'Hit300g',
+            hit300: 'Hit300',
+            hit200: 'Hit200',
+            hit100: 'Hit100',
+            hit50: 'Hit50',
+            hit0: 'Hit0'
+        };
+
         function canonicalizeImageKey(key) {
             const name = String(key || '');
             if (isOfficialManiaImageKey(name)) return name;
-            const column = '(?:1[0-7]|[0-9])';
-            const patterns = [
-                [new RegExp('^keyimage(' + column + ')d$', 'i'), function (match) { return 'KeyImage' + match[1] + 'D'; }],
-                [new RegExp('^keyimage(' + column + ')$', 'i'), function (match) { return 'KeyImage' + match[1]; }],
-                [new RegExp('^noteimage(' + column + ')([hlt])$', 'i'), function (match) { return 'NoteImage' + match[1] + match[2].toUpperCase(); }],
-                [new RegExp('^noteimage(' + column + ')$', 'i'), function (match) { return 'NoteImage' + match[1]; }],
-                [/^stageleft$/i, function () { return 'StageLeft'; }],
-                [/^stageright$/i, function () { return 'StageRight'; }],
-                [/^stagebottom$/i, function () { return 'StageBottom'; }],
-                [/^stagehint$/i, function () { return 'StageHint'; }],
-                [/^stagelight$/i, function () { return 'StageLight'; }],
-                [/^lightingn$/i, function () { return 'LightingN'; }],
-                [/^lightingl$/i, function () { return 'LightingL'; }],
-                [/^warningarrow$/i, function () { return 'WarningArrow'; }],
-                [/^hit300g$/i, function () { return 'Hit300g'; }],
-                [/^hit300$/i, function () { return 'Hit300'; }],
-                [/^hit200$/i, function () { return 'Hit200'; }],
-                [/^hit100$/i, function () { return 'Hit100'; }],
-                [/^hit50$/i, function () { return 'Hit50'; }],
-                [/^hit0$/i, function () { return 'Hit0'; }]
-            ];
-            for (const entry of patterns) {
-                const match = name.match(entry[0]);
-                if (match) return entry[1](match);
-            }
-            return null;
+            const parsed = typeof parseManiaTextureParamKey === 'function'
+                ? parseManiaTextureParamKey(name)
+                : null;
+            if (parsed && parsed.isIniImageKey) return parsed.canonicalKey;
+            return CANONICAL_STATIC_IMAGE_KEYS[name.toLowerCase()] || null;
         }
 
         function splitIniExportKeyVal(line) {

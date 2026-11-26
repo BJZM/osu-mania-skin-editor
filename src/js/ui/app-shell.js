@@ -266,16 +266,17 @@
             const keysToHighlight = Array.isArray(paramKey) ? paramKey : [paramKey];
             const primaryKey = keysToHighlight[0] || 'ColumnWidth';
 
+            const resolveSchemaCardKey = (k) => {
+                const parsed = typeof parseManiaTextureParamKey === 'function'
+                    ? parseManiaTextureParamKey(k)
+                    : null;
+                return parsed ? parsed.baseParamKey : String(k || '').replace(/\d+[A-Za-z]?$/, '');
+            };
+
             let schema = SKIN_INI_PARAM_SCHEMA.find(p => p.key === primaryKey);
             let targetCardKey = primaryKey;
             if (!schema) {
-                let baseKey = primaryKey.replace(/\d+[A-Za-z]?$/, '');
-                if (/^noteimage\d+h$/i.test(primaryKey) || /^holdnotehead/i.test(primaryKey)) baseKey = 'HoldNoteHeadImage';
-                else if (/^noteimage\d+l$/i.test(primaryKey) || /^holdnotebody/i.test(primaryKey)) baseKey = 'HoldNoteBodyImage';
-                else if (/^noteimage\d+t$/i.test(primaryKey) || /^holdnotetail/i.test(primaryKey)) baseKey = 'HoldNoteTailImage';
-                else if (/^keyimage\d+d$/i.test(primaryKey) || /^keyimagedown/i.test(primaryKey)) baseKey = 'KeyImageDown';
-                else if (/^keyimage\d+$/i.test(primaryKey)) baseKey = 'KeyImage';
-                else if (/^noteimage\d+$/i.test(primaryKey)) baseKey = 'NoteImage';
+                const baseKey = resolveSchemaCardKey(primaryKey);
                 schema = SKIN_INI_PARAM_SCHEMA.find(p => p.key === baseKey);
                 if (schema) targetCardKey = schema.key;
             }
@@ -315,13 +316,7 @@
                 keysToHighlight.forEach((k) => {
                     let card = document.getElementById(`param-card-${k}`);
                     if (!card) {
-                        let baseKey = k.replace(/\d+[A-Za-z]?$/, '');
-                        if (/^noteimage\d+h$/i.test(k) || /^holdnotehead/i.test(k)) baseKey = 'HoldNoteHeadImage';
-                        else if (/^noteimage\d+l$/i.test(k) || /^holdnotebody/i.test(k)) baseKey = 'HoldNoteBodyImage';
-                        else if (/^noteimage\d+t$/i.test(k) || /^holdnotetail/i.test(k)) baseKey = 'HoldNoteTailImage';
-                        else if (/^keyimage\d+d$/i.test(k) || /^keyimagedown/i.test(k)) baseKey = 'KeyImageDown';
-                        else if (/^keyimage\d+$/i.test(k)) baseKey = 'KeyImage';
-                        else if (/^noteimage\d+$/i.test(k)) baseKey = 'NoteImage';
+                        const baseKey = resolveSchemaCardKey(k);
                         card = document.getElementById(`param-card-${baseKey}`);
                     }
                     if (card) {
